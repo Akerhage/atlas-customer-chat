@@ -1,0 +1,275 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 
+  ATLAS CUSTOMER CHAT - FIXED THEME
+  Detta är ett låst tema för kundchatten.
+  Inga temaväxlare exponeras för kunder.
+  Baserat på chrome-light estetik.
+*/
+
+@layer base {
+  :root {
+    /* === CORE BACKGROUNDS === */
+    --background: 210 20% 98%;
+    --foreground: 220 25% 10%;
+    
+    /* === CARD/SURFACE === */
+    --card: 0 0% 100%;
+    --card-foreground: 220 25% 10%;
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 25% 10%;
+    
+    /* === PRIMARY - Atlas Blue === */
+    --primary: 210 80% 45%;
+    --primary-foreground: 0 0% 100%;
+    
+    /* === SECONDARY === */
+    --secondary: 210 25% 93%;
+    --secondary-foreground: 220 25% 20%;
+    
+    /* === MUTED === */
+    --muted: 210 20% 96%;
+    --muted-foreground: 215 15% 45%;
+    
+    /* === ACCENT - Teal === */
+    --accent: 180 45% 45%;
+    --accent-foreground: 0 0% 100%;
+    
+    /* === DESTRUCTIVE === */
+    --destructive: 0 75% 55%;
+    --destructive-foreground: 0 0% 100%;
+    
+    /* === BORDERS & INPUTS === */
+    --border: 214 25% 88%;
+    --input: 214 25% 88%;
+    --ring: 210 80% 45%;
+    
+    --radius: 1rem;
+
+    /* === ATLAS CHAT SPECIFIC TOKENS === */
+    --chat-bg: 210 25% 96%;
+    --chat-header-bg: 0 0% 100%;
+    --chat-input-bg: 0 0% 100%;
+    
+    /* Bubble tokens - Atlas style */
+    --bubble-atlas-bg: 0 0% 100%;
+    --bubble-atlas-border: 214 25% 90%;
+    --bubble-atlas-text: 220 25% 15%;
+    --bubble-atlas-shadow: 210 30% 80%;
+    
+    --bubble-user-bg: 210 80% 45%;
+    --bubble-user-border: 210 80% 40%;
+    --bubble-user-text: 0 0% 100%;
+    --bubble-user-shadow: 210 60% 35%;
+    
+    /* Frosted glass effect */
+    --frost-blur: 12px;
+    --frost-opacity: 0.85;
+    
+    /* Typing indicator */
+    --typing-dot: 210 80% 45%;
+    
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 hsl(220 25% 10% / 0.03);
+    --shadow-md: 0 4px 12px -2px hsl(220 25% 10% / 0.08);
+    --shadow-lg: 0 12px 32px -8px hsl(220 25% 10% / 0.12);
+    --shadow-glow: 0 0 24px -4px hsl(var(--primary) / 0.25);
+
+    /* Sidebar tokens (unused in customer chat but required) */
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  /* === DARK THEME === */
+  .dark {
+    --background: 220 20% 10%;
+    --foreground: 210 20% 95%;
+    
+    --card: 220 20% 13%;
+    --card-foreground: 210 20% 95%;
+    
+    --popover: 220 20% 13%;
+    --popover-foreground: 210 20% 95%;
+    
+    --primary: 160 70% 45%;
+    --primary-foreground: 220 20% 10%;
+    
+    --secondary: 220 15% 18%;
+    --secondary-foreground: 210 20% 90%;
+    
+    --muted: 220 15% 16%;
+    --muted-foreground: 215 15% 60%;
+    
+    --accent: 160 60% 40%;
+    --accent-foreground: 220 20% 10%;
+    
+    --destructive: 0 65% 50%;
+    --destructive-foreground: 0 0% 100%;
+    
+    --border: 220 15% 20%;
+    --input: 220 15% 20%;
+    --ring: 160 70% 45%;
+
+    /* Chat specific dark tokens */
+    --chat-bg: 220 20% 8%;
+    --chat-header-bg: 220 20% 12%;
+    --chat-input-bg: 220 20% 13%;
+    
+    --bubble-atlas-bg: 220 20% 14%;
+    --bubble-atlas-border: 220 15% 22%;
+    --bubble-atlas-text: 210 20% 92%;
+    --bubble-atlas-shadow: 220 30% 5%;
+    
+    --bubble-user-bg: 160 70% 40%;
+    --bubble-user-border: 160 70% 35%;
+    --bubble-user-text: 220 20% 10%;
+    --bubble-user-shadow: 160 50% 20%;
+    
+    --typing-dot: 160 70% 45%;
+    
+    --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.2);
+    --shadow-md: 0 4px 12px -2px hsl(0 0% 0% / 0.3);
+    --shadow-lg: 0 12px 32px -8px hsl(0 0% 0% / 0.4);
+    --shadow-glow: 0 0 24px -4px hsl(var(--primary) / 0.3);
+
+    --sidebar-background: 220 20% 10%;
+    --sidebar-foreground: 210 20% 90%;
+    --sidebar-primary: 160 70% 45%;
+    --sidebar-primary-foreground: 220 20% 10%;
+    --sidebar-accent: 220 15% 18%;
+    --sidebar-accent-foreground: 210 20% 90%;
+    --sidebar-border: 220 15% 20%;
+    --sidebar-ring: 160 70% 45%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+}
+
+/* === CUSTOM UTILITIES === */
+@layer utilities {
+  .frosted-glass {
+    backdrop-filter: blur(var(--frost-blur));
+    -webkit-backdrop-filter: blur(var(--frost-blur));
+  }
+  
+  .bubble-shadow-atlas {
+    box-shadow: 
+      0 2px 8px -2px hsl(var(--bubble-atlas-shadow) / 0.15),
+      0 1px 2px -1px hsl(var(--bubble-atlas-shadow) / 0.1);
+  }
+  
+  .bubble-shadow-user {
+    box-shadow: 
+      0 2px 8px -2px hsl(var(--bubble-user-shadow) / 0.3),
+      0 1px 2px -1px hsl(var(--bubble-user-shadow) / 0.2);
+  }
+  
+  .chat-shadow {
+    box-shadow: var(--shadow-lg);
+  }
+  
+  .input-glow:focus-within {
+    box-shadow: var(--shadow-glow);
+  }
+}
+
+/* === ANIMATIONS === */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes typingBounce {
+  0%, 60%, 100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse-soft {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.3s ease-out forwards;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.25s ease-out forwards;
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 1.5s ease-in-out infinite;
+}
+
+.typing-dot {
+  animation: typingBounce 1.2s ease-in-out infinite;
+}
+
+.typing-dot:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.typing-dot:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+/* === SCROLLBAR STYLING === */
+.chat-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chat-scrollbar::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.2);
+  border-radius: 3px;
+}
+
+.chat-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.3);
+}
