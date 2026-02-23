@@ -270,52 +270,49 @@ socket.emit('client:typing', { sessionId, conversationId: sessionId });
 // === API CALLS ===
 
 export interface ContactContext {
-contact_name?: string;
-contact_email?: string;
-contact_phone?: string;
+name?: string;
+email?: string;
+phone?: string;
 }
 
 export async function sendMessage(
-message: string,
-isFirstMessage: boolean = false, // 🔥 LÄGG TILL PARAMETER
-context?: ChatContext & ContactContext
+  message: string,
+  isFirstMessage: boolean = false,
+  context?: ChatContext & ContactContext
 ): Promise<ChatResponse> {
-const sessionId = getSessionId();
+  const sessionId = getSessionId();
 
-console.log('[Atlas] Sending message:', { sessionId, message, isFirstMessage, context });
+  console.log('[Atlas] Sending message:', { sessionId, message, isFirstMessage, context });
 
-const body: Record<string, unknown> = {
-sessionId,
-message,
-isFirstMessage, // 🔥 INKLUDERA I PAYLOAD
-};
-
-// --- DIN BEVARADE LOGIK FÖR CONTEXT (UPPDATERAD) ---
-// Vi lägger till agent_id i kontrollen och i objektet
-if (context && (context.city || context.area || context.vehicle || context.agent_id || context.contact_name || context.contact_email)) {
-  const locked_context: ChatContext & ContactContext = {
-    city: context.city ?? null,
-    area: context.area ?? null,
-    vehicle: context.vehicle ?? null,
-    agent_id: context.agent_id ?? null, // 🔥 VIKTIGT: Skickar taggen till servern
+  const body: Record<string, unknown> = {
+    sessionId,
+    message,
+    isFirstMessage,
   };
 
-if (context.contact_name) locked_context.contact_name = context.contact_name;
-if (context.contact_email) locked_context.contact_email = context.contact_email;
-if (context.contact_phone) locked_context.contact_phone = context.contact_phone;
+  if (context && (context.city || context.area || context.vehicle || context.agent_id || context.name || context.email || context.phone)) {
+    // Vi skapar objektet enligt vad din server.js förväntar sig på rad 133
+    const locked_context: any = {
+      city: context.city ?? null,
+      area: context.area ?? null,
+      vehicle: context.vehicle ?? null,
+      agent_id: context.agent_id ?? null,
+    };
 
-// Claude-style shape
-body.context = { locked_context };
+    // Mappa de nya namnen
+    if (context.name) locked_context.name = context.name;
+    if (context.email) locked_context.email = context.email;
+    if (context.phone) locked_context.phone = context.phone;
 
-// Extra fallbacks för andra backends (Bevarade)
-body.locked_context = locked_context;
-if (locked_context.city) body.city = locked_context.city;
-if (locked_context.area) body.area = locked_context.area;
-if (locked_context.vehicle) body.vehicle = locked_context.vehicle;
-if (locked_context.contact_name) body.contact_name = locked_context.contact_name;
-if (locked_context.contact_email) body.contact_email = locked_context.contact_email;
-if (locked_context.contact_phone) body.contact_phone = locked_context.contact_phone;
-}
+    // Detta är huvudformatet din server.js läser på rad 133
+    body.context = { locked_context };
+
+    // Fallbacks som din server.js använder för metadata-flaggor
+    body.locked_context = locked_context;
+    if (locked_context.name) body.name = locked_context.name;
+    if (locked_context.email) body.email = locked_context.email;
+    if (locked_context.phone) body.phone = locked_context.phone;
+  }
 
 const response = await fetch(`${BASE_URL}/message`, {
 method: 'POST',
