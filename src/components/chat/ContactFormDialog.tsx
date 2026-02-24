@@ -72,7 +72,7 @@ setIsSubmitting(true);
 try {
 // 🔥 ROUTING: Hitta kontoret i vår dynamiska lista för att få rätt tagg och RAG-kontext
 const selectedOffice = offices.find(o => o.name === formData.city);
-const targetAgentId = selectedOffice ? selectedOffice.routing_tag : 'centralsupport';
+const targetAgentId = selectedOffice ? selectedOffice.routing_tag : null; // null = centralsupport/huvudinkorg
 const routingCity = selectedOffice ? selectedOffice.city : null;
 const routingArea = selectedOffice ? selectedOffice.area : null;
 

@@ -450,12 +450,12 @@ routingArea = split.area;
 
 // Hitta kontoret i vår dynamiska lista för att få rätt tagg från DB
 const selectedOffice = offices.find(o => o.name === contactInfo.city);
-const targetAgentId = selectedOffice ? selectedOffice.routing_tag : 'admin';
+const targetAgentId = selectedOffice ? selectedOffice.routing_tag : null; // null = centralsupport/huvudinkorg
 
 const contextWithContact = {
 vehicle: contactInfo.vehicle,
 city: routingCity,
-aarea: routingArea,
+area: routingArea,
 agent_id: targetAgentId, // 🔥 Skickar exakta taggen från DB
 name: contactInfo.name,
 email: contactInfo.email,

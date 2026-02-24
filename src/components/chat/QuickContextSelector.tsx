@@ -31,7 +31,6 @@ const OFFICE_QUESTIONS: QuestionCategory = {
 category: "Om kontoret i {{stad}}",
 questions: [
 "Vilka körkortsutbildningar erbjuder ni i {{stad}}?",
-"Vilka språk kan jag få undervisning på i {{stad}}?",
 "Var i {{stad}} ligger kontoret och när har ni öppet?",
 "Vilka prispaket finns för körkort i {{stad}}?",
 ],
