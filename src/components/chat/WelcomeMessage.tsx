@@ -2,9 +2,9 @@ import { QuickContextSelector } from "./QuickContextSelector";
 
 interface WelcomeMessageProps {
 onQuickAction?: (message: string, context?: { vehicle: string; city: string }) => void;
-selectedVehicle: "BIL" | "MC" | "AM" | null;
+selectedVehicle: "BIL" | "MC" | "AM" | "LASTBIL" | null;
 selectedCity: string | null;
-onVehicleChange: (vehicle: "BIL" | "MC" | "AM" | null) => void;
+onVehicleChange: (vehicle: "BIL" | "MC" | "AM" | "LASTBIL" | null) => void;
 onCityChange: (city: string | null) => void;
 offices: any[]; // 🔥 TILLAGD: Krävs för att skicka vidare till selector
 }

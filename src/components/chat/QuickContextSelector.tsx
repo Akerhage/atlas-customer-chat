@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, Car, Bike, MapPin, HelpCircle, CircleDot } from "lucide-react";
+import { ChevronDown, Car, Bike, MapPin, HelpCircle, CircleDot, Truck } from "lucide-react";
 import {
 DropdownMenu,
 DropdownMenuContent,
@@ -10,7 +10,7 @@ DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-type VehicleType = "BIL" | "MC" | "AM" | null;
+type VehicleType = "BIL" | "MC" | "AM" | "LASTBIL" | null;
 
 interface QuickContextSelectorProps {
 onSendMessage: (message: string, context?: { vehicle: string; city: string }) => void;
@@ -18,7 +18,7 @@ selectedVehicle: VehicleType;
 selectedCity: string | null;
 onVehicleChange: (vehicle: VehicleType) => void;
 onCityChange: (city: string | null) => void;
-offices: any[]; // 🔥 TILLAGD
+offices: any[];
 }
 
 interface QuestionCategory {
@@ -26,17 +26,15 @@ category: string;
 questions: string[];
 }
 
-// Kontorsspecifika frågor - Optimerade för kontors-JSON (services, languages, opening hours)
 const OFFICE_QUESTIONS: QuestionCategory = {
 category: "Om kontoret i {{stad}}",
 questions: [
 "Vilka körkortsutbildningar erbjuder ni i {{stad}}?",
 "Var i {{stad}} ligger kontoret och när har ni öppet?",
-"Vilka prispaket finns för körkort i {{stad}}?",
 ],
 };
 
-const QUESTIONS_BY_VEHICLE: Record<"BIL" | "MC" | "AM", QuestionCategory[]> = {
+const QUESTIONS_BY_VEHICLE: Record<"BIL" | "MC" | "AM" | "LASTBIL", QuestionCategory[]> = {
 AM: [
 {
 category: "AM-utbildning",
@@ -64,7 +62,6 @@ category: "Paket & Pris",
 questions: [
 "Vad kostar körkort för bil i {{stad}}?",
 "Vad är skillnaden på Baspaket, Mellanpaket och Totalpaket?",
-"Erbjuder ni intensivkurs för bil i {{stad}} och vad kostar den?",
 "Kan jag betala mitt körkort med Klarna eller delbetalning?",
 ],
 },
@@ -104,11 +101,30 @@ questions: [
 ],
 },
 ],
+LASTBIL: [
+{
+category: "Lastbil & Buss",
+questions: [
+"Vad kostar C-körkort i {{stad}}?",
+"Vad är skillnaden mellan C, C1 och CE-körkort?",
+"Vilka krav finns för att ta C-körkort?",
+"Vad är YKB och behöver jag det?",
+"Erbjuder ni lastbilsutbildning i {{stad}}?",
+],
+},
+{
+category: "YKB & Fortbildning",
+questions: [
+"Vad kostar YKB-fortbildning i {{stad}}?",
+"Hur många delkurser ingår i YKB-fortbildningen?",
+"Vad är skillnaden på YKB grundutbildning och fortbildning?",
+],
+},
+],
 };
 
-// Hjälpfunktion för att sortera kategorier
 function getSortedQuestionsForVehicle(
-vehicle: "BIL" | "MC" | "AM",
+vehicle: "BIL" | "MC" | "AM" | "LASTBIL",
 city: string
 ): QuestionCategory[] {
 const categories = QUESTIONS_BY_VEHICLE[vehicle];
@@ -144,26 +160,27 @@ const VEHICLE_ICONS = {
 BIL: Car,
 MC: Bike,
 AM: CircleDot,
+LASTBIL: Truck,
 };
 
 const VEHICLE_LABELS = {
 BIL: "Bil (B)",
 MC: "Motorcykel",
 AM: "Moped (AM)",
+LASTBIL: "Lastbil / Buss",
 };
 
-export function QuickContextSelector({ 
-onSendMessage, 
-selectedVehicle, 
-selectedCity, 
-onVehicleChange, 
+export function QuickContextSelector({
+onSendMessage,
+selectedVehicle,
+selectedCity,
+onVehicleChange,
 onCityChange,
-offices // 🔥 TILLAGD
+offices,
 }: QuickContextSelectorProps) {
 
 const handleQuestionClick = (question: string) => {
 if (selectedVehicle && selectedCity) {
-// Replace {{stad}} with actual city name - only send the question, context shows in the selector
 const formattedQuestion = question.replace(/\{\{stad\}\}/g, selectedCity);
 onSendMessage(formattedQuestion, { vehicle: selectedVehicle, city: selectedCity });
 }
@@ -176,7 +193,6 @@ onCityChange(null);
 
 return (
 <div className="flex flex-col items-center gap-3 px-4 py-2 animate-fade-in-up">
-{/* Selection summary */}
 {(selectedVehicle || selectedCity) && (
 <div className="flex items-center gap-2 text-xs text-muted-foreground">
 {selectedVehicle && (
@@ -198,7 +214,6 @@ className="text-muted-foreground hover:text-foreground underline text-xs"
 </div>
 )}
 
-{/* Selector buttons */}
 <div className="flex flex-wrap justify-center gap-2">
 {/* Vehicle Type */}
 <DropdownMenu>
@@ -225,7 +240,7 @@ return <Icon className="w-4 h-4" />;
 </button>
 </DropdownMenuTrigger>
 <DropdownMenuContent className="bg-popover text-popover-foreground border border-border shadow-lg z-50">
-{(["AM", "BIL", "MC"] as const).map((type) => {
+{(["AM", "BIL", "MC", "LASTBIL"] as const).map((type) => {
 const Icon = VEHICLE_ICONS[type];
 return (
 <DropdownMenuItem
@@ -261,7 +276,6 @@ selectedCity
 </DropdownMenuTrigger>
 <DropdownMenuContent className="bg-popover border border-border shadow-lg z-50">
 <ScrollArea className="h-72">
-{/* 🚀 Denna loop använder nu offices-listan från databasen istället för CITIES */}
 {offices.map((office) => (
 <DropdownMenuItem
 key={office.id}
@@ -296,26 +310,26 @@ Välj fråga
 </button>
 </DropdownMenuTrigger>
 {selectedCity && (
-<DropdownMenuContent 
+<DropdownMenuContent
 className="bg-popover border border-border shadow-lg z-50 w-80"
 align="center"
 >
 <ScrollArea className="h-80">
 {getSortedQuestionsForVehicle(selectedVehicle, selectedCity).map((cat, catIdx) => (
 <div key={cat.category}>
-{catIdx > 0 && <DropdownMenuSeparator />}
-<DropdownMenuLabel className="text-xs text-muted-foreground font-medium">
-{cat.category}
-</DropdownMenuLabel>
-{cat.questions.map((question, idx) => (
-<DropdownMenuItem
-key={idx}
-onClick={() => handleQuestionClick(question)}
-className="cursor-pointer text-sm py-2 whitespace-normal"
->
-{question.replace(/\{\{stad\}\}/g, selectedCity)}
-</DropdownMenuItem>
-))}
+  {catIdx > 0 && <DropdownMenuSeparator />}
+  <DropdownMenuLabel className="text-xs text-muted-foreground font-medium">
+	{cat.category}
+  </DropdownMenuLabel>
+  {cat.questions.map((question, idx) => (
+	<DropdownMenuItem
+	  key={idx}
+	  onClick={() => handleQuestionClick(question)}
+	  className="cursor-pointer text-sm py-2 whitespace-normal"
+	>
+	  {question.replace(/\{\{stad\}\}/g, selectedCity)}
+	</DropdownMenuItem>
+  ))}
 </div>
 ))}
 </ScrollArea>
@@ -325,7 +339,6 @@ className="cursor-pointer text-sm py-2 whitespace-normal"
 )}
 </div>
 
-{/* Helper text */}
 {!selectedVehicle && (
 <p className="text-xs text-muted-foreground mt-1">
 Välj fordonstyp för att se relevanta frågor

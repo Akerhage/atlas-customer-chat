@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ListTodo, ChevronDown, MapPin, Car, Bike, CircleDot } from "lucide-react";
+import { ListTodo, ChevronDown, MapPin, Car, Bike, CircleDot, Truck } from "lucide-react";
 import {
 DropdownMenu,
 DropdownMenuContent,
@@ -16,7 +16,7 @@ PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
-type VehicleType = "BIL" | "MC" | "AM" | null;
+type VehicleType = "BIL" | "MC" | "AM" | "LASTBIL" | null;
 
 interface QuickQuestionsButtonProps {
 onSendMessage: (message: string, context?: { vehicle: string; city: string }) => void;
@@ -39,8 +39,6 @@ category: "Om kontoret i {{stad}}",
 questions: [
 "Vilka körkortsutbildningar erbjuder ni i {{stad}}?",
 "Var i {{stad}} ligger kontoret och när har ni öppet?",
-"Vilka prispaket finns för körkort i {{stad}}?",
-"Erbjuder ni intensivkurs för {{fordon}} i {{stad}}?",
 ],
 };
 
@@ -49,8 +47,6 @@ const COMMON_QUESTIONS: QuestionCategory[] = [
 {
 category: "Populära frågor",
 questions: [
-"Vad kostar det att ta körkort för bil hos er?", 
-"Hur bokar jag en introduktionskurs?",
 "Vilka betalningsalternativ finns?",
 "Hur lång tid tar det att ta körkort för bil?",
 ],
@@ -75,12 +71,12 @@ questions: [
 },
 ];
 
-const QUESTIONS_BY_VEHICLE: Record<"BIL" | "MC" | "AM", QuestionCategory[]> = {
+const QUESTIONS_BY_VEHICLE: Record<"BIL" | "MC" | "AM" | "LASTBIL", QuestionCategory[]> = {
 AM: [{
 category: "AM & Mopedutbildning",
 questions: [
 "Hur gammal måste man vara för att börja AM-kursen?",
-"Vad kostar AM-kursen och vad ingår?",
+"Vad kostar AM-kursen och vad ingår i priset?",
 "Måste jag ha körkortstillstånd för moped?",
 "Får man övningsköra moped privat?",
 "Hur går manöverkörningen till på banan?",
@@ -142,10 +138,39 @@ questions: [
 ] 
 },
 ],
+LASTBIL: [
+    {
+      category: "Körkort för Lastbil",
+      questions: [
+        "Vad är skillnaden mellan C, C1 och CE-körkort?",
+        "Vilka krav måste jag uppfylla för att ta C-körkort?",
+        "Måste jag ha B-körkort innan jag börjar lastbilsutbildningen?",
+        "Hur lång tid tar lastbilsutbildningen?",
+        "Vad kostar C-körkort i {{stad}}?",
+      ],
+    },
+    {
+      category: "YKB & Yrkestrafik",
+      questions: [
+        "Vad är YKB och behöver jag det?",
+        "Vad är skillnaden på YKB grundutbildning och fortbildning?",
+        "Hur många timmar är YKB-fortbildningen och vad kostar den?",
+        "Hur ofta måste man förnya YKB?",
+      ],
+    },
+    {
+      category: "Bokning & Kontakt",
+      questions: [
+        "Hur bokar jag lastbilsutbildning i {{stad}}?",
+        "Kan jag betala lastbilsutbildningen med Klarna?",
+        "Erbjuder ni D-körkort (buss) i {{stad}}?",
+      ],
+    },
+  ],
 };
 
-const VEHICLE_ICONS = { BIL: Car, MC: Bike, AM: CircleDot };
-const VEHICLE_LABELS = { BIL: "Bil", MC: "MC", AM: "Moped" };
+const VEHICLE_ICONS = { BIL: Car, MC: Bike, AM: CircleDot, LASTBIL: Truck };
+const VEHICLE_LABELS = { BIL: "Bil", MC: "MC", AM: "Moped", LASTBIL: "Lastbil" };
 
 export function QuickQuestionsButton({
 onSendMessage,
@@ -258,7 +283,7 @@ className={cn(selectedCity === office.name && "bg-primary/10")}
 </button>
 </DropdownMenuTrigger>
 <DropdownMenuContent>
-{(["BIL", "MC", "AM"] as const).map((type) => (
+{(["BIL", "MC", "AM", "LASTBIL"] as const).map((type) => (
 <DropdownMenuItem key={type} onClick={() => onVehicleChange(type)} className={cn(selectedVehicle === type && "bg-primary/10")}>
 {VEHICLE_LABELS[type]}
 </DropdownMenuItem>

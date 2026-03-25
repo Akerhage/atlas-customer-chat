@@ -26,7 +26,7 @@ name: string;
 email: string;
 phone?: string;
 city: string;      // För routing till rätt kontor
-vehicle: "BIL" | "MC" | "AM"; 
+vehicle: "BIL" | "MC" | "AM" | "LASTBIL"; 
 }
 
 interface NameInputDialogProps {
@@ -34,7 +34,7 @@ open: boolean;
 onOpenChange: (open: boolean) => void;
 onConfirm: (contactInfo: ContactInfo) => void;
 defaultCity?: string | null;      
-defaultVehicle?: "BIL" | "MC" | "AM" | null;
+defaultVehicle?: "BIL" | "MC" | "AM" | "LASTBIL" | null;
 offices: any[]; // 🔥 TILLAGD: Tar emot listan från AtlasChat.tsx
 }
 
@@ -81,7 +81,7 @@ name: trimmedName,
 email: trimmedEmail,
 phone: phone.trim() || undefined,
 city: city, 
-vehicle: vehicle as "BIL" | "MC" | "AM",
+vehicle: vehicle as "BIL" | "MC" | "AM" | "LASTBIL",
 });
 
 resetForm();
@@ -187,6 +187,7 @@ placeholder="070-000 00 00"
 <SelectItem value="BIL">Bil (B)</SelectItem>
 <SelectItem value="MC">Motorcykel (A)</SelectItem>
 <SelectItem value="AM">Moped (AM)</SelectItem>
+<SelectItem value="LASTBIL">Lastbil / Buss</SelectItem>
 </SelectContent>
 </Select>
 {errors.vehicle && <p className="text-[10px] text-destructive font-medium ml-1">{errors.vehicle}</p>}

@@ -1,7 +1,7 @@
 declare global {
 interface Window {
 selectedCity: string | null;
-selectedVehicle: "BIL" | "MC" | "AM" | null;
+selectedVehicle: "BIL" | "MC" | "AM" | "LASTBIL" | null;
 }
 }
 
@@ -33,6 +33,7 @@ type ChatContext,
 type HistoryMessage,
 type CustomerReplyEvent,
 type SessionStatusEvent,
+type SessionWarningEvent,
 } from "@/lib/atlas-client";
 import { toast } from "sonner";
 
@@ -41,6 +42,7 @@ id: string;
 role: 'user' | 'assistant';
 content: string;
 timestamp: Date;
+senderName?: string | null; // Agentens namn för mänskliga svar (null = Atlas AI)
 }
 
 // Convert history role to our internal role
@@ -78,20 +80,24 @@ const [isDark, setIsDark] = useState(true);
 const [showEndDialog, setShowEndDialog] = useState(false);
 const [showNameDialog, setShowNameDialog] = useState(false);
 const [humanMode, setHumanMode] = useState(false);
-const [agentName, setAgentName] = useState<string | null>(null);
+const [agentNames, setAgentNames] = useState<string[]>([]); // Alla agenter som svarat
+const [typingAgentName, setTypingAgentName] = useState<string | null>(null); // Vem skriver just nu
 const [isArchived, setIsArchived] = useState(false);
 const [closedByAgent, setClosedByAgent] = useState(false);
 const [customerName, setCustomerName] = useState<string | null>(null);
 const [customerEmail, setCustomerEmail] = useState<string | null>(null);
 const [customerPhone, setCustomerPhone] = useState<string | null>(null);
 const [archivedMessage, setArchivedMessage] = useState<string | null>(null);
+const [inactivityWarning, setInactivityWarning] = useState(false);
+const [inactivityCountdown, setInactivityCountdown] = useState(300); // 5 min i sekunder
+const inactivityTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 const [context, setContext] = useState<ChatContext>({
 city: null,
 area: null,
 vehicle: null,
 });
 // Separate state for selection UI (before first message is sent)
-const [selectedVehicle, setSelectedVehicle] = useState<"BIL" | "MC" | "AM" | null>(null);
+const [selectedVehicle, setSelectedVehicle] = useState<"BIL" | "MC" | "AM" | "LASTBIL" | null>(null);
 const [selectedCity, setSelectedCity] = useState<string | null>(null);
 
 // Hämta kontorslistan från API när chatten bootar
@@ -118,7 +124,7 @@ window.selectedVehicle = selectedVehicle;
 }, [selectedCity, selectedVehicle]);
 
 // Keep context in sync with selections so it can be sent even for manual input
-const handleVehicleChange = (vehicle: "BIL" | "MC" | "AM" | null) => {
+const handleVehicleChange = (vehicle: "BIL" | "MC" | "AM" | "LASTBIL" | null) => {
 setSelectedVehicle(vehicle);
 setContext((prev) => ({ ...prev, vehicle }));
 };
@@ -149,9 +155,10 @@ scrollToBottom();
 const handleAgentReply = useCallback((event: CustomerReplyEvent) => {
 console.log('[AtlasChat] Received agent reply via socket:', event);
 
-// Store the agent name when we receive a reply
-if (event.sender && event.sender !== 'agent') {
-setAgentName(event.sender);
+// Spara och ackumulera agentnamn (deduplicate, max 5)
+const name = event.sender && event.sender !== 'agent' ? event.sender : null;
+if (name) {
+setAgentNames((prev) => prev.includes(name) ? prev : [...prev.slice(-4), name]);
 }
 
 const agentMessage: ChatMessage = {
@@ -159,47 +166,79 @@ id: generateMessageId(),
 role: 'assistant',
 content: event.message,
 timestamp: new Date(),
+senderName: name,
 };
 
 setMessages((prev) => [...prev, agentMessage]);
 lastMessageCountRef.current += 1;
 setIsTyping(false);
+setTypingAgentName(null);
 }, []);
 
 // Handle session status changes (archived, etc.)
+// FIX: Tog bort messages.length som dependency — det skapade en ny callback-referens
+// vid varje nytt meddelande, vilket triggar om useEffect nedan och orsakar en
+// disconnect/reconnect-loop där lyssnarna aldrig hann registreras korrekt.
 const handleSessionStatus = useCallback((event: SessionStatusEvent) => {
 console.log('[AtlasChat] Received session status via socket:', event);
 
 if (event.status === 'archived') {
+const byInactivity = event.close_reason === 'inactivity';
 setIsArchived(true);
-setArchivedMessage(event.message || 'Chatten är avslutad av handläggaren.');
+setArchivedMessage(event.message || (byInactivity ? 'Chatten har stängts automatiskt på grund av inaktivitet.' : 'Chatten är avslutad av handläggaren.'));
 setIsTyping(false);
-setClosedByAgent(true);
-// Show the end dialog when agent archives
-if (messages.length > 0) {
+setClosedByAgent(!byInactivity);
+setInactivityWarning(false);
+if (inactivityTimerRef.current) { clearInterval(inactivityTimerRef.current); inactivityTimerRef.current = null; }
 setShowEndDialog(true);
 }
-}
-}, [messages.length]);
+}, []); // eslint-disable-line react-hooks/exhaustive-deps
 
 // Handle agent typing indicator
-const handleAgentTyping = useCallback(() => {
-console.log('[AtlasChat] Agent is typing...');
+const handleAgentTyping = useCallback((_sessionId: string, agentName: string | null) => {
+console.log('[AtlasChat] Agent is typing...', agentName);
 setIsTyping(true);
+setTypingAgentName(agentName);
 // Auto-clear after 3 seconds (agent stopped typing or sent message)
-setTimeout(() => setIsTyping(false), 3000);
+setTimeout(() => {
+setIsTyping(false);
+setTypingAgentName(null);
+}, 3000);
+}, []);
+
+// Handle inactivity warning — start a 5-minute countdown
+const handleInactivityWarning = useCallback((event: SessionWarningEvent) => {
+console.log('[AtlasChat] Inactivity warning received:', event);
+const seconds = (event.minutesLeft ?? 5) * 60;
+setInactivityWarning(true);
+setInactivityCountdown(seconds);
+
+// Rensa eventuell tidigare timer
+if (inactivityTimerRef.current) clearInterval(inactivityTimerRef.current);
+
+inactivityTimerRef.current = setInterval(() => {
+setInactivityCountdown((prev) => {
+if (prev <= 1) {
+clearInterval(inactivityTimerRef.current!);
+inactivityTimerRef.current = null;
+return 0;
+}
+return prev - 1;
+});
+}, 1000);
 }, []);
 
 // Connect socket on mount, disconnect on unmount
 useEffect(() => {
 console.log('[AtlasChat] Initializing socket connection...');
-connectSocket(handleAgentReply, handleSessionStatus, handleAgentTyping);
+connectSocket(handleAgentReply, handleSessionStatus, handleAgentTyping, handleInactivityWarning);
 
 return () => {
 console.log('[AtlasChat] Cleaning up socket connection...');
+if (inactivityTimerRef.current) clearInterval(inactivityTimerRef.current);
 disconnectSocket();
 };
-}, [handleAgentReply, handleSessionStatus, handleAgentTyping]);
+}, [handleAgentReply, handleSessionStatus, handleAgentTyping, handleInactivityWarning]);
 
 // Polling for human mode - fetch history and sync messages
 const pollHistory = useCallback(async () => {
@@ -211,8 +250,10 @@ setHumanMode(history.human_mode);
 
 // Check if session is archived (persistent state from backend)
 if (history.is_archived) {
+const byInactivity = history.close_reason === 'inactivity';
 setIsArchived(true);
-setArchivedMessage('Chatten är avslutad av handläggaren.');
+setArchivedMessage(byInactivity ? 'Chatten har stängts automatiskt på grund av inaktivitet.' : 'Chatten är avslutad av handläggaren.');
+setClosedByAgent(!byInactivity);
 }
 
 // Always sync messages from server - compare by content, not just count
@@ -277,14 +318,33 @@ return () => clearInterval(pollInterval);
 
 
 const handleSendMessage = async (content: string, contextData?: { vehicle: string; city: string }) => {
+// 🔥 TRIGGER-INTERCEPT: Om kunden skriver ett trigger-ord och inte redan är i human mode,
+// visa formuläret precis som knappen gör — aldrig skicka direkt till servern.
+const HUMAN_TRIGGERS = ["prata med människa", "kundtjänst", "jag vill ha personal", "människa"];
+const isHumanTrigger = HUMAN_TRIGGERS.some(phrase => content.toLowerCase().includes(phrase));
+if (isHumanTrigger && !humanMode) {
+setShowNameDialog(true);
+return;
+}
+
+// Rensa inaktivitetsvarning när kunden skriver
+if (inactivityWarning) {
+setInactivityWarning(false);
+setInactivityCountdown(300);
+if (inactivityTimerRef.current) {
+clearInterval(inactivityTimerRef.current);
+inactivityTimerRef.current = null;
+}
+}
+
 // 1. Bygg context: Prioritera data från snabbknapp (contextData), annars använd sidans val
 let messageContext: ChatContext;
 
 if (contextData) {
 // Snabbvalet skickade med specifik stad/fordon - ANVÄND DET
 messageContext = { 
-vehicle: contextData.vehicle as "BIL" | "MC" | "AM" | null, 
-...splitCityArea(contextData.city) 
+vehicle: contextData.vehicle as "BIL" | "MC" | "AM" | "LASTBIL" | null,
+...splitCityArea(contextData.city)
 };
 } else {
 // Använd nuvarande val från fönstret
@@ -298,7 +358,7 @@ area: cityArea.area,
 
 // 2. Lägg till användarens meddelande i listan
 const userMessage: ChatMessage = {
-id: Date.now().toString(), // Förenklad ID-generering för att undvika beroendefel
+id: Date.now().toString(),
 role: 'user',
 content,
 timestamp: new Date(),
@@ -308,12 +368,12 @@ setMessages((prev) => [...prev, userMessage]);
 setIsTyping(true);
 
 try {
-// 3. SKICKA TILL SERVER (Korrigerad: Tar bort 'false' som orsakade problem)
+// 3. SKICKA TILL SERVER
 const response = await sendMessage(content, messages.length === 0, messageContext);
 
 // 4. Uppdatera context OCH de visuella knapparna om servern ändrat kontext
 if (response.locked_context) {
-const newV = response.locked_context.vehicle as "BIL" | "MC" | "AM" | null;
+const newV = response.locked_context.vehicle as "BIL" | "MC" | "AM" | "LASTBIL" | null;
 const newCity = response.locked_context.city;
 const newArea = response.locked_context.area;
 
@@ -325,21 +385,19 @@ vehicle: newV ?? context.vehicle ?? null,
 });
 
 // B) SYNK TILL UI: Uppdatera fordonstyp-knappen
-if (newV && newV !== selectedVehicle) {
+if (newV && newV !== selectedVehicle && !(selectedVehicle === 'LASTBIL' && newV === 'BIL')) {
 setSelectedVehicle(newV);
-window.selectedVehicle = newV; // Synka globalt window-objekt
+window.selectedVehicle = newV;
 }
 
 // C) SYNK TILL UI: Uppdatera stads-knappen
 if (newCity) {
-// Vi återskapar formatet "Stad – Område" så att knappen i UI hittar rätt i CITIES-listan
 const uiCityLabel = newArea ? `${newCity} – ${newArea}` : newCity;
 
 if (uiCityLabel !== selectedCity) {
 setSelectedCity(uiCityLabel);
 window.selectedCity = uiCityLabel;
 
-// UX: En diskret notis som förklarar varför knapparna ändrades
 toast.info(`Vi har anpassat dina val till ${uiCityLabel} och ${newV || 'fordon'}.`, {
 duration: 3000,
 });
@@ -382,7 +440,8 @@ setContext({ city: null, area: null, vehicle: null });
 setSelectedVehicle(null);
 setSelectedCity(null);
 setHumanMode(false);
-setAgentName(null);
+setAgentNames([]);
+setTypingAgentName(null);
 setIsArchived(false);
 setClosedByAgent(false);
 setArchivedMessage(null);
@@ -391,12 +450,12 @@ lastMessageCountRef.current = 0;
 // Reset the session id AND ensure the socket joins the new session room.
 disconnectSocket();
 resetSession();
-connectSocket(handleAgentReply, handleSessionStatus);
+connectSocket(handleAgentReply, handleSessionStatus, handleAgentTyping, handleInactivityWarning);
 };
 
 const handleQuickAction = (message: string, contextData?: { vehicle: string; city: string }) => {
 if (contextData) {
-handleVehicleChange(contextData.vehicle as "BIL" | "MC" | "AM");
+handleVehicleChange(contextData.vehicle as "BIL" | "MC" | "AM" | "LASTBIL");
 handleCityChange(contextData.city);
 }
 handleSendMessage(message, contextData);
@@ -468,7 +527,7 @@ sendMessageWithContext("Jag vill prata med en människa", contextWithContact);
 };
 
 // Helper to send message with custom context including contact info
-const sendMessageWithContext = async (content: string, contextWithContact: ChatContext & { contact_name?: string; contact_email?: string; contact_phone?: string }) => {
+const sendMessageWithContext = async (content: string, contextWithContact: ChatContext & { name?: string; email?: string; phone?: string }) => {
 const userMessage: ChatMessage = {
 id: generateMessageId(),
 role: 'user',
@@ -481,11 +540,10 @@ lastMessageCountRef.current += 1;
 setIsTyping(true);
 
 try {
-// 🔥 FIX: Tog bort 'true' argumentet här för att matcha klientens funktion
 const response = await sendMessage(content, false, contextWithContact);
 
 if (response.locked_context) {
-const newV = response.locked_context.vehicle as "BIL" | "MC" | "AM" | null;
+const newV = response.locked_context.vehicle as "BIL" | "MC" | "AM" | "LASTBIL" | null;
 const newCity = response.locked_context.city;
 const newArea = response.locked_context.area;
 
@@ -497,7 +555,7 @@ vehicle: newV ?? context.vehicle ?? null,
 });
 
 // 2. Synka Fordons-knappen visuellt
-if (newV && newV !== selectedVehicle) {
+if (newV && newV !== selectedVehicle && !(selectedVehicle === 'LASTBIL' && newV === 'BIL')) {
 setSelectedVehicle(newV);
 window.selectedVehicle = newV;
 }
@@ -558,7 +616,25 @@ offices={offices} // 🚀 NY: Dynamisk lista tillagd
 />
 
 {/* Human mode indicator */}
-{humanMode && !isArchived && <HumanModeIndicator agentName={agentName} />}
+{humanMode && !isArchived && <HumanModeIndicator agentNames={agentNames} />}
+
+{/* Inaktivitetsvarning — visas 5 min innan chatten stängs automatiskt */}
+{inactivityWarning && !isArchived && (
+<div className="bg-amber-500/15 border-b border-amber-500/30 px-4 py-3 text-center">
+<div className="flex items-center justify-center gap-2 text-amber-600 dark:text-amber-400">
+<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+</svg>
+<span className="text-sm font-medium">
+Chatten stängs automatiskt pga inaktivitet om{' '}
+<span className="tabular-nums font-bold">
+{Math.floor(inactivityCountdown / 60)}:{String(inactivityCountdown % 60).padStart(2, '0')}
+</span>
+{' '}— skriv något för att hålla den öppen.
+</span>
+</div>
+</div>
+)}
 
 {/* Archived indicator */}
 {isArchived && (
@@ -592,9 +668,10 @@ content={message.content}
 isUser={message.role === 'user'}
 timestamp={message.timestamp}
 isLatest={index === messages.length - 1}
+senderName={message.senderName}
 />
 ))}
-{isTyping && <TypingIndicator />}
+{isTyping && <TypingIndicator agentName={typingAgentName} />}
 <div ref={messagesEndRef} />
 </div>
 )}
@@ -610,7 +687,7 @@ setContext(prev => ({ ...prev, ...updates }));
 
 // 2. Uppdatera UI-State (Knapparna/ChatInput) - DETTA SAKNADES (BEVARAT)
 if (updates.vehicle !== undefined) {
-const v = updates.vehicle as "BIL" | "MC" | "AM" | null;
+const v = updates.vehicle as "BIL" | "MC" | "AM" | "LASTBIL" | null;
 setSelectedVehicle(v); 
 window.selectedVehicle = v;
 }
@@ -635,8 +712,8 @@ disabled={isTyping}
 placeholder={humanMode ? "Skriv till support..." : "Skriv ett meddelande..."}
 showQuickQuestions={messages.length > 0}
 selectedVehicle={selectedVehicle}
-onVehicleChange={handleVehicleChange} // 🔥 KOPPLA IHOP SYNK (BEVARAT)
-onCityChange={handleCityChange}       // 🔥 KOPPLA IHOP SYNK (BEVARAT)
+onVehicleChange={handleVehicleChange}
+onCityChange={handleCityChange}
 selectedCity={selectedCity}
 offices={offices} // 🚀 NY: Dynamisk lista tillagd
 />
@@ -656,7 +733,6 @@ closedByAgent={closedByAgent}
 open={showNameDialog}
 onOpenChange={setShowNameDialog}
 onConfirm={handleNameConfirmed}
-// 🔥 FIX 4: Skicka med nuvarande val som förval (BEVARAT)
 defaultCity={selectedCity}
 defaultVehicle={selectedVehicle}
 offices={offices} // 🚀 NY: Dynamisk lista tillagd

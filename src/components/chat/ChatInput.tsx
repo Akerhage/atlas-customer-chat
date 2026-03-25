@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Send, Paperclip, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { emitTyping } from "@/lib/atlas-client";
+import { emitTyping, getSessionId } from "@/lib/atlas-client";
 import { QuickQuestionsButton } from "./QuickQuestionsButton";
 import axios from "axios";
 import { toast } from "sonner";
 
-type VehicleType = "BIL" | "MC" | "AM" | null;
+type VehicleType = "BIL" | "MC" | "AM" | "LASTBIL" | null;
 
 interface ChatInputProps {
 onSend: (message: string, context?: { vehicle: string; city: string }) => void;
@@ -71,9 +71,7 @@ handleSubmit();
 }
 };
 
-const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-const file = e.target.files?.[0];
-if (!file) return;
+const handleFileUpload = async (file: File) => {
 if (file.size > 10 * 1024 * 1024) {
 toast.error("Filen är för stor (Max 10MB)");
 return;
@@ -81,12 +79,13 @@ return;
 setIsUploading(true);
 const formData = new FormData();
 formData.append("file", file);
+formData.append("session_id", getSessionId() || '');
 try {
 const res = await axios.post('/api/upload', formData, {
 headers: { "Content-Type": "multipart/form-data" },
 });
 if (res.data.success) {
-let fileLink = file.type.startsWith("image/") ? `![Bild](${res.data.url})` : `📎 [Fil: ${file.name}](${res.data.url})`;
+const fileLink = file.type.startsWith("image/") ? `![Bild](${res.data.url})` : `📎 [Fil: ${file.name}](${res.data.url})`;
 onSend(fileLink);
 toast.success("Fil skickad!");
 }
@@ -95,6 +94,26 @@ toast.error("Kunde inte ladda upp filen.");
 } finally {
 setIsUploading(false);
 if (fileInputRef.current) fileInputRef.current.value = "";
+}
+};
+
+const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+const file = e.target.files?.[0];
+if (file) handleFileUpload(file);
+};
+
+const handlePaste = (e: React.ClipboardEvent) => {
+const items = e.clipboardData?.items;
+if (!items) return;
+for (const item of Array.from(items)) {
+if (item.type.startsWith('image/')) {
+e.preventDefault();
+const file = item.getAsFile();
+if (file) {
+handleFileUpload(file);
+}
+break;
+}
 }
 };
 
@@ -112,6 +131,7 @@ ref={textareaRef}
 value={message}
 onChange={(e) => { setMessage(e.target.value); if (e.target.value.trim()) handleTyping(); }}
 onKeyDown={handleKeyDown}
+onPaste={handlePaste}
 placeholder={isUploading ? "Laddar upp..." : placeholder}
 disabled={disabled || isUploading}
 rows={1}

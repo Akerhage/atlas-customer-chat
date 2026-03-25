@@ -1,4 +1,4 @@
-import { X, ChevronDown, MapPin, Car, Bike, CircleDot } from "lucide-react";
+import { X, ChevronDown, MapPin, Car, Bike, CircleDot, Truck } from "lucide-react";
 import {
 DropdownMenu,
 DropdownMenuContent,
@@ -18,6 +18,7 @@ const VEHICLES = [
 { value: "AM", label: "Moped (AM)", icon: CircleDot },
 { value: "BIL", label: "Bil (B)", icon: Car },
 { value: "MC", label: "Motorcykel", icon: Bike },
+{ value: "LASTBIL", label: "Lastbil / Buss", icon: Truck },
 ];
 
 export function ContextIndicator({ context, onUpdateContext, offices }: ContextIndicatorProps) {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Mail, MapPin, Car } from "lucide-react";
+import { Mail, MapPin, Car, Phone } from "lucide-react";
 import {
 Dialog,
 DialogContent,
@@ -63,7 +63,7 @@ vehicle: selectedVehicle || prev.vehicle || ""
 
 const handleSubmit = async (e: React.FormEvent) => {
 e.preventDefault();
-if (!formData.email.trim() || !formData.city || !formData.vehicle) {
+if (!formData.name.trim() || !formData.email.trim() || !formData.city || !formData.vehicle) {
 toast.error("Vänligen fyll i alla obligatoriska fält (*)");
 return;
 }
@@ -73,6 +73,13 @@ try {
 // 🔥 ROUTING: Hitta kontoret i vår dynamiska lista för att få rätt tagg och RAG-kontext
 const selectedOffice = offices.find(o => o.name === formData.city);
 const targetAgentId = selectedOffice ? selectedOffice.routing_tag : null; // null = centralsupport/huvudinkorg
+
+// --- LOGGKOD BÖRJAR HÄR ---
+console.log('DEBUG offices:', offices);
+console.log('DEBUG formData.city:', formData.city);
+console.log('DEBUG selectedOffice:', selectedOffice);
+console.log('DEBUG targetAgentId:', targetAgentId);
+
 const routingCity = selectedOffice ? selectedOffice.city : null;
 const routingArea = selectedOffice ? selectedOffice.area : null;
 
@@ -98,7 +105,7 @@ setIsSubmitting(false);
 }
 };
 
-const isFormValid = formData.email.trim() && formData.city !== "" && formData.vehicle !== "";
+const isFormValid = formData.name.trim() && formData.email.trim() && formData.city !== "" && formData.vehicle !== "";
 
 return (
 <Dialog open={open} onOpenChange={setOpen}>
@@ -118,13 +125,18 @@ return (
 <form onSubmit={handleSubmit} className="space-y-4 text-foreground">
 <div className="grid grid-cols-2 gap-4">
 <div className="space-y-2">
-<Label>Namn</Label>
-<Input placeholder="Ditt namn" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} />
+<Label>Namn *</Label>
+<Input placeholder="Ditt namn" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} required />
 </div>
 <div className="space-y-2">
 <Label>E-post *</Label>
 <Input type="email" placeholder="din.email@exempel.se" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} required />
 </div>
+</div>
+
+<div className="space-y-2">
+<Label className="flex items-center gap-2"><Phone className="h-4 w-4" /> Telefon</Label>
+<Input type="tel" placeholder="070-123 45 67 (valfritt)" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} />
 </div>
 
 <div className="space-y-2">
@@ -157,6 +169,7 @@ return (
 <SelectItem value="BIL">Bil (B)</SelectItem>
 <SelectItem value="MC">Motorcykel (A)</SelectItem>
 <SelectItem value="AM">Moped (AM)</SelectItem>
+<SelectItem value="LASTBIL">Lastbil / Buss</SelectItem>
 </SelectContent>
 </Select>
 </div>

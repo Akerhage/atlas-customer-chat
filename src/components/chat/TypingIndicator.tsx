@@ -1,4 +1,8 @@
-export function TypingIndicator() {
+interface TypingIndicatorProps {
+agentName?: string | null;
+}
+
+export function TypingIndicator({ agentName }: TypingIndicatorProps = {}) {
 return (
 <div className="flex justify-start animate-fade-in-up">
 <div className="bg-bubble-atlas-bg border border-bubble-atlas-border rounded-bubble rounded-bl-md px-4 py-3 bubble-shadow-atlas">
@@ -19,6 +23,10 @@ d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4
 />
 </svg>
 </div>
+
+{agentName && (
+<span className="text-xs text-muted-foreground font-medium">{agentName} skriver</span>
+)}
 
 {/* Typing dots */}
 <div className="flex items-center gap-1">

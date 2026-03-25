@@ -7,9 +7,13 @@ content: string;
 isUser: boolean;
 timestamp?: Date;
 isLatest?: boolean;
+senderName?: string | null;
 }
 
-export function ChatBubble({ content, isUser, timestamp, isLatest }: ChatBubbleProps) {
+export function ChatBubble({ content, isUser, timestamp, isLatest, senderName }: ChatBubbleProps) {
+// Visa agentens namn om angivet, annars "Atlas" för AI-svar
+const displayName = isUser ? 'Du' : (senderName || 'Atlas');
+
 return (
 <div
 className={cn(
@@ -31,7 +35,7 @@ isUser
 <div className={cn("flex items-center gap-2 mb-1.5", isUser && "justify-end")}>
 {isUser ? (
 <>
-<span className="text-xs font-medium text-primary-foreground/70">Du</span>
+<span className="text-xs font-medium text-primary-foreground/70">{displayName}</span>
 <div className="w-5 h-5 rounded-full bg-primary-foreground/20 flex items-center justify-center">
 <User className="w-3 h-3 text-primary-foreground/80" />
 </div>
@@ -41,14 +45,20 @@ isUser
 <div className="w-5 h-5 rounded-full bg-red-500/15 flex items-center justify-center">
 <Car className="w-3 h-3 text-red-500" />
 </div>
-<span className="text-xs font-medium text-muted-foreground">Atlas</span>
+<span className="text-xs font-medium text-muted-foreground">{displayName}</span>
 </>
 )}
 </div>
 
 {/* Message content */}
 <div className="text-sm leading-relaxed prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0 prose-strong:font-semibold">
-<ReactMarkdown>{content}</ReactMarkdown>
+<ReactMarkdown
+  components={{
+    a: ({ href, children }) => (
+      <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>
+    )
+  }}
+>{content}</ReactMarkdown>
 </div>
 
 {/* Timestamp with date */}
