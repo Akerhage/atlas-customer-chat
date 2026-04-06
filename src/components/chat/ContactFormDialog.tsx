@@ -70,15 +70,9 @@ return;
 setIsSubmitting(true);
 
 try {
-// 🔥 ROUTING: Hitta kontoret i vår dynamiska lista för att få rätt tagg och RAG-kontext
+// Hitta kontoret i den dynamiska listan för att få rätt routing-tagg och RAG-kontext
 const selectedOffice = offices.find(o => o.name === formData.city);
 const targetAgentId = selectedOffice ? selectedOffice.routing_tag : null; // null = centralsupport/huvudinkorg
-
-// --- LOGGKOD BÖRJAR HÄR ---
-console.log('DEBUG offices:', offices);
-console.log('DEBUG formData.city:', formData.city);
-console.log('DEBUG selectedOffice:', selectedOffice);
-console.log('DEBUG targetAgentId:', targetAgentId);
 
 const routingCity = selectedOffice ? selectedOffice.city : null;
 const routingArea = selectedOffice ? selectedOffice.area : null;
@@ -140,9 +134,9 @@ return (
 </div>
 
 <div className="space-y-2">
-<Label className="flex items-center gap-2 font-bold text-primary"><MapPin className="h-4 w-4" /> Mottagare *</Label>
+<Label className="flex items-center gap-2 font-bold text-primary"><MapPin className="h-4 w-4" /> Kontor *</Label>
 <Select value={formData.city} onValueChange={(v) => setFormData({...formData, city: v})}>
-<SelectTrigger><SelectValue placeholder="Välj destination" /></SelectTrigger>
+<SelectTrigger><SelectValue placeholder="Välj kontor" /></SelectTrigger>
 <SelectContent className="max-h-[400px]">
 <SelectGroup>
 <SelectLabel className="text-primary font-bold border-b pb-1">Global</SelectLabel>

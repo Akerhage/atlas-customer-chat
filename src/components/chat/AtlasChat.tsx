@@ -153,8 +153,6 @@ scrollToBottom();
 
 // Socket.io connection for real-time agent replies
 const handleAgentReply = useCallback((event: CustomerReplyEvent) => {
-console.log('[AtlasChat] Received agent reply via socket:', event);
-
 // Spara och ackumulera agentnamn (deduplicate, max 5)
 const name = event.sender && event.sender !== 'agent' ? event.sender : null;
 if (name) {
@@ -180,8 +178,6 @@ setTypingAgentName(null);
 // vid varje nytt meddelande, vilket triggar om useEffect nedan och orsakar en
 // disconnect/reconnect-loop där lyssnarna aldrig hann registreras korrekt.
 const handleSessionStatus = useCallback((event: SessionStatusEvent) => {
-console.log('[AtlasChat] Received session status via socket:', event);
-
 if (event.status === 'archived') {
 const byInactivity = event.close_reason === 'inactivity';
 setIsArchived(true);
@@ -196,7 +192,6 @@ setShowEndDialog(true);
 
 // Handle agent typing indicator
 const handleAgentTyping = useCallback((_sessionId: string, agentName: string | null) => {
-console.log('[AtlasChat] Agent is typing...', agentName);
 setIsTyping(true);
 setTypingAgentName(agentName);
 // Auto-clear after 3 seconds (agent stopped typing or sent message)
@@ -208,7 +203,6 @@ setTypingAgentName(null);
 
 // Handle inactivity warning — start a 5-minute countdown
 const handleInactivityWarning = useCallback((event: SessionWarningEvent) => {
-console.log('[AtlasChat] Inactivity warning received:', event);
 const seconds = (event.minutesLeft ?? 5) * 60;
 setInactivityWarning(true);
 setInactivityCountdown(seconds);
@@ -230,11 +224,9 @@ return prev - 1;
 
 // Connect socket on mount, disconnect on unmount
 useEffect(() => {
-console.log('[AtlasChat] Initializing socket connection...');
 connectSocket(handleAgentReply, handleSessionStatus, handleAgentTyping, handleInactivityWarning);
 
 return () => {
-console.log('[AtlasChat] Cleaning up socket connection...');
 if (inactivityTimerRef.current) clearInterval(inactivityTimerRef.current);
 disconnectSocket();
 };
@@ -260,8 +252,6 @@ setClosedByAgent(!byInactivity);
 const serverMsgCount = history.messages.length;
 
 if (serverMsgCount !== lastMessageCountRef.current) {
-console.log(`[AtlasChat] Message count changed: ${lastMessageCountRef.current} -> ${serverMsgCount}, syncing...`);
-
 // Convert history messages to our format, preserving existing timestamps
 setMessages((prevMessages) => {
 const newMessages: ChatMessage[] = history.messages.map((msg, index) => {
@@ -309,7 +299,6 @@ useEffect(() => {
 if (!humanMode || isArchived) return;
 
 const pollInterval = setInterval(() => {
-console.log('[AtlasChat] Human mode fallback poll...');
 pollHistory();
 }, 5000); // Poll every 5 seconds in human mode
 
@@ -515,12 +504,11 @@ const contextWithContact = {
 vehicle: contactInfo.vehicle,
 city: routingCity,
 area: routingArea,
-agent_id: targetAgentId, // 🔥 Skickar exakta taggen från DB
+agent_id: targetAgentId,
 name: contactInfo.name,
 email: contactInfo.email,
 phone: contactInfo.phone
 };
-console.log('[AtlasChat] Sending human request with contact info:', contactInfo, contextWithContact);
 
 // Send message with contact info in context
 sendMessageWithContext("Jag vill prata med en människa", contextWithContact);

@@ -1,6 +1,6 @@
 /**
 * Atlas Customer Chat Client
-* 
+*
 * HTTP client + Socket.io for customer chat endpoint.
 */
 
@@ -86,11 +86,9 @@ return currentSessionId;
 const stored = localStorage.getItem(SESSION_STORAGE_KEY);
 if (stored) {
 currentSessionId = stored;
-console.log('[Atlas] Using existing session:', currentSessionId);
 } else {
 currentSessionId = generateSessionId();
 localStorage.setItem(SESSION_STORAGE_KEY, currentSessionId);
-console.log('[Atlas] Created new session:', currentSessionId);
 }
 
 return currentSessionId;
@@ -99,7 +97,6 @@ return currentSessionId;
 export function resetSession(): string {
 currentSessionId = generateSessionId();
 localStorage.setItem(SESSION_STORAGE_KEY, currentSessionId);
-console.log('[Atlas] Session reset:', currentSessionId);
 return currentSessionId;
 }
 
@@ -132,14 +129,11 @@ socket.off('team:session_warning');
 
 // Agentens svar → kunden
 socket.on('team:customer_reply', (data: CustomerReplyEvent | Record<string, unknown>) => {
-console.log('[Atlas] Received team:customer_reply:', data);
-
 // Filtrera bort ekon av kundens egna meddelanden (sender='user').
 // Servern emittar team:customer_reply via io.emit() (HTTP-vägen) som når
 // alla sockets inkl. kundens egna kundchatt — detta skapar ett eko-dublett.
 const senderValue = (data as CustomerReplyEvent).sender || (data as Record<string, unknown>).agent as string || '';
 if (senderValue === 'user') {
-  console.log('[Atlas] Ignoring own message echo (sender=user)');
   return;
 }
 
@@ -151,26 +145,16 @@ const incomingConversationId =
 const currentSession = getSessionId();
 
 if (!incomingConversationId || incomingConversationId === currentSession) {
-  console.log('[Atlas] Message matches our session, forwarding to callback');
   replyCallback?.({
     conversationId: currentSession,
     message: (data as CustomerReplyEvent).message || (data as Record<string, unknown>).content as string || '',
     sender: (data as CustomerReplyEvent).sender || (data as Record<string, unknown>).agent as string || 'agent',
   });
-} else {
-  console.log(
-    '[Atlas] Message for different session, ignoring:',
-    incomingConversationId,
-    'vs',
-    currentSession
-  );
 }
 });
 
 // Session-statusändringar (arkivering etc.)
 socket.on('team:session_status', (data: SessionStatusEvent | Record<string, unknown>) => {
-console.log('[Atlas] Received team:session_status:', data);
-
 const incomingConversationId =
   (data as SessionStatusEvent).conversationId ||
   (data as Record<string, unknown>).sessionId ||
@@ -179,7 +163,6 @@ const incomingConversationId =
 const currentSession = getSessionId();
 
 if (!incomingConversationId || incomingConversationId === currentSession) {
-  console.log('[Atlas] Status change matches our session, forwarding to callback');
   statusCallback?.({
     conversationId: currentSession,
     status: (data as SessionStatusEvent).status || 'archived',
@@ -191,21 +174,16 @@ if (!incomingConversationId || incomingConversationId === currentSession) {
 
 // Agent skriver-indikator
 socket.on('client:agent_typing', (data: { sessionId?: string; conversationId?: string; agentName?: string | null }) => {
-console.log('[Atlas] Received client:agent_typing:', data);
-
 const incomingId = data.sessionId || data.conversationId;
 const currentSession = getSessionId();
 
 if (!incomingId || incomingId === currentSession) {
-  console.log('[Atlas] Agent is typing in our session');
   agentTypingCallback?.(currentSession, data.agentName || null);
 }
 });
 
 // Inaktivitetsvarning (5 min innan auto-arkivering)
 socket.on('team:session_warning', (data: SessionWarningEvent | Record<string, unknown>) => {
-console.log('[Atlas] Received team:session_warning:', data);
-
 const incomingId =
   (data as SessionWarningEvent).conversationId ||
   (data as Record<string, unknown>).sessionId as string;
@@ -213,7 +191,6 @@ const incomingId =
 const currentSession = getSessionId();
 
 if (!incomingId || incomingId === currentSession) {
-  console.log('[Atlas] Inactivity warning matches our session, forwarding to callback');
   warningCallback?.({
     conversationId: currentSession,
     sessionId: currentSession,
@@ -238,15 +215,12 @@ statusCallback = onStatusChange || null;
 agentTypingCallback = onAgentTyping || null;
 warningCallback = onWarning || null;
 
-// FIX: Om socketen redan är ansluten, registrera om lyssnarna med nya callbacks
+// Om socketen redan är ansluten, registrera om lyssnarna med nya callbacks
 // istället för att bara returnera — annars pekar lyssnarna på gamla stängda referenser.
 if (socket?.connected) {
-  console.log('[Atlas] Socket already connected, re-registering listeners with fresh callbacks');
   registerSocketListeners();
   return;
 }
-
-console.log('[Atlas] Connecting socket to', SOCKET_URL, 'for session', sessionId);
 
 socket = io(SOCKET_URL, {
 transports: ['websocket', 'polling'],
@@ -256,19 +230,16 @@ query: { sessionId, conversationId: sessionId, [NGROK_SKIP_HEADER]: NGROK_SKIP_V
 });
 
 socket.on('connect', () => {
-console.log('[Atlas] Socket connected:', socket?.id);
 socketConnected = true;
 
 // Gå med i session-rummet så servern kan skicka riktade events
 socket?.emit('join', { sessionId, conversationId: sessionId });
-console.log('[Atlas] Emitted join event for session:', sessionId);
 
 // Registrera lyssnare direkt vid anslutning (säkerställer färska callbacks)
 registerSocketListeners();
 });
 
 socket.on('disconnect', (reason) => {
-console.log('[Atlas] Socket disconnected:', reason);
 socketConnected = false;
 });
 
@@ -280,7 +251,6 @@ socketConnected = false;
 
 export function disconnectSocket(): void {
 if (socket) {
-console.log('[Atlas] Disconnecting socket');
 socket.disconnect();
 }
 
@@ -299,7 +269,6 @@ export function emitEndChat(): void {
 const sessionId = getSessionId();
 
 if (socket?.connected) {
-console.log('[Atlas] Emitting client:end_chat for session:', sessionId);
 socket.emit('client:end_chat', { sessionId, conversationId: sessionId });
 } else {
 console.warn('[Atlas] Cannot emit end_chat - socket not connected');
@@ -314,7 +283,6 @@ export function emitTyping(): void {
 const sessionId = getSessionId();
 
 if (socket?.connected) {
-console.log('[Atlas] Emitting client:typing for session:', sessionId);
 socket.emit('client:typing', { sessionId, conversationId: sessionId });
 }
 }
@@ -334,8 +302,6 @@ export async function sendMessage(
   context?: ChatContext & ContactContext
 ): Promise<ChatResponse> {
   const sessionId = getSessionId();
-
-  console.log('[Atlas] Sending message:', { sessionId, message, isFirstMessage, context });
 
   const body: Record<string, unknown> = {
     sessionId,
@@ -385,7 +351,6 @@ throw new Error(`API returned non-JSON (${contentType || 'unknown content-type'}
 }
 
 const data = await response.json();
-console.log('[Atlas] Response:', data);
 
 return {
   answer: data.answer || (typeof data === 'string' ? data : ""),
@@ -400,8 +365,6 @@ return {
 */
 export async function getHistory(): Promise<HistoryResponse> {
 const sessionId = getSessionId();
-
-console.log('[Atlas] Fetching history:', { sessionId });
 
 const response = await fetch(`${BASE_URL}/history/${sessionId}`, {
 method: 'GET',
@@ -427,12 +390,12 @@ throw new Error(
 }
 
 const data = await response.json();
-console.log('[Atlas] History:', data);
 
 return {
 messages: data.messages || [],
 human_mode: data.human_mode || false,
 is_archived: data.is_archived || false,
+close_reason: data.close_reason || null,
 };
 }
 

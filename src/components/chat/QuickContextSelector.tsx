@@ -246,7 +246,6 @@ return (
 <DropdownMenuItem
 key={type}
 onSelect={() => {
-console.log('[QuickContextSelector] Vehicle selected:', type);
 onVehicleChange(type);
 }}
 className="flex items-center gap-2 cursor-pointer"
@@ -280,7 +279,6 @@ selectedCity
 <DropdownMenuItem
 key={office.id}
 onSelect={() => {
-console.log('[QuickContextSelector] City selected:', office.name);
 onCityChange(office.name);
 }}
 className="cursor-pointer"

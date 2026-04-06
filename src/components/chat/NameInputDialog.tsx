@@ -68,7 +68,7 @@ const newErrors: any = {};
 
 if (!trimmedName) newErrors.name = "Vänligen ange ditt namn";
 if (!trimmedEmail || !validateEmail(trimmedEmail)) newErrors.email = "Vänligen ange en giltig e-postadress";
-if (!city) newErrors.city = "Vänligen välj mottagare";
+if (!city) newErrors.city = "Vänligen välj kontor";
 if (!vehicle) newErrors.vehicle = "Vänligen välj fordonstyp";
 
 if (Object.keys(newErrors).length > 0) {
@@ -112,7 +112,7 @@ return (
 </div>
 <DialogTitle className="text-xl">Vem vill du prata med?</DialogTitle>
 <DialogDescription className="text-base">
-Välj destination och fyll i dina uppgifter för att starta chatten.
+Välj kontor och fyll i dina uppgifter för att starta chatten.
 </DialogDescription>
 </DialogHeader>
 
@@ -151,12 +151,12 @@ placeholder="070-000 00 00"
 />
 </div>
 
-{/* MOTTAGARE: DIN BEVARADE MAPPIN-IKON OCH LABEL */}
+{/* KONTOR: Välj vilket kontor ärendet skickas till */}
 <div className="space-y-2">
-<Label className="flex items-center gap-2"><MapPin className="h-4 w-4" /> Mottagare *</Label>
+<Label className="flex items-center gap-2"><MapPin className="h-4 w-4" /> Kontor *</Label>
 <Select value={city} onValueChange={(v) => setCity(v)}>
 <SelectTrigger className={errors.city ? "border-destructive" : ""}>
-<SelectValue placeholder="Välj destination" />
+<SelectValue placeholder="Välj kontor" />
 </SelectTrigger>
 <SelectContent className="max-h-[400px]">
 <SelectGroup>
