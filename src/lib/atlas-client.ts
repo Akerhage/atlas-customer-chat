@@ -409,3 +409,28 @@ export async function getPublicOffices(): Promise<any[]> {
   if (!response.ok) throw new Error('Failed to fetch offices');
   return response.json();
 }
+
+export interface CustomerTemplate {
+  id: number;
+  title: string;
+  content: string;
+  sub_group?: string | null;
+}
+
+/**
+ * Hämtar mailmallar med group_name='KUNDCHATT' för snabbsvars-listan i kundchatten.
+ * Returnerar tom lista vid fel så att (i)-ikonen kan döljas utan att krascha UI.
+ */
+export async function getCustomerTemplates(): Promise<CustomerTemplate[]> {
+  try {
+    const response = await fetch('/api/public/templates/kundchatt', {
+      headers: { [NGROK_SKIP_HEADER]: NGROK_SKIP_VALUE }
+    });
+    if (!response.ok) return [];
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
+  } catch (err) {
+    console.warn('[Atlas] Kunde inte hämta kundchatt-mallar:', err);
+    return [];
+  }
+}

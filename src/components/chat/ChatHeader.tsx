@@ -5,6 +5,7 @@ TooltipContent,
 TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ContactFormDialog } from "./ContactFormDialog";
+import { TemplatesButton } from "./TemplatesButton";
 import atlasLogo from "@/assets/atlas-logo.png";
 
 interface ChatHeaderProps {
@@ -16,17 +17,19 @@ onToggleTheme: () => void;
 selectedCity?: string | null;
 selectedVehicle?: string | null;
 offices: any[]; // 🔥 TILLAGD: Krävs för mail-formuläret
+onTemplateSelect: (content: string) => void;
 }
 
-export function ChatHeader({ 
-onReset, 
-onEndSession, 
-onRequestHuman, 
-isDark, 
-onToggleTheme, 
-selectedCity, 
+export function ChatHeader({
+onReset,
+onEndSession,
+onRequestHuman,
+isDark,
+onToggleTheme,
+selectedCity,
 selectedVehicle,
-offices
+offices,
+onTemplateSelect
 }: ChatHeaderProps) {
 return (
 <header className="flex items-center justify-between px-5 py-4 bg-chat-header border-b border-border">
@@ -53,9 +56,12 @@ className="w-full h-full object-cover"
 
 {/* Actions */}
 <div className="flex items-center gap-1">
+{/* Snabbsvar (KUNDCHATT-mallar) — döljer sig själv om listan är tom */}
+<TemplatesButton onSelect={onTemplateSelect} />
+
 {/* Skicka meddelande (mail) */}
-<ContactFormDialog 
-selectedCity={selectedCity} 
+<ContactFormDialog
+selectedCity={selectedCity}
 selectedVehicle={selectedVehicle}
 offices={offices}
 />

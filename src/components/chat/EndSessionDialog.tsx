@@ -23,10 +23,23 @@ open: boolean;
 onOpenChange: (open: boolean) => void;
 messages: ChatMessage[];
 onConfirm: () => void;
-closedByAgent?: boolean;
+closeReason?: string | null;
 }
 
-export function EndSessionDialog({ open, onOpenChange, messages, onConfirm, closedByAgent = false }: EndSessionDialogProps) {
+function getCloseReasonText(closeReason?: string | null): string {
+if (closeReason === 'inactivity') {
+  return 'Konversationen avslutades automatiskt på grund av inaktivitet. Vill du spara en kopia innan du stänger?';
+}
+if (closeReason && closeReason.startsWith('agent:')) {
+  return 'Handläggaren har avslutat denna konversation. Vill du spara en kopia innan du stänger?';
+}
+if (closeReason === 'customer') {
+  return 'Du avslutade konversationen. Vill du spara en kopia av chatten innan du stänger?';
+}
+return 'Konversationen är avslutad. Vill du spara en kopia innan du stänger?';
+}
+
+export function EndSessionDialog({ open, onOpenChange, messages, onConfirm, closeReason = null }: EndSessionDialogProps) {
 
 const generateChatLog = (): string => {
 const header = `Atlas Chattlogg
@@ -89,9 +102,7 @@ return (
 Ärendet avslutat
 </AlertDialogTitle>
 <AlertDialogDescription className="text-muted-foreground">
-{closedByAgent 
-? 'Handläggaren har avslutat denna konversation. Vill du spara en kopia innan du stänger?'
-: 'Konversationen är avslutad. Vill du spara en kopia innan du stänger?'}
+{getCloseReasonText(closeReason)}
 </AlertDialogDescription>
 </AlertDialogHeader>
 

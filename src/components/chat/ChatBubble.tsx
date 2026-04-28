@@ -1,6 +1,25 @@
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
+import rehypeRaw from "rehype-raw";
+import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import { Car, User } from "lucide-react";
+
+// Tillåt formaterings-taggar och bilder men blockera script och on*-attribut.
+// Utökar defaultSchema så att befintliga markdown-element (a, strong, em osv)
+// och mallinnehåll (img, inline styles) renderas korrekt.
+const sanitizeSchema = {
+...defaultSchema,
+tagNames: [
+...(defaultSchema.tagNames ?? []),
+'img', 'span', 'div', 'figure', 'figcaption',
+],
+attributes: {
+...defaultSchema.attributes,
+'*': ['style', 'className', 'class'],
+'a': ['href', 'target', 'rel'],
+'img': ['src', 'alt', 'width', 'height', 'style'],
+},
+};
 
 interface ChatBubbleProps {
 content: string;
@@ -53,12 +72,16 @@ isUser
 {/* Message content */}
 <div className="text-sm leading-relaxed prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0 prose-strong:font-semibold">
 <ReactMarkdown
-  components={{
-    a: ({ href, children }) => (
-      <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>
-    )
-  }}
->{content}</ReactMarkdown>
+className="atlas-message-content"
+rehypePlugins={[rehypeRaw, [rehypeSanitize, sanitizeSchema]]}
+components={{
+a: ({ node, ...props }) => (
+<a {...props} target="_blank" rel="noopener noreferrer" />
+),
+}}
+>
+{content}
+</ReactMarkdown>
 </div>
 
 {/* Timestamp with date */}

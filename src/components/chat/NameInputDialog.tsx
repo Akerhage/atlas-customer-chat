@@ -124,6 +124,7 @@ value={name}
 onChange={(e) => setName(e.target.value)} 
 placeholder="Ditt namn" 
 className={errors.name ? "border-destructive" : ""} 
+maxLength={100}
 />
 {errors.name && <p className="text-[10px] text-destructive font-medium ml-1">{errors.name}</p>}
 </div>
@@ -136,6 +137,7 @@ value={email}
 onChange={(e) => setEmail(e.target.value)} 
 placeholder="din.email@exempel.se" 
 className={errors.email ? "border-destructive" : ""} 
+maxLength={200}
 />
 {errors.email && <p className="text-[10px] text-destructive font-medium ml-1">{errors.email}</p>}
 </div>
@@ -146,8 +148,9 @@ className={errors.email ? "border-destructive" : ""}
 <Input 
 type="tel" 
 value={phone} 
-onChange={(e) => setPhone(e.target.value)} 
-placeholder="070-000 00 00" 
+onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+placeholder="0701234567"
+maxLength={10}
 />
 </div>
 

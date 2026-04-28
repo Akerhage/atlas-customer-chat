@@ -83,7 +83,7 @@ const [humanMode, setHumanMode] = useState(false);
 const [agentNames, setAgentNames] = useState<string[]>([]); // Alla agenter som svarat
 const [typingAgentName, setTypingAgentName] = useState<string | null>(null); // Vem skriver just nu
 const [isArchived, setIsArchived] = useState(false);
-const [closedByAgent, setClosedByAgent] = useState(false);
+const [closeReason, setCloseReason] = useState<string | null>(null);
 const [customerName, setCustomerName] = useState<string | null>(null);
 const [customerEmail, setCustomerEmail] = useState<string | null>(null);
 const [customerPhone, setCustomerPhone] = useState<string | null>(null);
@@ -179,11 +179,10 @@ setTypingAgentName(null);
 // disconnect/reconnect-loop där lyssnarna aldrig hann registreras korrekt.
 const handleSessionStatus = useCallback((event: SessionStatusEvent) => {
 if (event.status === 'archived') {
-const byInactivity = event.close_reason === 'inactivity';
 setIsArchived(true);
-setArchivedMessage(event.message || (byInactivity ? 'Chatten har stängts automatiskt på grund av inaktivitet.' : 'Chatten är avslutad av handläggaren.'));
+setCloseReason(event.close_reason || null);
+setArchivedMessage(event.message || (event.close_reason === 'inactivity' ? 'Chatten har stängts automatiskt på grund av inaktivitet.' : 'Chatten är avslutad av handläggaren.'));
 setIsTyping(false);
-setClosedByAgent(!byInactivity);
 setInactivityWarning(false);
 if (inactivityTimerRef.current) { clearInterval(inactivityTimerRef.current); inactivityTimerRef.current = null; }
 setShowEndDialog(true);
@@ -242,10 +241,9 @@ setHumanMode(history.human_mode);
 
 // Check if session is archived (persistent state from backend)
 if (history.is_archived) {
-const byInactivity = history.close_reason === 'inactivity';
 setIsArchived(true);
-setArchivedMessage(byInactivity ? 'Chatten har stängts automatiskt på grund av inaktivitet.' : 'Chatten är avslutad av handläggaren.');
-setClosedByAgent(!byInactivity);
+setCloseReason(history.close_reason || null);
+setArchivedMessage(history.close_reason === 'inactivity' ? 'Chatten har stängts automatiskt på grund av inaktivitet.' : 'Chatten är avslutad av handläggaren.');
 }
 
 // Always sync messages from server - compare by content, not just count
@@ -307,10 +305,11 @@ return () => clearInterval(pollInterval);
 
 
 const handleSendMessage = async (content: string, contextData?: { vehicle: string; city: string }) => {
-// 🔥 TRIGGER-INTERCEPT: Om kunden skriver ett trigger-ord och inte redan är i human mode,
-// visa formuläret precis som knappen gör — aldrig skicka direkt till servern.
-const HUMAN_TRIGGERS = ["prata med människa", "kundtjänst", "jag vill ha personal", "människa"];
-const isHumanTrigger = HUMAN_TRIGGERS.some(phrase => content.toLowerCase().includes(phrase));
+// 🔥 TRIGGER-INTERCEPT: Endast exakt frasen — matchar server-sidans HUMAN_TRIGGERS.
+// Headset-knappen öppnar namn-dialog direkt; denna intercept fångar bara om kunden
+// råkar skriva exakt frasen i input-fältet och ska då också gå via namn-dialogen.
+const HUMAN_TRIGGERS = ["jag vill prata med en människa"];
+const isHumanTrigger = HUMAN_TRIGGERS.some(phrase => content.toLowerCase().trim() === phrase);
 if (isHumanTrigger && !humanMode) {
 setShowNameDialog(true);
 return;
@@ -432,7 +431,7 @@ setHumanMode(false);
 setAgentNames([]);
 setTypingAgentName(null);
 setIsArchived(false);
-setClosedByAgent(false);
+setCloseReason(null);
 setArchivedMessage(null);
 lastMessageCountRef.current = 0;
 
@@ -453,7 +452,7 @@ handleSendMessage(message, contextData);
 const handleEndSession = () => {
 // Emit socket event to notify server that customer ended the chat
 emitEndChat();
-setClosedByAgent(false);
+setCloseReason(null);
 
 if (messages.length > 0) {
 setShowEndDialog(true);
@@ -587,11 +586,24 @@ const handleToggleTheme = () => {
 setIsDark(prev => !prev);
 };
 
+// Snabbsvar (KUNDCHATT-mallar) — injicerar mallens content som ett lokalt
+// assistant-meddelande. Påverkar inte socket-flödet eller backend-historiken.
+const handleTemplateSelect = (content: string) => {
+const templateMessage: ChatMessage = {
+id: generateMessageId(),
+role: 'assistant',
+content,
+timestamp: new Date(),
+senderName: null,
+};
+setMessages((prev) => [...prev, templateMessage]);
+};
+
 const showWelcome = messages.length === 0 && !isTyping;
 
 return (
-<div className={`flex flex-col h-full bg-chat-bg ${isDark ? 'dark' : ''}`}>
-<ChatHeader 
+<div className={`flex flex-col h-full ${isDark ? 'bg-chat-bg dark' : 'bg-zinc-50'} `}>
+<ChatHeader
 onReset={messages.length > 0 ? handleReset : undefined}
 onEndSession={handleEndSession}
 onRequestHuman={handleRequestHuman}
@@ -601,6 +613,7 @@ onToggleTheme={handleToggleTheme}
 selectedCity={selectedCity}
 selectedVehicle={selectedVehicle}
 offices={offices} // 🚀 NY: Dynamisk lista tillagd
+onTemplateSelect={handleTemplateSelect}
 />
 
 {/* Human mode indicator */}
@@ -697,13 +710,14 @@ window.selectedCity = c;
 <ChatInput 
 onSend={handleSendMessage} 
 disabled={isTyping}
-placeholder={humanMode ? "Skriv till support..." : "Skriv ett meddelande..."}
+placeholder={humanMode ? "Skriv till support... (Shift+Enter för ny rad)" : "Skriv ett meddelande... (Shift+Enter för ny rad)"}
 showQuickQuestions={messages.length > 0}
 selectedVehicle={selectedVehicle}
 onVehicleChange={handleVehicleChange}
 onCityChange={handleCityChange}
 selectedCity={selectedCity}
-offices={offices} // 🚀 NY: Dynamisk lista tillagd
+offices={offices}
+humanMode={humanMode}// 🚀 NY: Dynamisk lista tillagd
 />
 )}
 
@@ -713,7 +727,7 @@ open={showEndDialog}
 onOpenChange={setShowEndDialog}
 messages={messages}
 onConfirm={handleConfirmEnd}
-closedByAgent={closedByAgent}
+closeReason={closeReason}
 />
 
 {/* Name Input Dialog for Human Mode */}

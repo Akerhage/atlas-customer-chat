@@ -26,13 +26,23 @@ category: string;
 questions: string[];
 }
 
-const OFFICE_QUESTIONS: QuestionCategory = {
+const VEHICLE_QUESTION_LABELS: Record<"BIL" | "MC" | "AM" | "LASTBIL", string> = {
+BIL:     "bilkörkorts",
+MC:      "MC-",
+AM:      "AM/moped-",
+LASTBIL: "lastbils",
+};
+
+function getOfficeQuestions(vehicle: "BIL" | "MC" | "AM" | "LASTBIL" | null): QuestionCategory {
+const fordonsord = vehicle ? VEHICLE_QUESTION_LABELS[vehicle] : "körkorts";
+return {
 category: "Om kontoret i {{stad}}",
 questions: [
-"Vilka körkortsutbildningar erbjuder ni i {{stad}}?",
+`Vilka ${fordonsord}utbildningar erbjuder ni i {{stad}}?`,
 "Var i {{stad}} ligger kontoret och när har ni öppet?",
 ],
 };
+}
 
 const QUESTIONS_BY_VEHICLE: Record<"BIL" | "MC" | "AM" | "LASTBIL", QuestionCategory[]> = {
 AM: [
@@ -130,8 +140,8 @@ city: string
 const categories = QUESTIONS_BY_VEHICLE[vehicle];
 
 const officeCategory: QuestionCategory = {
-category: OFFICE_QUESTIONS.category.replace(/\{\{stad\}\}/g, city),
-questions: OFFICE_QUESTIONS.questions,
+category: getOfficeQuestions(vehicle).category.replace(/\{\{stad\}\}/g, city),
+questions: getOfficeQuestions(vehicle).questions,
 };
 
 const sortedCategories = [...categories].sort((a, b) => {
@@ -315,19 +325,19 @@ align="center"
 <ScrollArea className="h-80">
 {getSortedQuestionsForVehicle(selectedVehicle, selectedCity).map((cat, catIdx) => (
 <div key={cat.category}>
-  {catIdx > 0 && <DropdownMenuSeparator />}
-  <DropdownMenuLabel className="text-xs text-muted-foreground font-medium">
-	{cat.category}
-  </DropdownMenuLabel>
-  {cat.questions.map((question, idx) => (
-	<DropdownMenuItem
-	  key={idx}
-	  onClick={() => handleQuestionClick(question)}
-	  className="cursor-pointer text-sm py-2 whitespace-normal"
-	>
-	  {question.replace(/\{\{stad\}\}/g, selectedCity)}
-	</DropdownMenuItem>
-  ))}
+{catIdx > 0 && <DropdownMenuSeparator />}
+<DropdownMenuLabel className="text-xs text-muted-foreground font-medium">
+{cat.category}
+</DropdownMenuLabel>
+{cat.questions.map((question, idx) => (
+<DropdownMenuItem
+key={idx}
+onClick={() => handleQuestionClick(question)}
+className="cursor-pointer text-sm py-2 whitespace-normal"
+>
+{question.replace(/\{\{stad\}\}/g, selectedCity)}
+</DropdownMenuItem>
+))}
 </div>
 ))}
 </ScrollArea>

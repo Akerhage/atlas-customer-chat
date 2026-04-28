@@ -33,14 +33,25 @@ category: string;
 questions: string[];
 }
 
-// Kontorsspecifika frågor
-const OFFICE_QUESTIONS: QuestionCategory = {
+// Fordonsnamn för snabbfrågetext (kortform, läsbar i meningar)
+const VEHICLE_QUESTION_LABELS: Record<"BIL" | "MC" | "AM" | "LASTBIL", string> = {
+BIL:     "bilkörkorts",
+MC:      "MC-",
+AM:      "AM/moped-",
+LASTBIL: "lastbils",
+};
+
+// Kontorsspecifika frågor – anpassas dynamiskt efter valt fordon
+function getOfficeQuestions(vehicle: "BIL" | "MC" | "AM" | "LASTBIL" | null): QuestionCategory {
+const fordonsord = vehicle ? VEHICLE_QUESTION_LABELS[vehicle] : "körkorts";
+return {
 category: "Om kontoret i {{stad}}",
 questions: [
-"Vilka körkortsutbildningar erbjuder ni i {{stad}}?",
+`Vilka ${fordonsord}utbildningar erbjuder ni i {{stad}}?`,
 "Var i {{stad}} ligger kontoret och när har ni öppet?",
 ],
 };
+}
 
 // 🔥 GENERELLE FRÅGOR (Kategorier som ska nollställa fordon i sökningen)
 const COMMON_QUESTIONS: QuestionCategory[] = [
@@ -96,7 +107,7 @@ questions: [
 category: "Paket & Intensiv", 
 questions: [
 "Vad kostar körkort för bil i {{stad}}?", 
-"Vad är skillnaden på Bas, Mellan och Totalpaket?", 
+"Vad är skillnaden på Baspaket, Mellanpaket och Totalpaket?",
 "Hur fungerar en intensivkurs på 2 veckor?", 
 "Vad ingår i ett Totalpaket för bil?"
 ] 
@@ -139,34 +150,34 @@ questions: [
 },
 ],
 LASTBIL: [
-    {
-      category: "Körkort för Lastbil",
-      questions: [
-        "Vad är skillnaden mellan C, C1 och CE-körkort?",
-        "Vilka krav måste jag uppfylla för att ta C-körkort?",
-        "Måste jag ha B-körkort innan jag börjar lastbilsutbildningen?",
-        "Hur lång tid tar lastbilsutbildningen?",
-        "Vad kostar C-körkort i {{stad}}?",
-      ],
-    },
-    {
-      category: "YKB & Yrkestrafik",
-      questions: [
-        "Vad är YKB och behöver jag det?",
-        "Vad är skillnaden på YKB grundutbildning och fortbildning?",
-        "Hur många timmar är YKB-fortbildningen och vad kostar den?",
-        "Hur ofta måste man förnya YKB?",
-      ],
-    },
-    {
-      category: "Bokning & Kontakt",
-      questions: [
-        "Hur bokar jag lastbilsutbildning i {{stad}}?",
-        "Kan jag betala lastbilsutbildningen med Klarna?",
-        "Erbjuder ni D-körkort (buss) i {{stad}}?",
-      ],
-    },
-  ],
+{
+category: "Körkort för Lastbil",
+questions: [
+"Vad är skillnaden mellan C, C1 och CE-körkort?",
+"Vilka krav måste jag uppfylla för att ta C-körkort?",
+"Måste jag ha B-körkort innan jag börjar lastbilsutbildningen?",
+"Hur lång tid tar lastbilsutbildningen?",
+"Vad kostar C-körkort i {{stad}}?",
+],
+},
+{
+category: "YKB & Yrkestrafik",
+questions: [
+"Vad är YKB och behöver jag det?",
+"Vad är skillnaden på YKB grundutbildning och fortbildning?",
+"Hur många timmar är YKB-fortbildningen och vad kostar den?",
+"Hur ofta måste man förnya YKB?",
+],
+},
+{
+category: "Bokning & Kontakt",
+questions: [
+"Hur bokar jag lastbilsutbildning i {{stad}}?",
+"Kan jag betala lastbilsutbildningen med Klarna?",
+"Erbjuder ni D-körkort (buss) i {{stad}}?",
+],
+},
+],
 };
 
 const VEHICLE_ICONS = { BIL: Car, MC: Bike, AM: CircleDot, LASTBIL: Truck };
@@ -220,8 +231,8 @@ return COMMON_QUESTIONS;
 }
 
 const officeCategory: QuestionCategory = {
-category: OFFICE_QUESTIONS.category.replace(/\{\{stad\}\}/g, selectedCity),
-questions: OFFICE_QUESTIONS.questions,
+category: getOfficeQuestions(selectedVehicle).category.replace(/\{\{stad\}\}/g, selectedCity),
+questions: getOfficeQuestions(selectedVehicle).questions,
 };
 
 const vehicleCategories = QUESTIONS_BY_VEHICLE[selectedVehicle] || [];

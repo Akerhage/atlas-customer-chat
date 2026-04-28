@@ -18,6 +18,7 @@ selectedCity?: string | null;
 onVehicleChange: (vehicle: VehicleType) => void;
 onCityChange: (city: string | null) => void;
 offices: any[]; // 🔥 TILLAGD: Krävs för QuickQuestionsButton
+humanMode: boolean; // true = human mode (fil-upload visas), false = AI-läge (fil-knappen dold)
 }
 
 const TYPING_THROTTLE_MS = 2000;
@@ -31,7 +32,8 @@ selectedVehicle = null,
 selectedCity = null,
 onVehicleChange,
 onCityChange,
-offices // 🔥 TILLAGD
+offices,
+humanMode
 }: ChatInputProps) {
 const [message, setMessage] = useState("");
 const [isUploading, setIsUploading] = useState(false);
@@ -120,11 +122,15 @@ break;
 return (
 <div className="p-4 bg-chat-input border-t border-border">
 <div className={cn("flex items-end gap-2 bg-secondary/50 rounded-2xl px-4 py-2 border border-border/50 transition-all duration-200 focus-within:border-primary/30 input-glow")}>
+{humanMode && (
 <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileSelect} accept="image/*,.pdf,.doc,.docx,.txt" disabled={disabled || isUploading} />
+)}
 
+{humanMode && (
 <button onClick={() => fileInputRef.current?.click()} disabled={disabled || isUploading} className={cn("flex-shrink-0 w-8 h-8 -ml-1 mb-0.5 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-white/10 transition-colors duration-200", isUploading && "cursor-wait opacity-70")}>
 {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
 </button>
+)}
 
 <textarea
 ref={textareaRef}
@@ -155,7 +161,11 @@ offices={offices}
 <Send className="w-4 h-4" />
 </button>
 </div>
-<p className="text-[11px] text-muted-foreground/50 text-center mt-2">Tryck Enter för att skicka · Shift+Enter för ny rad</p>
+{!humanMode && (
+<p className="text-[11px] text-muted-foreground/50 text-center mt-2">
+Atlas AI kan ibland ge felaktiga svar. Kontrollera alltid viktig information med en handläggare.
+</p>
+)}
 </div>
 );
 }

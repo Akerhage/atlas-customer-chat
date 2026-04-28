@@ -7,3 +7,4 @@ export { TypingIndicator } from './TypingIndicator';
 export { WelcomeMessage } from './WelcomeMessage';
 export { ContextIndicator } from './ContextIndicator';
 export { HumanModeIndicator } from './HumanModeIndicator';
+export { TemplatesButton } from './TemplatesButton';
