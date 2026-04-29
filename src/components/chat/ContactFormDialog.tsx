@@ -58,6 +58,21 @@ const ALLOWED_MIME = [
 "application/vnd.openxmlformats-officedocument.presentationml.presentation",
 ];
 
+const getOfficeDisplayName = (office: any) => {
+const city = String(office?.city || '').trim();
+const area = String(office?.area || '').trim();
+return String(office?.display_name || (city ? (area ? `${city} - ${area}` : city) : '') || office?.name || '').trim();
+};
+
+const normalizeOfficeLabel = (value: string | null | undefined) =>
+String(value || '').trim().replace(/[\u2013\u2014]/g, '-').replace(/\s*-\s*/g, ' - ').toLowerCase();
+
+const findOfficeByLabel = (offices: any[], value: string | null | undefined) => {
+const normalized = normalizeOfficeLabel(value);
+return offices.find((office) => [office.routing_tag, office.name, getOfficeDisplayName(office)]
+.some((candidate) => normalizeOfficeLabel(candidate) === normalized));
+};
+
 export function ContactFormDialog({ onSubmit, selectedCity, selectedVehicle, offices }: ContactFormDialogProps) {
 const [open, setOpen] = useState(false);
 const [isSubmitting, setIsSubmitting] = useState(false);
@@ -177,7 +192,7 @@ return;
 
 setIsSubmitting(true);
 try {
-const selectedOffice = offices.find(o => o.name === formData.city);
+const selectedOffice = findOfficeByLabel(offices, formData.city);
 const targetAgentId = selectedOffice ? selectedOffice.routing_tag : null;
 const routingCity = selectedOffice ? selectedOffice.city : null;
 const routingArea = selectedOffice ? selectedOffice.area : null;
@@ -286,7 +301,7 @@ maxLength={10}
 <SelectGroup>
 <SelectLabel className="font-bold border-t mt-2 pt-2">📍 Välj Kontor</SelectLabel>
 {offices.map((office) => (
-<SelectItem key={office.id} value={office.name}>{office.name}</SelectItem>
+<SelectItem key={office.id} value={getOfficeDisplayName(office)}>{getOfficeDisplayName(office)}</SelectItem>
 ))}
 </SelectGroup>
 </SelectContent>

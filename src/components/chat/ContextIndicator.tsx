@@ -21,6 +21,12 @@ const VEHICLES = [
 { value: "LASTBIL", label: "Lastbil / Buss", icon: Truck },
 ];
 
+const getOfficeDisplayName = (office: any) => {
+const city = String(office?.city || '').trim();
+const area = String(office?.area || '').trim();
+return String(office?.display_name || (city ? (area ? `${city} - ${area}` : city) : '') || office?.name || '').trim();
+};
+
 export function ContextIndicator({ context, onUpdateContext, offices }: ContextIndicatorProps) {
 if (!context.city && !context.area && !context.vehicle) {
 return null;
@@ -30,8 +36,8 @@ return null;
 const currentVehicle = VEHICLES.find((v) => v.value === context.vehicle);
 
 const locationLabel = context.city
-? context.area && !context.city.includes(' – ')
-? `${context.city} – ${context.area}`
+? context.area && !context.city.includes(' - ')
+? `${context.city} - ${context.area}`
 : context.city
 : null;
 
@@ -57,16 +63,14 @@ return (
 <DropdownMenuItem
 key={office.id}
 onSelect={() => {
-// 🔥 Vi skickar office.name till 'city' så att knapparna i AtlasChat 
-// visar det fullständiga namnet (t.ex. "Göteborg – Ullevi")
 onUpdateContext({ 
-city: office.name, 
-area: office.area 
+city: office.city || null,
+area: office.area || null
 });
 }}
 className="cursor-pointer text-sm"
 >
-{office.name}
+{getOfficeDisplayName(office)}
 </DropdownMenuItem>
 ))}
 </ScrollArea>

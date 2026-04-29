@@ -189,6 +189,12 @@ onCityChange,
 offices,
 }: QuickContextSelectorProps) {
 
+const getOfficeDisplayName = (office: any) => {
+const city = String(office?.city || '').trim();
+const area = String(office?.area || '').trim();
+return String(office?.display_name || (city ? (area ? `${city} - ${area}` : city) : '') || office?.name || '').trim();
+};
+
 const handleQuestionClick = (question: string) => {
 if (selectedVehicle && selectedCity) {
 const formattedQuestion = question.replace(/\{\{stad\}\}/g, selectedCity);
@@ -289,11 +295,11 @@ selectedCity
 <DropdownMenuItem
 key={office.id}
 onSelect={() => {
-onCityChange(office.name);
+onCityChange(getOfficeDisplayName(office));
 }}
 className="cursor-pointer"
 >
-{office.name}
+{getOfficeDisplayName(office)}
 </DropdownMenuItem>
 ))}
 </ScrollArea>

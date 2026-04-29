@@ -38,6 +38,12 @@ defaultVehicle?: "BIL" | "MC" | "AM" | "LASTBIL" | null;
 offices: any[]; // 🔥 TILLAGD: Tar emot listan från AtlasChat.tsx
 }
 
+const getOfficeDisplayName = (office: any) => {
+const city = String(office?.city || '').trim();
+const area = String(office?.area || '').trim();
+return String(office?.display_name || (city ? (area ? `${city} - ${area}` : city) : '') || office?.name || '').trim();
+};
+
 export function NameInputDialog({ open, onOpenChange, onConfirm, defaultCity, defaultVehicle, offices }: NameInputDialogProps) {
 const [name, setName] = useState("");
 const [email, setEmail] = useState("");
@@ -168,8 +174,8 @@ maxLength={10}
 
 {/* 🚀 Dynamisk loop: Renderar kontoren från databasen (ERSÄTTER ALLA GRUPPERADE STÄDER) */}
 {offices.map((office) => (
-<SelectItem key={office.id} value={office.name}>
-{office.name}
+<SelectItem key={office.id} value={getOfficeDisplayName(office)}>
+{getOfficeDisplayName(office)}
 </SelectItem>
 ))}
 

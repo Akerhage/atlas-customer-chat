@@ -45,6 +45,15 @@ timestamp: Date;
 senderName?: string | null; // Agentens namn för mänskliga svar (null = Atlas AI)
 }
 
+interface Office {
+id: number;
+name: string;
+display_name?: string;
+city: string;
+area: string | null;
+routing_tag: string;
+}
+
 // Convert history role to our internal role
 function mapHistoryRole(role: HistoryMessage['role']): 'user' | 'assistant' {
 return role === 'user' ? 'user' : 'assistant';
@@ -65,15 +74,46 @@ return { city: hyphenParts[0].trim(), area: hyphenParts[1].trim() };
 return { city: normalized, area: null };
 }
 
+function getOfficeDisplayName(office: Partial<Office>): string {
+const city = String(office.city || '').trim();
+const area = String(office.area || '').trim();
+return String(office.display_name || (city ? (area ? `${city} - ${area}` : city) : '') || office.name || office.routing_tag || '').trim();
+}
+
+function normalizeOfficeLabel(value: string | null | undefined): string {
+return String(value || '').trim().replace(/[\u2013\u2014]/g, '-').replace(/\s*-\s*/g, ' - ').toLowerCase();
+}
+
+function findOfficeByLabel(offices: Office[], value: string | null | undefined): Office | undefined {
+const normalized = normalizeOfficeLabel(value);
+if (!normalized) return undefined;
+return offices.find((office) => {
+const city = String(office.city || '').trim();
+const area = String(office.area || '').trim();
+const cityArea = area ? `${city} - ${area}` : city;
+return [
+office.routing_tag,
+office.name,
+office.display_name,
+cityArea,
+city
+].some((candidate) => normalizeOfficeLabel(candidate) === normalized);
+});
+}
+
+function getContextFromOfficeSelection(offices: Office[], value: string | null | undefined): Pick<ChatContext, 'city' | 'area'> {
+const office = findOfficeByLabel(offices, value);
+if (office) return { city: office.city || null, area: office.area || null };
+return value ? splitCityArea(value) : { city: null, area: null };
+}
+
+function formatCityAreaLabel(city: string | null | undefined, area: string | null | undefined): string | null {
+if (!city) return null;
+return area ? `${city} - ${area}` : city;
+}
+
 export function AtlasChat() {
 const [messages, setMessages] = useState<ChatMessage[]>([]);
-interface Office {
-id: number;
-name: string;
-city: string;
-area: string;
-routing_tag: string;
-}
 const [offices, setOffices] = useState<Office[]>([]); // 🔥 Håller kontorslistan
 const [isTyping, setIsTyping] = useState(false);
 const [isDark, setIsDark] = useState(true);
@@ -133,7 +173,7 @@ const handleCityChange = (locationLabel: string | null) => {
 setSelectedCity(locationLabel);
 setContext((prev) => {
 if (!locationLabel) return { ...prev, city: null, area: null };
-const { city, area } = splitCityArea(locationLabel);
+const { city, area } = getContextFromOfficeSelection(offices, locationLabel);
 return { ...prev, city, area };
 });
 };
@@ -332,11 +372,11 @@ if (contextData) {
 // Snabbvalet skickade med specifik stad/fordon - ANVÄND DET
 messageContext = { 
 vehicle: contextData.vehicle as "BIL" | "MC" | "AM" | "LASTBIL" | null,
-...splitCityArea(contextData.city)
+...getContextFromOfficeSelection(offices, contextData.city)
 };
 } else {
 // Använd nuvarande val från fönstret
-const cityArea = selectedCity ? splitCityArea(selectedCity) : { city: null, area: null };
+const cityArea = selectedCity ? getContextFromOfficeSelection(offices, selectedCity) : { city: null, area: null };
 messageContext = {
 vehicle: selectedVehicle ?? null,
 city: cityArea.city,
@@ -380,9 +420,9 @@ window.selectedVehicle = newV;
 
 // C) SYNK TILL UI: Uppdatera stads-knappen
 if (newCity) {
-const uiCityLabel = newArea ? `${newCity} – ${newArea}` : newCity;
+const uiCityLabel = formatCityAreaLabel(newCity, newArea);
 
-if (uiCityLabel !== selectedCity) {
+if (uiCityLabel && uiCityLabel !== selectedCity) {
 setSelectedCity(uiCityLabel);
 window.selectedCity = uiCityLabel;
 
@@ -490,14 +530,20 @@ let routingCity: string | null = null;
 let routingArea: string | null = null;
 
 if (contactInfo.city !== "Centralsupport") {
+routingCity = getContextFromOfficeSelection(offices, contactInfo.city).city || null;
+routingArea = getContextFromOfficeSelection(offices, contactInfo.city).area || null;
+}
+
+const selectedOffice = contactInfo.city === "Centralsupport"
+? null
+: findOfficeByLabel(offices, contactInfo.city);
+const targetAgentId = selectedOffice ? selectedOffice.routing_tag : null; // null = centralsupport/huvudinkorg
+
+if (!selectedOffice && contactInfo.city !== "Centralsupport") {
 const split = splitCityArea(contactInfo.city);
 routingCity = split.city;
 routingArea = split.area;
 }
-
-// Hitta kontoret i vår dynamiska lista för att få rätt tagg från DB
-const selectedOffice = offices.find(o => o.name === contactInfo.city);
-const targetAgentId = selectedOffice ? selectedOffice.routing_tag : null; // null = centralsupport/huvudinkorg
 
 const contextWithContact = {
 vehicle: contactInfo.vehicle,
@@ -549,8 +595,8 @@ window.selectedVehicle = newV;
 
 // 3. Synka Stads-knappen visuellt (Pusslar ihop "Stad – Område")
 if (newCity) {
-const uiCityLabel = newArea ? `${newCity} – ${newArea}` : newCity;
-if (uiCityLabel !== selectedCity) {
+const uiCityLabel = formatCityAreaLabel(newCity, newArea);
+if (uiCityLabel && uiCityLabel !== selectedCity) {
 setSelectedCity(uiCityLabel);
 window.selectedCity = uiCityLabel;
 }
@@ -694,7 +740,7 @@ window.selectedVehicle = v;
 }
 
 if (updates.city !== undefined) {
-const c = updates.city as string | null;
+const c = formatCityAreaLabel(updates.city as string | null, updates.area as string | null);
 setSelectedCity(c); 
 window.selectedCity = c;
 }

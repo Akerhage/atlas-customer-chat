@@ -183,6 +183,12 @@ questions: [
 const VEHICLE_ICONS = { BIL: Car, MC: Bike, AM: CircleDot, LASTBIL: Truck };
 const VEHICLE_LABELS = { BIL: "Bil", MC: "MC", AM: "Moped", LASTBIL: "Lastbil" };
 
+const getOfficeDisplayName = (office: any) => {
+const city = String(office?.city || '').trim();
+const area = String(office?.area || '').trim();
+return String(office?.display_name || (city ? (area ? `${city} - ${area}` : city) : '') || office?.name || '').trim();
+};
+
 export function QuickQuestionsButton({
 onSendMessage,
 selectedVehicle,
@@ -277,10 +283,10 @@ title="Snabbfrågor"
 {offices.map((office) => (
 <DropdownMenuItem 
 key={office.id} 
-onClick={() => onCityChange(office.name)}
-className={cn(selectedCity === office.name && "bg-primary/10")}
+onClick={() => onCityChange(getOfficeDisplayName(office))}
+className={cn(selectedCity === getOfficeDisplayName(office) && "bg-primary/10")}
 >
-{office.name}
+{getOfficeDisplayName(office)}
 </DropdownMenuItem>
 ))}
 </DropdownMenuContent>
