@@ -113,13 +113,23 @@ questions: [
 ],
 LASTBIL: [
 {
+category: "Pris Lastbil i {{stad}}",
+questions: [
+"Vad kostar ett C Totalpaket i {{stad}}?",
+"Vad kostar en C Körlektion i {{stad}}?",
+"Vad kostar ett CE Totalpaket i {{stad}}?",
+"Vad kostar en CE Körlektion i {{stad}}?",
+"Vad kostar ett C1 Paket i {{stad}}?",
+"Erbjuder ni D-körkort (buss) i {{stad}}?",
+],
+},
+{
 category: "Lastbil & Buss",
 questions: [
-"Vad kostar C-körkort i {{stad}}?",
 "Vad är skillnaden mellan C, C1 och CE-körkort?",
 "Vilka krav finns för att ta C-körkort?",
-"Vad är YKB och behöver jag det?",
-"Erbjuder ni lastbilsutbildning i {{stad}}?",
+"Måste jag ha B-körkort innan jag börjar lastbilsutbildningen?",
+"Hur lång tid tar lastbilsutbildningen?",
 ],
 },
 {
