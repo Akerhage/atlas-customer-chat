@@ -226,6 +226,37 @@ setIsSubmitting(false);
 }
 };
 
+const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+const files = Array.from(e.clipboardData.files);
+const itemFiles = files.length ? [] : Array.from(e.clipboardData.items || [])
+.filter(item => item.kind === "file")
+.map(item => item.getAsFile())
+.filter((file): file is File => Boolean(file));
+const pastedFiles = files.length ? files : itemFiles;
+if (!pastedFiles.length) return;
+
+const allowedFiles = pastedFiles.filter(file => ALLOWED_MIME.includes(file.type));
+if (!allowedFiles.length) {
+toast.error("Filtypen stöds inte via inklistring — bifoga filen via gemet 📎");
+return;
+}
+
+if (allowedFiles.length !== pastedFiles.length) {
+toast.error("Filtypen stöds inte via inklistring — bifoga filen via gemet 📎");
+}
+
+e.preventDefault();
+const dataTransfer = new DataTransfer();
+allowedFiles.forEach(file => dataTransfer.items.add(file));
+
+const pasteInput = document.createElement("input");
+pasteInput.type = "file";
+pasteInput.multiple = true;
+pasteInput.files = dataTransfer.files;
+
+void handleFileSelect({ target: pasteInput } as React.ChangeEvent<HTMLInputElement>);
+};
+
 const isFormValid =
 formData.name.trim() &&
 formData.email.trim() &&
@@ -325,21 +356,7 @@ maxLength={10}
 placeholder="Meddelande *"
 value={formData.message}
 onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-onPaste={(e) => {
-const imageFiles = Array.from(e.clipboardData.files).filter(file => file.type.startsWith("image/"));
-if (!imageFiles.length) return;
-
-e.preventDefault();
-const dataTransfer = new DataTransfer();
-imageFiles.forEach(file => dataTransfer.items.add(file));
-
-const pasteInput = document.createElement("input");
-pasteInput.type = "file";
-pasteInput.multiple = true;
-pasteInput.files = dataTransfer.files;
-
-void handleFileSelect({ target: pasteInput } as React.ChangeEvent<HTMLInputElement>);
-}}
+onPaste={handlePaste}
 rows={4}
 className="resize-none"
 maxLength={2000}

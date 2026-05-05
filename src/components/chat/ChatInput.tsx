@@ -22,6 +22,16 @@ humanMode: boolean; // true = human mode (fil-upload visas), false = AI-läge (f
 }
 
 const TYPING_THROTTLE_MS = 2000;
+const ALLOWED_PASTE = [
+"image/jpeg", "image/png", "image/gif", "image/webp",
+"application/pdf",
+"application/msword",
+"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+"application/vnd.ms-excel",
+"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+"application/vnd.ms-powerpoint",
+"application/vnd.openxmlformats-officedocument.presentationml.presentation",
+];
 
 export function ChatInput({ 
 onSend, 
@@ -105,17 +115,36 @@ if (file) handleFileUpload(file);
 };
 
 const handlePaste = (e: React.ClipboardEvent) => {
+const files = Array.from(e.clipboardData?.files || []);
+if (files.length > 0) {
+const file = files[0];
+if (ALLOWED_PASTE.includes(file.type)) {
+e.preventDefault();
+handleFileUpload(file);
+return;
+}
+toast.error("Filtypen stöds inte via inklistring — bifoga filen via gemet 📎");
+return;
+}
+
 const items = e.clipboardData?.items;
 if (!items) return;
+let hasUnsupportedFile = false;
 for (const item of Array.from(items)) {
-if (item.type.startsWith('image/')) {
-e.preventDefault();
+if (ALLOWED_PASTE.includes(item.type)) {
 const file = item.getAsFile();
 if (file) {
+e.preventDefault();
 handleFileUpload(file);
 }
-break;
+return;
 }
+if (item.kind === 'file') {
+hasUnsupportedFile = true;
+}
+}
+if (hasUnsupportedFile) {
+toast.error("Filtypen stöds inte via inklistring — bifoga filen via gemet 📎");
 }
 };
 
@@ -123,7 +152,7 @@ return (
 <div className="p-4 bg-chat-input border-t border-border">
 <div className={cn("flex items-end gap-2 bg-secondary/50 rounded-2xl px-4 py-2 border border-border/50 transition-all duration-200 focus-within:border-primary/30 input-glow")}>
 {humanMode && (
-<input type="file" ref={fileInputRef} className="hidden" onChange={handleFileSelect} accept="image/*,.pdf,.doc,.docx,.txt" disabled={disabled || isUploading} />
+<input type="file" ref={fileInputRef} className="hidden" onChange={handleFileSelect} accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" disabled={disabled || isUploading} />
 )}
 
 {humanMode && (
