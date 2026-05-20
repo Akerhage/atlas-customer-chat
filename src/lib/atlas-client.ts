@@ -58,6 +58,10 @@ sessionId: string;
 minutesLeft: number;
 }
 
+export interface PublicConfig {
+ai_replies_enabled: boolean;
+}
+
 // === CONFIGURATION ===
 // Use relative URLs so the chat works on whatever server it's hosted on
 const BASE_URL = '/api/customer';
@@ -105,7 +109,7 @@ return currentSessionId;
 let socket: Socket | null = null;
 let replyCallback: ((event: CustomerReplyEvent) => void) | null = null;
 let socketConnected = false;
-let agentTypingCallback: ((sessionId: string, agentName: string | null) => void) | null = null;
+let agentTypingCallback: ((sessionId: string, agentName: string | null, isTyping: boolean) => void) | null = null;
 
 export function isSocketConnected(): boolean {
 return socketConnected && socket?.connected === true;
@@ -113,6 +117,7 @@ return socketConnected && socket?.connected === true;
 
 let statusCallback: ((event: SessionStatusEvent) => void) | null = null;
 let warningCallback: ((event: SessionWarningEvent) => void) | null = null;
+let assignmentCallback: ((agentName: string | null) => void) | null = null;
 
 // ============================================================
 // HJÄLP: Registrerar alla socket-lyssnare på ett ställe så
@@ -126,6 +131,7 @@ socket.off('team:customer_reply');
 socket.off('team:session_status');
 socket.off('client:agent_typing');
 socket.off('team:session_warning');
+socket.off('team:session_assigned');
 
 // Agentens svar → kunden
 socket.on('team:customer_reply', (data: CustomerReplyEvent | Record<string, unknown>) => {
@@ -173,12 +179,12 @@ if (!incomingConversationId || incomingConversationId === currentSession) {
 });
 
 // Agent skriver-indikator
-socket.on('client:agent_typing', (data: { sessionId?: string; conversationId?: string; agentName?: string | null }) => {
+socket.on('client:agent_typing', (data: { sessionId?: string; conversationId?: string; agentName?: string | null; isTyping?: boolean; is_typing?: boolean }) => {
 const incomingId = data.sessionId || data.conversationId;
 const currentSession = getSessionId();
 
 if (!incomingId || incomingId === currentSession) {
-  agentTypingCallback?.(currentSession, data.agentName || null);
+  agentTypingCallback?.(currentSession, data.agentName || null, data.isTyping !== false && data.is_typing !== false);
 }
 });
 
@@ -198,13 +204,20 @@ if (!incomingId || incomingId === currentSession) {
   });
 }
 });
+
+// Tilldelning av handläggare — server emittar team:session_assigned vid claim
+socket.on('team:session_assigned', (data: { conversationId?: string; agentName?: string | null }) => {
+const incomingId = data.conversationId;
+if (!incomingId || incomingId === getSessionId()) assignmentCallback?.(data.agentName || null);
+});
 }
 
 export function connectSocket(
 onReply: (event: CustomerReplyEvent) => void,
 onStatusChange?: (event: SessionStatusEvent) => void,
-onAgentTyping?: (sessionId: string, agentName: string | null) => void,
-onWarning?: (event: SessionWarningEvent) => void
+onAgentTyping?: (sessionId: string, agentName: string | null, isTyping: boolean) => void,
+onWarning?: (event: SessionWarningEvent) => void,
+onAssigned?: (agentName: string | null) => void
 ): void {
 // Säkerställ att sessionId är initierat innan anslutning
 const sessionId = getSessionId();
@@ -214,6 +227,7 @@ replyCallback = onReply;
 statusCallback = onStatusChange || null;
 agentTypingCallback = onAgentTyping || null;
 warningCallback = onWarning || null;
+assignmentCallback = onAssigned || null;
 
 // Om socketen redan är ansluten, registrera om lyssnarna med nya callbacks
 // istället för att bara returnera — annars pekar lyssnarna på gamla stängda referenser.
@@ -260,6 +274,7 @@ replyCallback = null;
 statusCallback = null;
 agentTypingCallback = null;
 warningCallback = null;
+assignmentCallback = null;
 }
 
 /**
@@ -408,6 +423,24 @@ export async function getPublicOffices(): Promise<any[]> {
   });
   if (!response.ok) throw new Error('Failed to fetch offices');
   return response.json();
+}
+
+/**
+ * Hamtar publik kundchatt-konfiguration.
+ * Fail-safe: om servern inte svarar antar klienten att AI-svar ar pa.
+ */
+export async function getPublicConfig(): Promise<PublicConfig> {
+  try {
+    const response = await fetch('/api/public/config', {
+      headers: { [NGROK_SKIP_HEADER]: NGROK_SKIP_VALUE }
+    });
+    if (!response.ok) throw new Error('Failed to fetch public config');
+    const data = await response.json();
+    return { ai_replies_enabled: data?.ai_replies_enabled !== false };
+  } catch (err) {
+    console.warn('[Atlas] Kunde inte hamta publik konfiguration:', err);
+    return { ai_replies_enabled: true };
+  }
 }
 
 export interface CustomerTemplate {

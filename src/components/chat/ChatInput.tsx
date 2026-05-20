@@ -19,6 +19,7 @@ onVehicleChange: (vehicle: VehicleType) => void;
 onCityChange: (city: string | null) => void;
 offices: any[]; // 🔥 TILLAGD: Krävs för QuickQuestionsButton
 humanMode: boolean; // true = human mode (fil-upload visas), false = AI-läge (fil-knappen dold)
+aiRepliesEnabled?: boolean;
 }
 
 const TYPING_THROTTLE_MS = 2000;
@@ -43,13 +44,24 @@ selectedCity = null,
 onVehicleChange,
 onCityChange,
 offices,
-humanMode
+humanMode,
+aiRepliesEnabled = true
 }: ChatInputProps) {
 const [message, setMessage] = useState("");
 const [isUploading, setIsUploading] = useState(false);
 const textareaRef = useRef<HTMLTextAreaElement>(null);
 const lastTypingTimeRef = useRef<number>(0);
 const fileInputRef = useRef<HTMLInputElement>(null);
+// Refokus när disabled går från true → false. När `disabled={isTyping}` flippar
+// (AI svarar) blir textarea avaktiverad och browsern tar bort focus; utan denna
+// hook tappas focus permanent och kund måste klicka tillbaka i fältet.
+const wasDisabledRef = useRef(disabled);
+useEffect(() => {
+if (wasDisabledRef.current && !disabled) {
+textareaRef.current?.focus();
+}
+wasDisabledRef.current = disabled;
+}, [disabled]);
 
 const handleTyping = useCallback(() => {
 const now = Date.now();
@@ -72,7 +84,12 @@ const trimmed = message.trim();
 if (trimmed && !disabled && !isUploading) {
 onSend(trimmed);
 setMessage("");
-if (textareaRef.current) textareaRef.current.style.height = "auto";
+if (textareaRef.current) {
+textareaRef.current.style.height = "auto";
+// Behåll focus så kund kan skriva direkt efter Enter (i människo-läge
+// flippar inte disabled, så useEffecten ovan triggas inte).
+textareaRef.current.focus();
+}
 }
 };
 
@@ -190,7 +207,7 @@ offices={offices}
 <Send className="w-4 h-4" />
 </button>
 </div>
-{!humanMode && (
+{aiRepliesEnabled && !humanMode && (
 <p className="text-[11px] text-muted-foreground/50 text-center mt-2">
 Atlas AI kan ibland ge felaktiga svar. Kontrollera alltid viktig information med en handläggare.
 </p>

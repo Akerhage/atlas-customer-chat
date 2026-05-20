@@ -1,15 +1,3 @@
-declare global {
-interface Window {
-selectedCity: string | null;
-selectedVehicle: "BIL" | "MC" | "AM" | "LASTBIL" | null;
-}
-}
-
-// 2. INITIALISERA GLOBALT (FÖRE IMPORTS)
-if (typeof window !== 'undefined') {
-window.selectedCity = null;
-window.selectedVehicle = null;
-}
 import { useState, useRef, useEffect, useCallback } from "react";
 import { ChatHeader } from "./ChatHeader";
 import { ChatBubble } from "./ChatBubble";
@@ -29,6 +17,7 @@ disconnectSocket,
 getSessionId,
 emitEndChat,
 getPublicOffices,
+getPublicConfig,
 type ChatContext,
 type HistoryMessage,
 type CustomerReplyEvent,
@@ -37,13 +26,23 @@ type SessionWarningEvent,
 } from "@/lib/atlas-client";
 import { toast } from "sonner";
 
+declare global {
+interface Window {
+selectedCity: string | null;
+selectedVehicle: "BIL" | "MC" | "AM" | "LASTBIL" | null;
+}
+}
+
 interface ChatMessage {
 id: string;
 role: 'user' | 'assistant';
 content: string;
 timestamp: Date;
 senderName?: string | null; // Agentens namn för mänskliga svar (null = Atlas AI)
+choices?: { label: string; value: string }[];
 }
+
+type IntakeStep = 'name' | 'email' | 'phone' | 'office' | 'vehicle' | null;
 
 interface Office {
 id: number;
@@ -112,9 +111,38 @@ if (!city) return null;
 return area ? `${city} - ${area}` : city;
 }
 
+const AI_ON_WELCOME_MESSAGE_CONTENT = `Hej! Välkommen till Atlas. 👋
+
+Jag är **Atlas AI** och kan hjälpa dig med vanliga frågor om körkort, trafikskola och bokning.
+
+Vill du hellre prata med en människa? Skriv *"jag vill prata med en människa"* eller klicka på headset-ikonen uppe till höger.
+
+Vad kan jag hjälpa dig med idag?`;
+
+const AI_OFF_WELCOME_MESSAGE_CONTENT = `Hej och välkommen! 👋
+
+Här kommer du i kontakt med oss direkt. Jag ber dig om namn, e-post och (valfritt) mobilnummer, och låter dig välja vilket **kontor** du vill nå — eller vår **centralsupport** — samt vad ditt ärende gäller.
+
+Vill du hellre mejla? Klicka på kuvert-ikonen uppe till höger. Då sätter vi igång — vad heter du?`;
+
+const getWelcomeMessageContent = (aiRepliesEnabled: boolean) =>
+aiRepliesEnabled ? AI_ON_WELCOME_MESSAGE_CONTENT : AI_OFF_WELCOME_MESSAGE_CONTENT;
+
+const createWelcomeMessage = (aiRepliesEnabled: boolean): ChatMessage => ({
+id: 'welcome-msg',
+role: 'assistant',
+content: getWelcomeMessageContent(aiRepliesEnabled),
+timestamp: new Date(),
+});
+
 export function AtlasChat() {
-const [messages, setMessages] = useState<ChatMessage[]>([]);
+const [messages, setMessages] = useState<ChatMessage[]>([
+createWelcomeMessage(true)
+]);
 const [offices, setOffices] = useState<Office[]>([]); // 🔥 Håller kontorslistan
+const [aiRepliesEnabled, setAiRepliesEnabled] = useState(true);
+const [publicConfigLoaded, setPublicConfigLoaded] = useState(false);
+const [initialHistoryLoaded, setInitialHistoryLoaded] = useState(false);
 const [isTyping, setIsTyping] = useState(false);
 const [isDark, setIsDark] = useState(true);
 const [showEndDialog, setShowEndDialog] = useState(false);
@@ -122,11 +150,16 @@ const [showNameDialog, setShowNameDialog] = useState(false);
 const [humanMode, setHumanMode] = useState(false);
 const [agentNames, setAgentNames] = useState<string[]>([]); // Alla agenter som svarat
 const [typingAgentName, setTypingAgentName] = useState<string | null>(null); // Vem skriver just nu
+const [assignedAgentName, setAssignedAgentName] = useState<string | null>(null); // Tilldelad handläggare innan första svar
 const [isArchived, setIsArchived] = useState(false);
 const [closeReason, setCloseReason] = useState<string | null>(null);
-const [customerName, setCustomerName] = useState<string | null>(null);
-const [customerEmail, setCustomerEmail] = useState<string | null>(null);
-const [customerPhone, setCustomerPhone] = useState<string | null>(null);
+const [intakeStep, setIntakeStep] = useState<IntakeStep>(null);
+const [intakeData, setIntakeData] = useState<{
+name?: string;
+email?: string;
+phone?: string;
+city?: string;
+}>({});
 const [archivedMessage, setArchivedMessage] = useState<string | null>(null);
 const [inactivityWarning, setInactivityWarning] = useState(false);
 const [inactivityCountdown, setInactivityCountdown] = useState(300); // 5 min i sekunder
@@ -147,6 +180,28 @@ getPublicOffices()
 .catch(err => console.error("Kunde inte ladda kontor:", err));
 }, []);
 
+useEffect(() => {
+let cancelled = false;
+
+getPublicConfig()
+.then((config) => {
+if (cancelled) return;
+setAiRepliesEnabled(config.ai_replies_enabled);
+})
+.catch((err) => {
+if (cancelled) return;
+console.error("Kunde inte ladda publik konfiguration:", err);
+setAiRepliesEnabled(true);
+})
+.finally(() => {
+if (!cancelled) setPublicConfigLoaded(true);
+});
+
+return () => {
+cancelled = true;
+};
+}, []);
+
 // 🔥 FIX: Synka isDark med HTML-elementet (Gör popup-rutor mörka)
 useEffect(() => {
 if (isDark) {
@@ -155,13 +210,6 @@ document.documentElement.classList.add('dark');
 document.documentElement.classList.remove('dark');
 }
 }, [isDark]);
-
-useEffect(() => {
-// @ts-ignore
-window.selectedCity = selectedCity;
-// @ts-ignore
-window.selectedVehicle = selectedVehicle;
-}, [selectedCity, selectedVehicle]);
 
 // Keep context in sync with selections so it can be sent even for manual input
 const handleVehicleChange = (vehicle: "BIL" | "MC" | "AM" | "LASTBIL" | null) => {
@@ -180,8 +228,40 @@ return { ...prev, city, area };
 const messagesEndRef = useRef<HTMLDivElement>(null);
 const scrollContainerRef = useRef<HTMLDivElement>(null);
 const lastMessageCountRef = useRef<number>(0);
+const agentTypingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 const generateMessageId = () => `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
+// Injicerar ett bot-meddelande lokalt i chatten under intake-flödet.
+// VIKTIGT: lastMessageCountRef inkrementeras INTE avsiktligt.
+// Intake-meddelanden är efemära – när humanMode startar och
+// polling aktiveras ersätts de automatiskt av serverns historik.
+const injectBotMessage = (content: string, choices?: { label: string; value: string }[]) => {
+setMessages((prev) => [
+...prev,
+{
+id: generateMessageId(),
+role: 'assistant' as const,
+content,
+timestamp: new Date(),
+choices,
+},
+]);
+};
+
+// Injicerar ett användarmeddelande lokalt utan att skicka till backend.
+// lastMessageCountRef inkrementeras inte av samma anledning som ovan.
+const injectUserMessage = (content: string) => {
+setMessages((prev) => [
+...prev,
+{
+id: generateMessageId(),
+role: 'user' as const,
+content,
+timestamp: new Date(),
+},
+]);
+};
 
 const scrollToBottom = useCallback(() => {
 messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -193,11 +273,7 @@ scrollToBottom();
 
 // Socket.io connection for real-time agent replies
 const handleAgentReply = useCallback((event: CustomerReplyEvent) => {
-// Spara och ackumulera agentnamn (deduplicate, max 5)
 const name = event.sender && event.sender !== 'agent' ? event.sender : null;
-if (name) {
-setAgentNames((prev) => prev.includes(name) ? prev : [...prev.slice(-4), name]);
-}
 
 const agentMessage: ChatMessage = {
 id: generateMessageId(),
@@ -209,6 +285,10 @@ senderName: name,
 
 setMessages((prev) => [...prev, agentMessage]);
 lastMessageCountRef.current += 1;
+if (agentTypingTimerRef.current) {
+clearTimeout(agentTypingTimerRef.current);
+agentTypingTimerRef.current = null;
+}
 setIsTyping(false);
 setTypingAgentName(null);
 }, []);
@@ -222,6 +302,10 @@ if (event.status === 'archived') {
 setIsArchived(true);
 setCloseReason(event.close_reason || null);
 setArchivedMessage(event.message || (event.close_reason === 'inactivity' ? 'Chatten har stängts automatiskt på grund av inaktivitet.' : 'Chatten är avslutad av handläggaren.'));
+if (agentTypingTimerRef.current) {
+clearTimeout(agentTypingTimerRef.current);
+agentTypingTimerRef.current = null;
+}
 setIsTyping(false);
 setInactivityWarning(false);
 if (inactivityTimerRef.current) { clearInterval(inactivityTimerRef.current); inactivityTimerRef.current = null; }
@@ -230,17 +314,36 @@ setShowEndDialog(true);
 }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
 // Handle agent typing indicator
-const handleAgentTyping = useCallback((_sessionId: string, agentName: string | null) => {
-setIsTyping(true);
-setTypingAgentName(agentName);
-// Auto-clear after 3 seconds (agent stopped typing or sent message)
-setTimeout(() => {
+const handleAgentTyping = useCallback((_sessionId: string, agentName: string | null, isTyping: boolean) => {
+if (agentTypingTimerRef.current) clearTimeout(agentTypingTimerRef.current);
+if (!isTyping) {
 setIsTyping(false);
 setTypingAgentName(null);
-}, 3000);
+agentTypingTimerRef.current = null;
+return;
+}
+setIsTyping(true);
+setTypingAgentName(agentName);
+agentTypingTimerRef.current = setTimeout(() => {
+setIsTyping(false);
+setTypingAgentName(null);
+agentTypingTimerRef.current = null;
+}, 6000);
 }, []);
 
-// Handle inactivity warning — start a 5-minute countdown
+useEffect(() => {
+return () => {
+if (agentTypingTimerRef.current) clearTimeout(agentTypingTimerRef.current);
+};
+}, []);
+
+// Handle ticket assignment — agent claimed (server emittar team:session_assigned)
+const handleSessionAssigned = useCallback((agentName: string | null) => {
+setAssignedAgentName(agentName || null);
+setAgentNames(agentName ? [agentName] : []);
+}, []);
+
+// Handle inactivity warning - start a 5-minute countdown
 const handleInactivityWarning = useCallback((event: SessionWarningEvent) => {
 const seconds = (event.minutesLeft ?? 5) * 60;
 setInactivityWarning(true);
@@ -261,15 +364,84 @@ return prev - 1;
 }, 1000);
 }, []);
 
+const handleIntakeInput = (input: string) => {
+const trimmed = input.trim();
+
+if (['avbryt', 'avbryta', 'cancel'].includes(trimmed.toLowerCase())) {
+setIntakeData({});
+if (!aiRepliesEnabled) {
+setIntakeStep('name');
+injectBotMessage('Okej, vi börjar om. Vad heter du?');
+return;
+}
+setIntakeStep(null);
+injectBotMessage('Okej, vi avbröt det. Skriv gärna om du har fler frågor!');
+return;
+}
+
+injectUserMessage(trimmed);
+
+switch (intakeStep) {
+case 'name': {
+if (trimmed.length < 2) {
+injectBotMessage('Vänligen ange ditt namn (minst 2 tecken).');
+return;
+}
+setIntakeData((prev) => ({ ...prev, name: trimmed }));
+setIntakeStep('email');
+injectBotMessage(`Tack ${trimmed}! Vad är din e-postadress?`);
+break;
+}
+case 'email': {
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+if (!emailRegex.test(trimmed)) {
+injectBotMessage('Det verkar inte vara en giltig e-postadress. Försök igen.');
+return;
+}
+setIntakeData((prev) => ({ ...prev, email: trimmed }));
+setIntakeStep('phone');
+injectBotMessage('Tack! Vill du lägga till ett mobilnummer? Skriv numret eller **"hoppa över"**.');
+break;
+}
+case 'phone': {
+const skipWords = ['hoppa över', 'hoppa over', 'skip', '-', 'nej', 'ingen'];
+const isSkip = skipWords.includes(trimmed.toLowerCase());
+const digits = trimmed.replace(/\D/g, '').slice(0, 10);
+if (!isSkip && digits.length < 8) {
+injectBotMessage('Ange ett giltigt mobilnummer (minst 8 siffror) eller skriv **"hoppa över"**.');
+return;
+}
+setIntakeData((prev) => ({ ...prev, phone: isSkip ? undefined : digits }));
+setIntakeStep('office');
+const officeChoices: { label: string; value: string }[] = [
+{ label: 'Centralsupport', value: 'Centralsupport' },
+...offices.map((o) => {
+const name = getOfficeDisplayName(o);
+return { label: name, value: name };
+}),
+];
+injectBotMessage('Vilket kontor vill du kontakta?', officeChoices);
+break;
+}
+case 'office':
+case 'vehicle': {
+injectBotMessage('Klicka på ett av alternativen ovan för att välja 👆');
+break;
+}
+default:
+break;
+}
+};
+
 // Connect socket on mount, disconnect on unmount
 useEffect(() => {
-connectSocket(handleAgentReply, handleSessionStatus, handleAgentTyping, handleInactivityWarning);
+connectSocket(handleAgentReply, handleSessionStatus, handleAgentTyping, handleInactivityWarning, handleSessionAssigned);
 
 return () => {
 if (inactivityTimerRef.current) clearInterval(inactivityTimerRef.current);
 disconnectSocket();
 };
-}, [handleAgentReply, handleSessionStatus, handleAgentTyping, handleInactivityWarning]);
+}, [handleAgentReply, handleSessionStatus, handleAgentTyping, handleInactivityWarning, handleSessionAssigned]);
 
 // Polling for human mode - fetch history and sync messages
 const pollHistory = useCallback(async () => {
@@ -289,33 +461,30 @@ setArchivedMessage(history.close_reason === 'inactivity' ? 'Chatten har stängts
 // Always sync messages from server - compare by content, not just count
 const serverMsgCount = history.messages.length;
 
-if (serverMsgCount !== lastMessageCountRef.current) {
-// Convert history messages to our format, preserving existing timestamps
+if (serverMsgCount > 0 && serverMsgCount !== lastMessageCountRef.current) {
 setMessages((prevMessages) => {
+// Behåll välkomstbubblan i toppen om den finns
+const welcomeMsg = prevMessages.find(m => m.id === 'welcome-msg');
+
 const newMessages: ChatMessage[] = history.messages.map((msg, index) => {
-// Try to find existing message by matching content and role
 const existingMsg = prevMessages.find(
-(prev, prevIndex) => 
-prev.content === msg.content && 
-prev.role === mapHistoryRole(msg.role) &&
-prevIndex === index
+(prev) =>
+prev.content === msg.content &&
+prev.role === mapHistoryRole(msg.role)
 );
 
 return {
 id: existingMsg?.id || `history_${index}_${Date.now()}`,
 role: mapHistoryRole(msg.role),
 content: msg.content,
-// Preserve existing timestamp or use current time for new messages
 timestamp: existingMsg?.timestamp || new Date(),
 };
 });
 
-return newMessages;
+return welcomeMsg ? [welcomeMsg, ...newMessages] : newMessages;
 });
 
 lastMessageCountRef.current = serverMsgCount;
-
-// Stop typing indicator if we got a new message
 setIsTyping(false);
 }
 } catch (error) {
@@ -328,8 +497,29 @@ console.error('[AtlasChat] Polling error:', error);
 // This ensures we detect human_mode even if /message doesn't include it,
 // and it also restores any existing conversation on refresh.
 useEffect(() => {
-pollHistory();
+let cancelled = false;
+
+pollHistory().finally(() => {
+if (!cancelled) setInitialHistoryLoaded(true);
+});
+
+return () => {
+cancelled = true;
+};
 }, [pollHistory]);
+
+useEffect(() => {
+if (!publicConfigLoaded || !initialHistoryLoaded || aiRepliesEnabled || humanMode || isArchived) return;
+
+setMessages([createWelcomeMessage(false)]);
+setIntakeStep('name');
+setIntakeData({});
+setContext({ city: null, area: null, vehicle: null });
+setSelectedVehicle(null);
+setSelectedCity(null);
+setIsTyping(false);
+lastMessageCountRef.current = 0;
+}, [publicConfigLoaded, initialHistoryLoaded, aiRepliesEnabled, humanMode, isArchived]);
 
 // Lightweight polling fallback for human mode only.
 // Socket.io is the primary channel, but this catches missed events (network glitches, reconnects).
@@ -345,13 +535,25 @@ return () => clearInterval(pollInterval);
 
 
 const handleSendMessage = async (content: string, contextData?: { vehicle: string; city: string }) => {
+if (!aiRepliesEnabled && !humanMode) {
+if (!intakeStep) {
+setIntakeStep('name');
+injectBotMessage('Då sätter vi igång — vad heter du?');
+return;
+}
+handleIntakeInput(content);
+return;
+}
+
 // 🔥 TRIGGER-INTERCEPT: Endast exakt frasen — matchar server-sidans HUMAN_TRIGGERS.
 // Headset-knappen öppnar namn-dialog direkt; denna intercept fångar bara om kunden
 // råkar skriva exakt frasen i input-fältet och ska då också gå via namn-dialogen.
 const HUMAN_TRIGGERS = ["jag vill prata med en människa"];
 const isHumanTrigger = HUMAN_TRIGGERS.some(phrase => content.toLowerCase().trim() === phrase);
 if (isHumanTrigger && !humanMode) {
-setShowNameDialog(true);
+// ✅ Starta det interaktiva chattflödet istället
+setIntakeStep('name');
+injectBotMessage('För att kunna koppla dig till rätt person behöver jag några uppgifter. Vad heter du?');
 return;
 }
 
@@ -397,7 +599,7 @@ setIsTyping(true);
 
 try {
 // 3. SKICKA TILL SERVER
-const response = await sendMessage(content, messages.length === 0, messageContext);
+const response = await sendMessage(content, messages.length <= 1, messageContext);
 
 // 4. Uppdatera context OCH de visuella knapparna om servern ändrat kontext
 if (response.locked_context) {
@@ -463,13 +665,16 @@ setIsTyping(false);
 };
 
 const handleReset = () => {
-setMessages([]);
+setMessages([createWelcomeMessage(aiRepliesEnabled)]);
 setContext({ city: null, area: null, vehicle: null });
 setSelectedVehicle(null);
 setSelectedCity(null);
 setHumanMode(false);
+setIntakeStep(aiRepliesEnabled ? null : 'name');
+setIntakeData({});
 setAgentNames([]);
 setTypingAgentName(null);
+setAssignedAgentName(null);
 setIsArchived(false);
 setCloseReason(null);
 setArchivedMessage(null);
@@ -478,7 +683,7 @@ lastMessageCountRef.current = 0;
 // Reset the session id AND ensure the socket joins the new session room.
 disconnectSocket();
 resetSession();
-connectSocket(handleAgentReply, handleSessionStatus, handleAgentTyping, handleInactivityWarning);
+connectSocket(handleAgentReply, handleSessionStatus, handleAgentTyping, handleInactivityWarning, handleSessionAssigned);
 };
 
 const handleQuickAction = (message: string, contextData?: { vehicle: string; city: string }) => {
@@ -494,7 +699,7 @@ const handleEndSession = () => {
 emitEndChat();
 setCloseReason(null);
 
-if (messages.length > 0) {
+if (messages.length > 1) {
 setShowEndDialog(true);
 } else {
 toast.success("Ärendet har avslutats. Tack för att du kontaktade oss!");
@@ -508,15 +713,21 @@ handleReset();
 };
 
 const handleRequestHuman = () => {
-// Show name input dialog first
-setShowNameDialog(true);
+if (humanMode) return;
+if (!aiRepliesEnabled) {
+if (!intakeStep) {
+setIntakeStep('name');
+injectBotMessage('Då sätter vi igång — vad heter du?');
+}
+return;
+}
+// ✅ Starta det interaktiva chattflödet istället
+setIntakeStep('name');
+injectBotMessage('För att kunna koppla dig till rätt person behöver jag några uppgifter. Vad heter du?');
 };
 
 const handleNameConfirmed = (contactInfo: ContactInfo) => {
 setShowNameDialog(false);
-setCustomerName(contactInfo.name);
-setCustomerEmail(contactInfo.email);
-setCustomerPhone(contactInfo.phone || null);
 
 // 🔥 FIX 1: Synka huvud-staten med de definitiva valen från popupen
 setSelectedCity(contactInfo.city);
@@ -555,8 +766,76 @@ email: contactInfo.email,
 phone: contactInfo.phone
 };
 
-// Send message with contact info in context
-sendMessageWithContext("Jag vill prata med en människa", contextWithContact);
+// Send message with contact info in context (tyst – ingen bubbla visas)
+sendEscalationSilently(contextWithContact);
+};
+
+const handleChoiceSelected = (value: string) => {
+const vehicleLabels: Record<string, string> = {
+BIL: 'Bil (B)',
+MC: 'Motorcykel (A)',
+AM: 'Moped (AM)',
+LASTBIL: 'Lastbil / Buss',
+};
+
+if (intakeStep === 'office') {
+injectUserMessage(value);
+setIntakeData((prev) => ({ ...prev, city: value }));
+setIntakeStep('vehicle');
+injectBotMessage('Vad gäller ärendet?', [
+{ label: 'Bil (B)',        value: 'BIL'     },
+{ label: 'Motorcykel (A)', value: 'MC'      },
+{ label: 'Moped (AM)',     value: 'AM'      },
+{ label: 'Lastbil / Buss', value: 'LASTBIL' },
+]);
+
+} else if (intakeStep === 'vehicle') {
+injectUserMessage(vehicleLabels[value] || value);
+setIntakeStep(null);
+
+const finalName    = intakeData.name!;
+const finalEmail   = intakeData.email!;
+const finalPhone   = intakeData.phone;
+const finalCity    = intakeData.city!;
+const finalVehicle = value as 'BIL' | 'MC' | 'AM' | 'LASTBIL';
+
+injectBotMessage(`Tack! Kopplar dig nu till **${finalCity}**... 🔗`);
+
+setSelectedCity(finalCity);
+setSelectedVehicle(finalVehicle);
+setHumanMode(true);
+
+let routingCity: string | null = null;
+let routingArea: string | null = null;
+
+if (finalCity !== 'Centralsupport') {
+const ctxResult = getContextFromOfficeSelection(offices, finalCity);
+routingCity = ctxResult.city || null;
+routingArea = ctxResult.area || null;
+}
+
+const selectedOffice =
+finalCity === 'Centralsupport' ? null : findOfficeByLabel(offices, finalCity);
+const targetAgentId = selectedOffice ? selectedOffice.routing_tag : null;
+
+if (!selectedOffice && finalCity !== 'Centralsupport') {
+const split = splitCityArea(finalCity);
+routingCity = split.city;
+routingArea = split.area;
+}
+
+sendEscalationSilently({
+vehicle:  finalVehicle,
+city:     routingCity,
+area:     routingArea,
+agent_id: targetAgentId,
+name:     finalName,
+email:    finalEmail,
+phone:    finalPhone,
+});
+
+setIntakeData({});
+}
 };
 
 // Helper to send message with custom context including contact info
@@ -628,6 +907,44 @@ setIsTyping(false);
 }
 };
 
+// Tyst eskalering — skickar eskaleringsmeddelandet till backend utan att
+// visa "Jag vill prata med en människa"-bubblan eller backendsvaret i UI.
+// Intake-flödet visar redan "Kopplar dig nu till X..." som bekräftelse.
+const sendEscalationSilently = async (contextWithContact: ChatContext & { name?: string; email?: string; phone?: string }) => {
+try {
+const response = await sendMessage('Jag vill prata med en människa', false, contextWithContact);
+lastMessageCountRef.current += 1;
+
+if (response.locked_context) {
+const newV = response.locked_context.vehicle as "BIL" | "MC" | "AM" | "LASTBIL" | null;
+const newCity = response.locked_context.city;
+const newArea = response.locked_context.area;
+setContext({
+city: newCity ?? context.city ?? null,
+area: newArea ?? context.area ?? null,
+vehicle: newV ?? context.vehicle ?? null,
+});
+if (newV && newV !== selectedVehicle) {
+setSelectedVehicle(newV);
+window.selectedVehicle = newV;
+}
+if (newCity) {
+const uiCityLabel = formatCityAreaLabel(newCity, newArea);
+if (uiCityLabel && uiCityLabel !== selectedCity) {
+setSelectedCity(uiCityLabel);
+window.selectedCity = uiCityLabel;
+}
+}
+}
+
+if (response.human_mode) {
+setHumanMode(true);
+}
+} catch (error) {
+console.error('[AtlasChat] Escalation error:', error);
+}
+};
+
 const handleToggleTheme = () => {
 setIsDark(prev => !prev);
 };
@@ -645,12 +962,25 @@ senderName: null,
 setMessages((prev) => [...prev, templateMessage]);
 };
 
-const showWelcome = messages.length === 0 && !isTyping;
+const showWelcomeWidget = aiRepliesEnabled && messages.length === 1 && messages[0].id === 'welcome-msg' && !isTyping;
+const handleInputSend = (message: string, contextData?: { vehicle: string; city: string }) => {
+if (!aiRepliesEnabled && !humanMode) {
+handleIntakeInput(message);
+return;
+}
+
+if (intakeStep) {
+handleIntakeInput(message);
+return;
+}
+
+handleSendMessage(message, contextData);
+};
 
 return (
 <div className={`flex flex-col h-full ${isDark ? 'bg-chat-bg dark' : 'bg-zinc-50'} `}>
 <ChatHeader
-onReset={messages.length > 0 ? handleReset : undefined}
+onReset={messages.length > 1 ? handleReset : undefined}
 onEndSession={handleEndSession}
 onRequestHuman={handleRequestHuman}
 isDark={isDark}
@@ -663,7 +993,13 @@ onTemplateSelect={handleTemplateSelect}
 />
 
 {/* Human mode indicator */}
-{humanMode && !isArchived && <HumanModeIndicator agentNames={agentNames} />}
+{humanMode && !isArchived && (
+<HumanModeIndicator
+agentNames={agentNames}
+assignedAgentName={assignedAgentName}
+status={assignedAgentName ? 'active' : 'waiting'}
+/>
+)}
 
 {/* Inaktivitetsvarning — visas 5 min innan chatten stängs automatiskt */}
 {inactivityWarning && !isArchived && (
@@ -697,17 +1033,20 @@ Chatten stängs automatiskt pga inaktivitet om{' '}
 
 {/* Messages area */}
 <div ref={scrollContainerRef} className="flex-1 overflow-y-auto chat-scrollbar px-4 py-4">
-{showWelcome ? (
-<WelcomeMessage 
+<div className="flex flex-col gap-3">
+{/* Välkomst-widget (logga + snabbknappar) visas bara innan kunden skickat något */}
+{showWelcomeWidget && (
+<WelcomeMessage
 onQuickAction={handleQuickAction}
 selectedVehicle={selectedVehicle}
 selectedCity={selectedCity}
 onVehicleChange={handleVehicleChange}
 onCityChange={handleCityChange}
-offices={offices} // 🚀 NY: Dynamisk lista tillagd
+offices={offices}
 />
-) : (
-<div className="flex flex-col gap-3">
+)}
+
+{/* Alla meddelanden renderas alltid, inklusive välkomstbubblan */}
 {messages.map((message, index) => (
 <ChatBubble
 key={message.id}
@@ -716,15 +1055,22 @@ isUser={message.role === 'user'}
 timestamp={message.timestamp}
 isLatest={index === messages.length - 1}
 senderName={message.senderName}
+choices={message.choices}
+onChoiceSelect={handleChoiceSelected}
 />
 ))}
-{isTyping && <TypingIndicator agentName={typingAgentName} />}
+
+<div className="min-h-[52px]">
+<div className={isTyping ? "opacity-100 transition-opacity duration-150" : "opacity-0 pointer-events-none transition-opacity duration-200"}>
+<TypingIndicator agentName={typingAgentName} />
+</div>
+</div>
 <div ref={messagesEndRef} />
 </div>
-)}
 </div>
 
 {/* Context indicator - interactive */}
+{aiRepliesEnabled && (
 <ContextIndicator 
 context={context}
 offices={offices} // 🚀 NY: Dynamisk lista tillagd
@@ -746,6 +1092,7 @@ window.selectedCity = c;
 }
 }}
 />
+)}
 
 {/* Input - disabled when archived */}
 {isArchived ? (
@@ -753,17 +1100,19 @@ window.selectedCity = c;
 <p className="text-sm text-muted-foreground text-center">Denna konversation är avslutad.</p>
 </div>
 ) : (
-<ChatInput 
-onSend={handleSendMessage} 
+<ChatInput
+onSend={handleInputSend}
+
 disabled={isTyping}
-placeholder={humanMode ? "Skriv till support... (Shift+Enter för ny rad)" : "Skriv ett meddelande... (Shift+Enter för ny rad)"}
-showQuickQuestions={messages.length > 0}
+placeholder={!aiRepliesEnabled && !humanMode ? "Skriv ditt svar..." : (humanMode ? "Skriv till support..." : "Skriv ett meddelande...")}
+showQuickQuestions={aiRepliesEnabled && messages.length > 1}
 selectedVehicle={selectedVehicle}
 onVehicleChange={handleVehicleChange}
 onCityChange={handleCityChange}
 selectedCity={selectedCity}
 offices={offices}
-humanMode={humanMode}// 🚀 NY: Dynamisk lista tillagd
+humanMode={humanMode}
+aiRepliesEnabled={aiRepliesEnabled}
 />
 )}
 

@@ -5,6 +5,9 @@ import path from "path";
 export default defineConfig(({ mode }) => ({
   // VIKTIGT: Måste vara exakt "/kundchatt/" för att routing ska funka
   base: "/kundchatt/", 
+  esbuild: {
+    charset: "ascii",
+  },
   server: {
     host: "::",
     port: 8080,

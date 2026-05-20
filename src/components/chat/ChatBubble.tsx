@@ -27,9 +27,11 @@ isUser: boolean;
 timestamp?: Date;
 isLatest?: boolean;
 senderName?: string | null;
+choices?: { label: string; value: string }[];
+onChoiceSelect?: (value: string) => void;
 }
 
-export function ChatBubble({ content, isUser, timestamp, isLatest, senderName }: ChatBubbleProps) {
+export function ChatBubble({ content, isUser, timestamp, isLatest, senderName, choices, onChoiceSelect }: ChatBubbleProps) {
 // Visa agentens namn om angivet, annars "Atlas" för AI-svar
 const displayName = isUser ? 'Du' : (senderName || 'Atlas');
 
@@ -83,6 +85,21 @@ a: ({ node, ...props }) => (
 {content}
 </ReactMarkdown>
 </div>
+
+{/* Quick-reply knappar för intake-flödet */}
+{choices && choices.length > 0 && onChoiceSelect && (
+<div className="flex flex-wrap gap-2 mt-3">
+{choices.map((choice) => (
+<button
+key={choice.value}
+onClick={() => onChoiceSelect(choice.value)}
+className="px-3 py-1.5 text-xs rounded-full bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 active:scale-95 transition-all duration-150"
+>
+{choice.label}
+</button>
+))}
+</div>
+)}
 
 {/* Timestamp with date */}
 {timestamp && (
