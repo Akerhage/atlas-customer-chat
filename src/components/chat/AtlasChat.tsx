@@ -5,7 +5,6 @@ import { ChatInput } from "./ChatInput";
 import { TypingIndicator } from "./TypingIndicator";
 import { WelcomeMessage } from "./WelcomeMessage";
 import { EndSessionDialog } from "./EndSessionDialog";
-import { NameInputDialog, type ContactInfo } from "./NameInputDialog";
 import { ContextIndicator } from "./ContextIndicator";
 import { HumanModeIndicator } from "./HumanModeIndicator";
 import {
@@ -43,6 +42,7 @@ choices?: { label: string; value: string }[];
 }
 
 type IntakeStep = 'name' | 'email' | 'phone' | 'office' | 'vehicle' | null;
+type VehicleType = "BIL" | "MC" | "AM" | "LASTBIL";
 
 interface Office {
 id: number;
@@ -84,9 +84,13 @@ return String(value || '').trim().replace(/[\u2013\u2014]/g, '-').replace(/\s*-\
 }
 
 function findOfficeByLabel(offices: Office[], value: string | null | undefined): Office | undefined {
+return findOfficesByLabel(offices, value)[0];
+}
+
+function findOfficesByLabel(offices: Office[], value: string | null | undefined): Office[] {
 const normalized = normalizeOfficeLabel(value);
-if (!normalized) return undefined;
-return offices.find((office) => {
+if (!normalized) return [];
+return offices.filter((office) => {
 const city = String(office.city || '').trim();
 const area = String(office.area || '').trim();
 const cityArea = area ? `${city} - ${area}` : city;
@@ -100,6 +104,31 @@ city
 });
 }
 
+function findSafeOfficeFromLiveContext(
+offices: Office[],
+selectedCity: string | null,
+context: ChatContext
+): Office | undefined {
+const selectedMatches = findOfficesByLabel(offices, selectedCity);
+if (selectedMatches.length === 1) return selectedMatches[0];
+
+const contextCity = String(context.city || '').trim();
+const contextArea = String(context.area || '').trim();
+if (contextCity && contextArea) {
+const exactMatches = offices.filter((office) =>
+normalizeOfficeLabel(office.city) === normalizeOfficeLabel(contextCity) &&
+normalizeOfficeLabel(office.area) === normalizeOfficeLabel(contextArea)
+);
+if (exactMatches.length === 1) return exactMatches[0];
+}
+
+const contextMatches = findOfficesByLabel(
+offices,
+formatCityAreaLabel(contextCity || null, contextArea || null)
+);
+return contextMatches.length === 1 ? contextMatches[0] : undefined;
+}
+
 function getContextFromOfficeSelection(offices: Office[], value: string | null | undefined): Pick<ChatContext, 'city' | 'area'> {
 const office = findOfficeByLabel(offices, value);
 if (office) return { city: office.city || null, area: office.area || null };
@@ -111,19 +140,55 @@ if (!city) return null;
 return area ? `${city} - ${area}` : city;
 }
 
-const AI_ON_WELCOME_MESSAGE_CONTENT = `Hej! Välkommen till Atlas. 👋
+const VEHICLE_CHOICES: { label: string; value: VehicleType }[] = [
+{ label: 'Bil (B)',        value: 'BIL'     },
+{ label: 'Motorcykel (A)', value: 'MC'      },
+{ label: 'Moped (AM)',     value: 'AM'      },
+{ label: 'Lastbil / Buss', value: 'LASTBIL' },
+];
 
-Jag är **Atlas AI** och kan hjälpa dig med vanliga frågor om körkort, trafikskola och bokning.
+const VEHICLE_HANDOFF_LABELS: Record<VehicleType, string> = {
+BIL: 'Bil',
+MC: 'MC',
+AM: 'Moped',
+LASTBIL: 'Lastbil / Buss',
+};
 
-Vill du hellre prata med en människa? Skriv *"jag vill prata med en människa"* eller klicka på headset-ikonen uppe till höger.
+function getSafeVehicle(value: string | null | undefined): VehicleType | null {
+return VEHICLE_CHOICES.some((choice) => choice.value === value) ? value as VehicleType : null;
+}
+
+const AI_ON_WELCOME_MESSAGE_CONTENT = `Hej och välkommen till oss! 👋
+
+Jag är företagets smarta AI-assistent!
+
+Du kan fråga mig allt som rör ditt körkort och vårt utbud.
+
+Jag har stenkoll på våra priser, produkter, utbildningar och kontor, men även på allmän information som rör körkort.
+
+Vill du hellre prata med en människa?
+
+Skriv bara *"jag vill prata med en människa"*.
+
+Eller klicka på headsetikonen i menyn ovanför chatten.
 
 Vad kan jag hjälpa dig med idag?`;
 
-const AI_OFF_WELCOME_MESSAGE_CONTENT = `Hej och välkommen! 👋
+const AI_OFF_WELCOME_MESSAGE_CONTENT = `Hej och välkommen till oss! 👋
 
-Här kommer du i kontakt med oss direkt. Jag ber dig om namn, e-post och (valfritt) mobilnummer, och låter dig välja vilket **kontor** du vill nå — eller vår **centralsupport** — samt vad ditt ärende gäller.
+Har du frågor att ställa till oss är du varmt välkommen att ställa dem här.
 
-Vill du hellre mejla? Klicka på kuvert-ikonen uppe till höger. Då sätter vi igång — vad heter du?`;
+Här kan du välja att ställa frågor till vår Centralsupport i Stockholm.
+
+Du kan också mejla eller chatta direkt med ditt lokala kontor.
+
+Jag guidar dig genom att fylla i ditt namn och skicka ärendet rätt.
+
+Några korta steg, sedan är du igång!
+
+Vi börjar med ditt namn.
+
+Vad heter du?`;
 
 const getWelcomeMessageContent = (aiRepliesEnabled: boolean) =>
 aiRepliesEnabled ? AI_ON_WELCOME_MESSAGE_CONTENT : AI_OFF_WELCOME_MESSAGE_CONTENT;
@@ -146,7 +211,6 @@ const [initialHistoryLoaded, setInitialHistoryLoaded] = useState(false);
 const [isTyping, setIsTyping] = useState(false);
 const [isDark, setIsDark] = useState(true);
 const [showEndDialog, setShowEndDialog] = useState(false);
-const [showNameDialog, setShowNameDialog] = useState(false);
 const [humanMode, setHumanMode] = useState(false);
 const [agentNames, setAgentNames] = useState<string[]>([]); // Alla agenter som svarat
 const [typingAgentName, setTypingAgentName] = useState<string | null>(null); // Vem skriver just nu
@@ -159,6 +223,7 @@ name?: string;
 email?: string;
 phone?: string;
 city?: string;
+vehicle?: VehicleType;
 }>({});
 const [archivedMessage, setArchivedMessage] = useState<string | null>(null);
 const [inactivityWarning, setInactivityWarning] = useState(false);
@@ -411,7 +476,32 @@ if (!isSkip && digits.length < 8) {
 injectBotMessage('Ange ett giltigt mobilnummer (minst 8 siffror) eller skriv **"hoppa över"**.');
 return;
 }
-setIntakeData((prev) => ({ ...prev, phone: isSkip ? undefined : digits }));
+const safeOffice = findSafeOfficeFromLiveContext(offices, selectedCity, context);
+const safeVehicle = getSafeVehicle(selectedVehicle) || getSafeVehicle(context.vehicle);
+const nextIntakeData = {
+...intakeData,
+phone: isSkip ? undefined : digits,
+city: safeOffice ? getOfficeDisplayName(safeOffice) : intakeData.city,
+vehicle: safeVehicle || intakeData.vehicle,
+};
+setIntakeData(nextIntakeData);
+
+if (safeOffice && safeVehicle) {
+setIntakeStep(null);
+finishIntakeHandoff({
+...nextIntakeData,
+city: getOfficeDisplayName(safeOffice),
+vehicle: safeVehicle,
+});
+return;
+}
+
+if (safeOffice) {
+setIntakeStep('vehicle');
+injectBotMessage('Vad gäller ärendet?', VEHICLE_CHOICES);
+return;
+}
+
 setIntakeStep('office');
 const officeChoices: { label: string; value: string }[] = [
 { label: 'Centralsupport', value: 'Centralsupport' },
@@ -546,8 +636,7 @@ return;
 }
 
 // 🔥 TRIGGER-INTERCEPT: Endast exakt frasen — matchar server-sidans HUMAN_TRIGGERS.
-// Headset-knappen öppnar namn-dialog direkt; denna intercept fångar bara om kunden
-// råkar skriva exakt frasen i input-fältet och ska då också gå via namn-dialogen.
+// Headset-knappen och texttriggern startar samma inline-intake i chatten.
 const HUMAN_TRIGGERS = ["jag vill prata med en människa"];
 const isHumanTrigger = HUMAN_TRIGGERS.some(phrase => content.toLowerCase().trim() === phrase);
 if (isHumanTrigger && !humanMode) {
@@ -726,48 +815,56 @@ setIntakeStep('name');
 injectBotMessage('För att kunna koppla dig till rätt person behöver jag några uppgifter. Vad heter du?');
 };
 
-const handleNameConfirmed = (contactInfo: ContactInfo) => {
-setShowNameDialog(false);
+const finishIntakeHandoff = ({
+name,
+email,
+phone,
+city,
+vehicle,
+}: {
+name?: string;
+email?: string;
+phone?: string;
+city?: string;
+vehicle?: VehicleType;
+}) => {
+if (!name || !email || !city || !vehicle) return;
 
-// 🔥 FIX 1: Synka huvud-staten med de definitiva valen från popupen
-setSelectedCity(contactInfo.city);
-setSelectedVehicle(contactInfo.vehicle);
+injectBotMessage(`Tack! Kopplar dig nu till **${city}** för ${VEHICLE_HANDOFF_LABELS[vehicle]}... 🔗`);
 
-// Optimistically enter human mode so the UI switches immediately.
+setSelectedCity(city);
+setSelectedVehicle(vehicle);
 setHumanMode(true);
 
-// 🔥 FIX 2: ROUTING-LOGIK: Centralsupport -> null (Inkorg), Annat -> city/area
 let routingCity: string | null = null;
 let routingArea: string | null = null;
 
-if (contactInfo.city !== "Centralsupport") {
-routingCity = getContextFromOfficeSelection(offices, contactInfo.city).city || null;
-routingArea = getContextFromOfficeSelection(offices, contactInfo.city).area || null;
+if (city !== 'Centralsupport') {
+const ctxResult = getContextFromOfficeSelection(offices, city);
+routingCity = ctxResult.city || null;
+routingArea = ctxResult.area || null;
 }
 
-const selectedOffice = contactInfo.city === "Centralsupport"
-? null
-: findOfficeByLabel(offices, contactInfo.city);
-const targetAgentId = selectedOffice ? selectedOffice.routing_tag : null; // null = centralsupport/huvudinkorg
+const selectedOffice = city === 'Centralsupport' ? null : findOfficeByLabel(offices, city);
+const targetAgentId = selectedOffice ? selectedOffice.routing_tag : null;
 
-if (!selectedOffice && contactInfo.city !== "Centralsupport") {
-const split = splitCityArea(contactInfo.city);
+if (!selectedOffice && city !== 'Centralsupport') {
+const split = splitCityArea(city);
 routingCity = split.city;
 routingArea = split.area;
 }
 
-const contextWithContact = {
-vehicle: contactInfo.vehicle,
+sendEscalationSilently({
+vehicle,
 city: routingCity,
 area: routingArea,
 agent_id: targetAgentId,
-name: contactInfo.name,
-email: contactInfo.email,
-phone: contactInfo.phone
-};
+name,
+email,
+phone,
+});
 
-// Send message with contact info in context (tyst – ingen bubbla visas)
-sendEscalationSilently(contextWithContact);
+setIntakeData({});
 };
 
 const handleChoiceSelected = (value: string) => {
@@ -780,130 +877,31 @@ LASTBIL: 'Lastbil / Buss',
 
 if (intakeStep === 'office') {
 injectUserMessage(value);
+const safeVehicle = getSafeVehicle(intakeData.vehicle);
+if (safeVehicle) {
+setIntakeStep(null);
+finishIntakeHandoff({
+...intakeData,
+city: value,
+vehicle: safeVehicle,
+});
+return;
+}
+
 setIntakeData((prev) => ({ ...prev, city: value }));
 setIntakeStep('vehicle');
-injectBotMessage('Vad gäller ärendet?', [
-{ label: 'Bil (B)',        value: 'BIL'     },
-{ label: 'Motorcykel (A)', value: 'MC'      },
-{ label: 'Moped (AM)',     value: 'AM'      },
-{ label: 'Lastbil / Buss', value: 'LASTBIL' },
-]);
+injectBotMessage('Vad gäller ärendet?', VEHICLE_CHOICES);
 
 } else if (intakeStep === 'vehicle') {
 injectUserMessage(vehicleLabels[value] || value);
 setIntakeStep(null);
 
-const finalName    = intakeData.name!;
-const finalEmail   = intakeData.email!;
-const finalPhone   = intakeData.phone;
-const finalCity    = intakeData.city!;
-const finalVehicle = value as 'BIL' | 'MC' | 'AM' | 'LASTBIL';
-
-injectBotMessage(`Tack! Kopplar dig nu till **${finalCity}**... 🔗`);
-
-setSelectedCity(finalCity);
-setSelectedVehicle(finalVehicle);
-setHumanMode(true);
-
-let routingCity: string | null = null;
-let routingArea: string | null = null;
-
-if (finalCity !== 'Centralsupport') {
-const ctxResult = getContextFromOfficeSelection(offices, finalCity);
-routingCity = ctxResult.city || null;
-routingArea = ctxResult.area || null;
-}
-
-const selectedOffice =
-finalCity === 'Centralsupport' ? null : findOfficeByLabel(offices, finalCity);
-const targetAgentId = selectedOffice ? selectedOffice.routing_tag : null;
-
-if (!selectedOffice && finalCity !== 'Centralsupport') {
-const split = splitCityArea(finalCity);
-routingCity = split.city;
-routingArea = split.area;
-}
-
-sendEscalationSilently({
-vehicle:  finalVehicle,
-city:     routingCity,
-area:     routingArea,
-agent_id: targetAgentId,
-name:     finalName,
-email:    finalEmail,
-phone:    finalPhone,
+const finalVehicle = getSafeVehicle(value);
+if (!finalVehicle) return;
+finishIntakeHandoff({
+...intakeData,
+vehicle: finalVehicle,
 });
-
-setIntakeData({});
-}
-};
-
-// Helper to send message with custom context including contact info
-const sendMessageWithContext = async (content: string, contextWithContact: ChatContext & { name?: string; email?: string; phone?: string }) => {
-const userMessage: ChatMessage = {
-id: generateMessageId(),
-role: 'user',
-content,
-timestamp: new Date(),
-};
-
-setMessages((prev) => [...prev, userMessage]);
-lastMessageCountRef.current += 1;
-setIsTyping(true);
-
-try {
-const response = await sendMessage(content, false, contextWithContact);
-
-if (response.locked_context) {
-const newV = response.locked_context.vehicle as "BIL" | "MC" | "AM" | "LASTBIL" | null;
-const newCity = response.locked_context.city;
-const newArea = response.locked_context.area;
-
-// 1. Uppdatera backend-context (för framtida frågor)
-setContext({
-city: newCity ?? context.city ?? null,
-area: newArea ?? context.area ?? null,
-vehicle: newV ?? context.vehicle ?? null,
-});
-
-// 2. Synka Fordons-knappen visuellt
-if (newV && newV !== selectedVehicle && !(selectedVehicle === 'LASTBIL' && newV === 'BIL')) {
-setSelectedVehicle(newV);
-window.selectedVehicle = newV;
-}
-
-// 3. Synka Stads-knappen visuellt (Pusslar ihop "Stad – Område")
-if (newCity) {
-const uiCityLabel = formatCityAreaLabel(newCity, newArea);
-if (uiCityLabel && uiCityLabel !== selectedCity) {
-setSelectedCity(uiCityLabel);
-window.selectedCity = uiCityLabel;
-}
-}
-}
-
-if (response.human_mode) {
-setHumanMode(true);
-if (!response.answer || response.answer.trim() === '') {
-setIsTyping(false);
-return;
-}
-}
-
-if (response.answer && response.answer.trim() !== '') {
-const assistantMessage: ChatMessage = {
-id: generateMessageId(),
-role: 'assistant',
-content: response.answer,
-timestamp: new Date(),
-};
-setMessages((prev) => [...prev, assistantMessage]);
-lastMessageCountRef.current += 1;
-}
-} catch (error) {
-console.error('[AtlasChat] Error sending message:', error);
-} finally {
-setIsTyping(false);
 }
 };
 
@@ -1070,7 +1068,7 @@ onChoiceSelect={handleChoiceSelected}
 </div>
 
 {/* Context indicator - interactive */}
-{aiRepliesEnabled && (
+{aiRepliesEnabled && !humanMode && (
 <ContextIndicator 
 context={context}
 offices={offices} // 🚀 NY: Dynamisk lista tillagd
@@ -1105,7 +1103,7 @@ onSend={handleInputSend}
 
 disabled={isTyping}
 placeholder={!aiRepliesEnabled && !humanMode ? "Skriv ditt svar..." : (humanMode ? "Skriv till support..." : "Skriv ett meddelande...")}
-showQuickQuestions={aiRepliesEnabled && messages.length > 1}
+showQuickQuestions={aiRepliesEnabled && !humanMode && messages.length > 1}
 selectedVehicle={selectedVehicle}
 onVehicleChange={handleVehicleChange}
 onCityChange={handleCityChange}
@@ -1125,15 +1123,6 @@ onConfirm={handleConfirmEnd}
 closeReason={closeReason}
 />
 
-{/* Name Input Dialog for Human Mode */}
-<NameInputDialog
-open={showNameDialog}
-onOpenChange={setShowNameDialog}
-onConfirm={handleNameConfirmed}
-defaultCity={selectedCity}
-defaultVehicle={selectedVehicle}
-offices={offices} // 🚀 NY: Dynamisk lista tillagd
-/>
 </div>
 );
 }
