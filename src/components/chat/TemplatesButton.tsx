@@ -88,7 +88,7 @@ export function TemplatesButton({ onSelect }: TemplatesButtonProps) {
         <TooltipTrigger asChild>
           <PopoverTrigger asChild>
             <button
-              className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+              className="p-1.5 sm:p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
               aria-label="Vårt utbud"
             >
               <Info className="w-5 h-5" />

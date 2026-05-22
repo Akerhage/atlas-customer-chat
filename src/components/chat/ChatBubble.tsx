@@ -34,6 +34,7 @@ onChoiceSelect?: (value: string) => void;
 export function ChatBubble({ content, isUser, timestamp, isLatest, senderName, choices, onChoiceSelect }: ChatBubbleProps) {
 // Visa agentens namn om angivet, annars "Atlas" för AI-svar
 const displayName = isUser ? 'Du' : (senderName || 'Atlas');
+const hasLargeChoiceSet = (choices?.length ?? 0) > 12;
 
 return (
 <div
@@ -88,7 +89,10 @@ a: ({ node, ...props }) => (
 
 {/* Quick-reply knappar för intake-flödet */}
 {choices && choices.length > 0 && onChoiceSelect && (
-<div className="flex flex-wrap gap-2 mt-3">
+<div className={cn(
+"flex flex-wrap gap-2 mt-3",
+hasLargeChoiceSet && "max-h-56 overflow-y-auto overscroll-contain pr-1"
+)}>
 {choices.map((choice) => (
 <button
 key={choice.value}
