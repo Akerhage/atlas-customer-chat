@@ -193,6 +193,22 @@ Vad heter du?`;
 const getWelcomeMessageContent = (aiRepliesEnabled: boolean) =>
 aiRepliesEnabled ? AI_ON_WELCOME_MESSAGE_CONTENT : AI_OFF_WELCOME_MESSAGE_CONTENT;
 
+const CROSS_TAB_SYNC_CHANNEL = 'atlas_customer_chat_sync';
+const CROSS_TAB_SYNC_STORAGE_KEY = 'atlas_customer_chat_sync_event';
+const CROSS_TAB_CUSTOMER_MESSAGE = 'customer-message-sent';
+
+interface CrossTabSyncEvent {
+id: string;
+type: typeof CROSS_TAB_CUSTOMER_MESSAGE;
+sessionId: string;
+sourceId: string;
+createdAt: number;
+}
+
+function createCrossTabId(): string {
+return `tab_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+}
+
 const createWelcomeMessage = (aiRepliesEnabled: boolean): ChatMessage => ({
 id: 'welcome-msg',
 role: 'assistant',
@@ -294,6 +310,9 @@ const messagesEndRef = useRef<HTMLDivElement>(null);
 const scrollContainerRef = useRef<HTMLDivElement>(null);
 const lastMessageCountRef = useRef<number>(0);
 const agentTypingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+const tabIdRef = useRef<string>(createCrossTabId());
+const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
+const lastCrossTabEventIdRef = useRef<string | null>(null);
 
 const generateMessageId = () => `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
@@ -366,7 +385,7 @@ const handleSessionStatus = useCallback((event: SessionStatusEvent) => {
 if (event.status === 'archived') {
 setIsArchived(true);
 setCloseReason(event.close_reason || null);
-setArchivedMessage(event.message || (event.close_reason === 'inactivity' ? 'Chatten har stängts automatiskt på grund av inaktivitet.' : 'Chatten är avslutad av handläggaren.'));
+setArchivedMessage(event.message || (event.close_reason === 'inactivity' ? 'Chatten har stängts automatiskt på grund av inaktivitet.' : (event.close_reason === 'deleted' ? 'Chatten har avslutats.' : 'Chatten är avslutad av handläggaren.')));
 if (agentTypingTimerRef.current) {
 clearTimeout(agentTypingTimerRef.current);
 agentTypingTimerRef.current = null;
@@ -545,7 +564,7 @@ setHumanMode(history.human_mode);
 if (history.is_archived) {
 setIsArchived(true);
 setCloseReason(history.close_reason || null);
-setArchivedMessage(history.close_reason === 'inactivity' ? 'Chatten har stängts automatiskt på grund av inaktivitet.' : 'Chatten är avslutad av handläggaren.');
+setArchivedMessage(history.close_reason === 'inactivity' ? 'Chatten har stängts automatiskt på grund av inaktivitet.' : (history.close_reason === 'deleted' ? 'Chatten har avslutats.' : 'Chatten är avslutad av handläggaren.'));
 }
 
 // Always sync messages from server - compare by content, not just count
@@ -582,6 +601,71 @@ console.error('[AtlasChat] Polling error:', error);
 // Don't show error toast for polling failures - silent retry
 }
 }, []);
+
+const handleCrossTabSync = useCallback((event: CrossTabSyncEvent | null) => {
+if (!event || event.type !== CROSS_TAB_CUSTOMER_MESSAGE) return;
+if (!event.id || event.id === lastCrossTabEventIdRef.current) return;
+if (event.sourceId === tabIdRef.current) return;
+if (event.sessionId !== getSessionId()) return;
+
+lastCrossTabEventIdRef.current = event.id;
+pollHistory();
+}, [pollHistory]);
+
+const notifySiblingTabs = useCallback(() => {
+const event: CrossTabSyncEvent = {
+id: `${tabIdRef.current}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+type: CROSS_TAB_CUSTOMER_MESSAGE,
+sessionId: getSessionId(),
+sourceId: tabIdRef.current,
+createdAt: Date.now(),
+};
+
+try {
+broadcastChannelRef.current?.postMessage(event);
+} catch (error) {
+console.warn('[AtlasChat] Cross-tab BroadcastChannel sync failed:', error);
+}
+
+try {
+localStorage.setItem(CROSS_TAB_SYNC_STORAGE_KEY, JSON.stringify(event));
+} catch (error) {
+console.warn('[AtlasChat] Cross-tab storage sync failed:', error);
+}
+}, []);
+
+useEffect(() => {
+if (typeof BroadcastChannel !== 'undefined') {
+try {
+broadcastChannelRef.current = new BroadcastChannel(CROSS_TAB_SYNC_CHANNEL);
+broadcastChannelRef.current.onmessage = (messageEvent) => {
+handleCrossTabSync(messageEvent.data as CrossTabSyncEvent);
+};
+} catch (error) {
+console.warn('[AtlasChat] BroadcastChannel unavailable:', error);
+broadcastChannelRef.current = null;
+}
+}
+
+const handleStorageSync = (storageEvent: StorageEvent) => {
+if (storageEvent.key !== CROSS_TAB_SYNC_STORAGE_KEY || !storageEvent.newValue) return;
+try {
+handleCrossTabSync(JSON.parse(storageEvent.newValue) as CrossTabSyncEvent);
+} catch (error) {
+console.warn('[AtlasChat] Invalid cross-tab storage sync event:', error);
+}
+};
+
+window.addEventListener('storage', handleStorageSync);
+
+return () => {
+window.removeEventListener('storage', handleStorageSync);
+if (broadcastChannelRef.current) {
+broadcastChannelRef.current.close();
+broadcastChannelRef.current = null;
+}
+};
+}, [handleCrossTabSync]);
 
 // Hydrate initial state from backend once on mount.
 // This ensures we detect human_mode even if /message doesn't include it,
@@ -689,6 +773,16 @@ setIsTyping(true);
 try {
 // 3. SKICKA TILL SERVER
 const response = await sendMessage(content, messages.length <= 1, messageContext);
+notifySiblingTabs();
+
+if (response.is_archived) {
+setIsArchived(true);
+setCloseReason(response.close_reason || 'deleted');
+setArchivedMessage(response.close_reason === 'inactivity' ? 'Chatten har stängts automatiskt på grund av inaktivitet.' : 'Chatten har avslutats.');
+setHumanMode(false);
+setIsTyping(false);
+return;
+}
 
 // 4. Uppdatera context OCH de visuella knapparna om servern ändrat kontext
 if (response.locked_context) {
@@ -911,6 +1005,7 @@ vehicle: finalVehicle,
 const sendEscalationSilently = async (contextWithContact: ChatContext & { name?: string; email?: string; phone?: string }) => {
 try {
 const response = await sendMessage('Jag vill prata med en människa', false, contextWithContact);
+notifySiblingTabs();
 lastMessageCountRef.current += 1;
 
 if (response.locked_context) {
@@ -976,7 +1071,7 @@ handleSendMessage(message, contextData);
 };
 
 return (
-<div className={`flex flex-col h-full ${isDark ? 'bg-chat-bg dark' : 'bg-zinc-50'} `}>
+<div className={`flex flex-col h-full bg-chat-bg ${isDark ? 'dark' : ''}`} data-testid="atlas-chat-shell">
 <ChatHeader
 onReset={messages.length > 1 ? handleReset : undefined}
 onEndSession={handleEndSession}

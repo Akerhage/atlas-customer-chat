@@ -6,7 +6,7 @@ TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ContactFormDialog } from "./ContactFormDialog";
 import { TemplatesButton } from "./TemplatesButton";
-import atlasLogo from "@/assets/atlas-logo.png";
+import mdaLogo from "@/assets/mda-logga.png";
 
 interface ChatHeaderProps {
 onReset?: () => void;
@@ -35,20 +35,21 @@ return (
 <header className="flex items-center justify-between gap-2 px-3 py-3 sm:px-5 sm:py-4 bg-chat-header border-b border-border">
 {/* Logo & Title */}
 <div className="flex min-w-0 shrink items-center gap-2 sm:gap-3">
-{/* Atlas Logo */}
+{/* MDA Logo */}
 <div className="relative shrink-0">
-<div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl overflow-hidden">
-<img 
-src={atlasLogo} 
-alt="Atlas" 
-className="w-full h-full object-cover"
+<div className="flex h-9 w-[116px] items-center rounded-lg border border-border/70 bg-card/80 px-2 shadow-sm sm:h-10 sm:w-[128px]">
+<img
+src={mdaLogo}
+alt="My Driving Academy"
+data-testid="chat-header-logo"
+className="max-h-6 w-full object-contain sm:max-h-7"
 />
 </div>
 {/* Online indicator */}
 <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-500 border-2 border-chat-header" />
 </div>
 
-<div className="min-w-0">
+<div className="hidden min-[440px]:block min-w-0">
 <h1 className="font-semibold leading-tight text-foreground">Atlas</h1>
 <p className="hidden min-[360px]:block text-xs text-muted-foreground">Din körkortsguide</p>
 </div>

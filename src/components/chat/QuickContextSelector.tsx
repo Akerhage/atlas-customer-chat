@@ -218,34 +218,13 @@ onCityChange(null);
 };
 
 return (
-<div className="flex flex-col items-center gap-3 px-4 py-2 animate-fade-in-up">
-{(selectedVehicle || selectedCity) && (
-<div className="flex items-center gap-2 text-xs text-muted-foreground">
-{selectedVehicle && (
-<span className="px-2 py-1 rounded-full bg-primary/10 text-primary">
-{VEHICLE_LABELS[selectedVehicle]}
-</span>
-)}
-{selectedCity && (
-<span className="px-2 py-1 rounded-full bg-secondary text-secondary-foreground">
-{selectedCity}
-</span>
-)}
-<button
-onClick={resetSelection}
-className="text-muted-foreground hover:text-foreground underline text-xs"
->
-Återställ
-</button>
-</div>
-)}
-
-<div className="flex flex-wrap justify-center gap-2">
+<div className="flex flex-col items-center gap-2 px-2 py-1 animate-fade-in-up" data-testid="quick-context-selector">
+<div className="flex min-h-[84px] w-full flex-wrap items-start justify-center gap-2">
 {/* Vehicle Type */}
 <DropdownMenu>
 <DropdownMenuTrigger asChild>
 <button
-className={`flex items-center gap-2 px-4 py-2 text-sm rounded-full transition-colors border ${
+className={`flex min-w-0 max-w-[9.5rem] items-center gap-2 px-3 py-2 text-sm rounded-full transition-colors border ${
 selectedVehicle
 ? "bg-primary text-primary-foreground border-primary"
 : "bg-secondary hover:bg-secondary/80 text-secondary-foreground border-border/50"
@@ -261,8 +240,8 @@ return <Icon className="w-4 h-4" />;
 ) : (
 <Car className="w-4 h-4" />
 )}
-{selectedVehicle ? VEHICLE_LABELS[selectedVehicle] : "Fordonstyp"}
-<ChevronDown className="w-3 h-3" />
+<span className="min-w-0 truncate">{selectedVehicle ? VEHICLE_LABELS[selectedVehicle] : "Fordonstyp"}</span>
+<ChevronDown className="w-3 h-3 shrink-0" />
 </button>
 </DropdownMenuTrigger>
 <DropdownMenuContent className="bg-popover text-popover-foreground border border-border shadow-lg z-50">
@@ -288,15 +267,15 @@ className="flex items-center gap-2 cursor-pointer"
 <DropdownMenu>
 <DropdownMenuTrigger asChild>
 <button
-className={`flex items-center gap-2 px-4 py-2 text-sm rounded-full transition-colors border ${
+className={`flex min-w-0 max-w-[9.5rem] items-center gap-2 px-3 py-2 text-sm rounded-full transition-colors border ${
 selectedCity
 ? "bg-primary text-primary-foreground border-primary"
 : "bg-secondary hover:bg-secondary/80 text-secondary-foreground border-border/50"
 }`}
 >
-<MapPin className="w-4 h-4" />
-{selectedCity || "Kontor/Stad"}
-<ChevronDown className="w-3 h-3" />
+<MapPin className="w-4 h-4 shrink-0" />
+<span className="min-w-0 truncate">{selectedCity || "Kontor/Stad"}</span>
+<ChevronDown className="w-3 h-3 shrink-0" />
 </button>
 </DropdownMenuTrigger>
 <DropdownMenuContent className="bg-popover border border-border shadow-lg z-50">
@@ -317,23 +296,22 @@ className="cursor-pointer"
 </DropdownMenu>
 
 {/* Questions - only show if vehicle selected */}
-{selectedVehicle && (
 <DropdownMenu>
 <DropdownMenuTrigger asChild>
 <button
-className={`flex items-center gap-2 px-4 py-2 text-sm rounded-full transition-colors border ${
-selectedCity
+className={`flex min-w-0 max-w-[9.5rem] items-center gap-2 px-3 py-2 text-sm rounded-full transition-colors border ${
+selectedVehicle && selectedCity
 ? "bg-accent text-accent-foreground border-accent hover:bg-accent/80"
 : "bg-muted text-muted-foreground border-border/50 cursor-not-allowed opacity-60"
 }`}
-disabled={!selectedCity}
+disabled={!selectedVehicle || !selectedCity}
 >
-<HelpCircle className="w-4 h-4" />
+<HelpCircle className="w-4 h-4 shrink-0" />
 Välj fråga
-<ChevronDown className="w-3 h-3" />
+<ChevronDown className="w-3 h-3 shrink-0" />
 </button>
 </DropdownMenuTrigger>
-{selectedCity && (
+{selectedVehicle && selectedCity && (
 <DropdownMenuContent
 className="bg-popover border border-border shadow-lg z-50 w-80"
 align="center"
@@ -360,19 +338,25 @@ className="cursor-pointer text-sm py-2 whitespace-normal"
 </DropdownMenuContent>
 )}
 </DropdownMenu>
-)}
 </div>
 
-{!selectedVehicle && (
-<p className="text-xs text-muted-foreground mt-1">
-Välj fordonstyp för att se relevanta frågor
+<div className="flex min-h-5 items-center justify-center gap-2 text-xs text-muted-foreground">
+<p>
+{!selectedVehicle
+? "Välj fordonstyp för relevanta frågor"
+: !selectedCity
+? "Välj kontor/stad för frågor"
+: "Välj en fråga eller skriv fritt"}
 </p>
+{(selectedVehicle || selectedCity) && (
+<button
+onClick={resetSelection}
+className="shrink-0 text-muted-foreground hover:text-foreground underline text-xs"
+>
+Återställ
+</button>
 )}
-{selectedVehicle && !selectedCity && (
-<p className="text-xs text-muted-foreground mt-1">
-Välj kontor/stad för att kunna ställa frågor
-</p>
-)}
+</div>
 </div>
 );
 }

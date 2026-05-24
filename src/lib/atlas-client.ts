@@ -25,6 +25,8 @@ answer: string;
 sessionId: string;
 locked_context?: ChatContext;
 human_mode?: boolean;
+is_archived?: boolean;
+close_reason?: string | null;
 }
 
 export interface HistoryMessage {
@@ -352,6 +354,17 @@ headers: {
 body: JSON.stringify(body),
 });
 
+if (response.status === 410) {
+const data = await response.json().catch(() => ({}));
+return {
+  answer: data.answer || "",
+  sessionId: data.sessionId || sessionId,
+  human_mode: data.human_mode,
+  is_archived: true,
+  close_reason: data.close_reason || 'deleted',
+};
+}
+
 if (!response.ok) {
 const errorText = await response.text();
 console.error('[Atlas] API Error:', response.status, errorText);
@@ -372,6 +385,8 @@ return {
   sessionId: data.sessionId,
   locked_context: data.locked_context,
   human_mode: data.human_mode,
+  is_archived: data.is_archived || false,
+  close_reason: data.close_reason || null,
 };
 }
 

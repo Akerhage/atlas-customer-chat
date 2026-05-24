@@ -12,30 +12,30 @@ Baserat på chrome-light estetik.
 @layer base {
 :root {
 /* === CORE BACKGROUNDS === */
---background: 210 20% 98%;
+--background: 210 24% 96%;
 --foreground: 220 25% 10%;
 
 /* === CARD/SURFACE === */
---card: 0 0% 100%;
+--card: 210 28% 98%;
 --card-foreground: 220 25% 10%;
 
---popover: 0 0% 100%;
+--popover: 210 28% 98%;
 --popover-foreground: 220 25% 10%;
 
-/* === PRIMARY - Atlas Blue === */
---primary: 210 80% 45%;
+/* === PRIMARY - calm teal accent === */
+--primary: 174 64% 32%;
 --primary-foreground: 0 0% 100%;
 
 /* === SECONDARY === */
---secondary: 210 25% 93%;
+--secondary: 210 22% 92%;
 --secondary-foreground: 220 25% 20%;
 
 /* === MUTED === */
---muted: 210 20% 96%;
+--muted: 210 24% 94%;
 --muted-foreground: 215 15% 45%;
 
 /* === ACCENT - Teal === */
---accent: 180 45% 45%;
+--accent: 174 48% 40%;
 --accent-foreground: 0 0% 100%;
 
 /* === DESTRUCTIVE === */
@@ -43,25 +43,25 @@ Baserat på chrome-light estetik.
 --destructive-foreground: 0 0% 100%;
 
 /* === BORDERS & INPUTS === */
---border: 214 25% 88%;
---input: 214 25% 88%;
---ring: 210 80% 45%;
+--border: 214 24% 86%;
+--input: 214 24% 86%;
+--ring: 174 64% 32%;
 
 --radius: 1rem;
 
 /* === ATLAS CHAT SPECIFIC TOKENS === */
---chat-bg: 210 25% 96%;
---chat-header-bg: 0 0% 100%;
---chat-input-bg: 0 0% 100%;
+--chat-bg: 210 24% 95%;
+--chat-header-bg: 210 28% 97%;
+--chat-input-bg: 210 28% 97%;
 
 /* Bubble tokens - Atlas style */
---bubble-atlas-bg: 0 0% 100%;
---bubble-atlas-border: 214 25% 90%;
+--bubble-atlas-bg: 210 30% 98%;
+--bubble-atlas-border: 214 24% 87%;
 --bubble-atlas-text: 220 25% 15%;
 --bubble-atlas-shadow: 210 30% 80%;
 
---bubble-user-bg: 210 80% 45%;
---bubble-user-border: 210 80% 40%;
+--bubble-user-bg: 174 64% 32%;
+--bubble-user-border: 174 64% 28%;
 --bubble-user-text: 0 0% 100%;
 --bubble-user-shadow: 210 60% 35%;
 
@@ -70,13 +70,13 @@ Baserat på chrome-light estetik.
 --frost-opacity: 0.85;
 
 /* Typing indicator */
---typing-dot: 210 80% 45%;
+--typing-dot: 174 64% 32%;
 
 /* Shadows */
---shadow-sm: 0 1px 2px 0 hsl(220 25% 10% / 0.03);
---shadow-md: 0 4px 12px -2px hsl(220 25% 10% / 0.08);
---shadow-lg: 0 12px 32px -8px hsl(220 25% 10% / 0.12);
---shadow-glow: 0 0 24px -4px hsl(var(--primary) / 0.25);
+--shadow-sm: 0 1px 2px 0 hsl(220 25% 10% / 0.04);
+--shadow-md: 0 4px 14px -3px hsl(220 25% 10% / 0.08);
+--shadow-lg: 0 14px 36px -12px hsl(220 25% 10% / 0.14);
+--shadow-glow: 0 0 20px -6px hsl(var(--primary) / 0.22);
 
 /* Sidebar tokens (unused in customer chat but required) */
 --sidebar-background: 0 0% 98%;
@@ -272,4 +272,42 @@ border-radius: 3px;
 
 .chat-scrollbar::-webkit-scrollbar-thumb:hover {
 background: hsl(var(--muted-foreground) / 0.3);
+}
+
+.chat-choice-scrollbar {
+scrollbar-width: thin;
+scrollbar-color: hsl(var(--primary) / 0.35) hsl(var(--secondary) / 0.45);
+}
+
+.chat-choice-scrollbar::-webkit-scrollbar {
+width: 6px;
+}
+
+.chat-choice-scrollbar::-webkit-scrollbar-track {
+background: hsl(var(--secondary) / 0.45);
+border-radius: 999px;
+}
+
+.chat-choice-scrollbar::-webkit-scrollbar-thumb {
+background: hsl(var(--primary) / 0.35);
+border-radius: 999px;
+}
+
+.chat-choice-scrollbar::-webkit-scrollbar-thumb:hover {
+background: hsl(var(--primary) / 0.5);
+}
+
+.atlas-user-message .atlas-message-content,
+.atlas-user-message .atlas-message-content > * {
+border: 0;
+box-shadow: none;
+background: transparent;
+}
+
+.atlas-user-message .atlas-message-content > :first-child {
+margin-top: 0;
+}
+
+.atlas-user-message .atlas-message-content > :last-child {
+margin-bottom: 0;
 }

@@ -46,7 +46,7 @@ isLatest && "animate-fade-in-up"
 >
 <div
 className={cn(
-"max-w-[85%] sm:max-w-[75%] px-4 py-3 rounded-bubble",
+"max-w-[85%] sm:max-w-[75%] px-4 py-3 rounded-bubble overflow-hidden",
 "transition-all duration-200",
 isUser
 ? "bg-bubble-user-bg text-bubble-user-text bubble-shadow-user rounded-br-md"
@@ -73,9 +73,14 @@ isUser
 </div>
 
 {/* Message content */}
-<div className="text-sm leading-relaxed prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0 prose-strong:font-semibold">
+<div className={cn(
+"text-sm leading-relaxed max-w-none",
+isUser
+? "atlas-user-message"
+: "prose prose-sm prose-p:my-1 prose-ul:my-1 prose-li:my-0 prose-strong:font-semibold"
+)}>
+<div className="atlas-message-content">
 <ReactMarkdown
-className="atlas-message-content"
 rehypePlugins={[rehypeRaw, [rehypeSanitize, sanitizeSchema]]}
 components={{
 a: ({ node, ...props }) => (
@@ -86,12 +91,13 @@ a: ({ node, ...props }) => (
 {content}
 </ReactMarkdown>
 </div>
+</div>
 
 {/* Quick-reply knappar för intake-flödet */}
 {choices && choices.length > 0 && onChoiceSelect && (
 <div className={cn(
 "flex flex-wrap gap-2 mt-3",
-hasLargeChoiceSet && "max-h-56 overflow-y-auto overscroll-contain pr-1"
+hasLargeChoiceSet && "max-h-56 overflow-y-auto overscroll-contain pr-1 chat-choice-scrollbar"
 )}>
 {choices.map((choice) => (
 <button
