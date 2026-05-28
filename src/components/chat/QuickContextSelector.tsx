@@ -190,6 +190,24 @@ AM: "Moped (AM)",
 LASTBIL: "Lastbil / Buss",
 };
 
+// Mappar vår fordonskod till etiketten som används i kontorens services_offered.
+const VEHICLE_TO_SERVICE_LABEL: Record<"BIL" | "MC" | "AM" | "LASTBIL", string> = {
+BIL: "bil",
+MC: "mc",
+AM: "am",
+LASTBIL: "lastbil",
+};
+
+// Erbjuder kontoret fordonet? Tom/utelämnad services_offered tolkas permissivt (visa) —
+// backend-vakten är skyddsnät, så vi döljer aldrig ett legitimt kontor av misstag.
+function officeOffersVehicle(office: any, vehicle: "BIL" | "MC" | "AM" | "LASTBIL"): boolean {
+const so = Array.isArray(office?.services_offered)
+? office.services_offered.map((s: any) => String(s).toLowerCase().trim())
+: [];
+if (so.length === 0) return true;
+return so.includes(VEHICLE_TO_SERVICE_LABEL[vehicle]);
+}
+
 export function QuickContextSelector({
 onSendMessage,
 selectedVehicle,
@@ -204,6 +222,21 @@ const city = String(office?.city || '').trim();
 const area = String(office?.area || '').trim();
 return String(office?.display_name || (city ? (area ? `${city} - ${area}` : city) : '') || office?.name || '').trim();
 };
+
+// Bidirektionell filtrering: dölj fordon/kontor som inte hör ihop.
+// Är ett kontor valt → visa bara fordon kontoret erbjuder.
+// Är ett fordon valt → visa bara kontor som erbjuder det fordonet.
+const selectedOffice = selectedCity
+? offices.find((o) => getOfficeDisplayName(o) === selectedCity)
+: null;
+
+const availableVehicles = (["AM", "BIL", "MC", "LASTBIL"] as const).filter(
+(type) => !selectedOffice || officeOffersVehicle(selectedOffice, type)
+);
+
+const availableOffices = selectedVehicle
+? offices.filter((o) => officeOffersVehicle(o, selectedVehicle))
+: offices;
 
 const handleQuestionClick = (question: string) => {
 if (selectedVehicle && selectedCity) {
@@ -220,7 +253,39 @@ onCityChange(null);
 return (
 <div className="flex flex-col items-center gap-2 px-2 py-1 animate-fade-in-up" data-testid="quick-context-selector">
 <div className="flex min-h-[84px] w-full flex-wrap items-start justify-center gap-2">
-{/* Vehicle Type */}
+{/* City — väljs först */}
+<DropdownMenu>
+<DropdownMenuTrigger asChild>
+<button
+className={`flex min-w-0 max-w-[9.5rem] items-center gap-2 px-3 py-2 text-sm rounded-full transition-colors border ${
+selectedCity
+? "bg-primary text-primary-foreground border-primary"
+: "bg-secondary hover:bg-secondary/80 text-secondary-foreground border-border/50"
+}`}
+>
+<MapPin className="w-4 h-4 shrink-0" />
+<span className="min-w-0 truncate">{selectedCity || "Kontor/Stad"}</span>
+<ChevronDown className="w-3 h-3 shrink-0" />
+</button>
+</DropdownMenuTrigger>
+<DropdownMenuContent className="bg-popover border border-border shadow-lg z-50">
+<ScrollArea className="max-h-72">
+{availableOffices.map((office) => (
+<DropdownMenuItem
+key={office.id}
+onSelect={() => {
+onCityChange(getOfficeDisplayName(office));
+}}
+className="cursor-pointer"
+>
+{getOfficeDisplayName(office)}
+</DropdownMenuItem>
+))}
+</ScrollArea>
+</DropdownMenuContent>
+</DropdownMenu>
+
+{/* Vehicle Type — väljs efter kontor */}
 <DropdownMenu>
 <DropdownMenuTrigger asChild>
 <button
@@ -245,7 +310,7 @@ return <Icon className="w-4 h-4" />;
 </button>
 </DropdownMenuTrigger>
 <DropdownMenuContent className="bg-popover text-popover-foreground border border-border shadow-lg z-50">
-{(["AM", "BIL", "MC", "LASTBIL"] as const).map((type) => {
+{availableVehicles.map((type) => {
 const Icon = VEHICLE_ICONS[type];
 return (
 <DropdownMenuItem
@@ -260,38 +325,6 @@ className="flex items-center gap-2 cursor-pointer"
 </DropdownMenuItem>
 );
 })}
-</DropdownMenuContent>
-</DropdownMenu>
-
-{/* City */}
-<DropdownMenu>
-<DropdownMenuTrigger asChild>
-<button
-className={`flex min-w-0 max-w-[9.5rem] items-center gap-2 px-3 py-2 text-sm rounded-full transition-colors border ${
-selectedCity
-? "bg-primary text-primary-foreground border-primary"
-: "bg-secondary hover:bg-secondary/80 text-secondary-foreground border-border/50"
-}`}
->
-<MapPin className="w-4 h-4 shrink-0" />
-<span className="min-w-0 truncate">{selectedCity || "Kontor/Stad"}</span>
-<ChevronDown className="w-3 h-3 shrink-0" />
-</button>
-</DropdownMenuTrigger>
-<DropdownMenuContent className="bg-popover border border-border shadow-lg z-50">
-<ScrollArea className="h-72">
-{offices.map((office) => (
-<DropdownMenuItem
-key={office.id}
-onSelect={() => {
-onCityChange(getOfficeDisplayName(office));
-}}
-className="cursor-pointer"
->
-{getOfficeDisplayName(office)}
-</DropdownMenuItem>
-))}
-</ScrollArea>
 </DropdownMenuContent>
 </DropdownMenu>
 
@@ -342,10 +375,10 @@ className="cursor-pointer text-sm py-2 whitespace-normal"
 
 <div className="flex min-h-5 items-center justify-center gap-2 text-xs text-muted-foreground">
 <p>
-{!selectedVehicle
+{!selectedCity
+? "Välj kontor/stad först"
+: !selectedVehicle
 ? "Välj fordonstyp för relevanta frågor"
-: !selectedCity
-? "Välj kontor/stad för frågor"
 : "Välj en fråga eller skriv fritt"}
 </p>
 {(selectedVehicle || selectedCity) && (
