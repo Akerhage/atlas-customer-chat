@@ -28,16 +28,14 @@ Tooltip,
 TooltipContent,
 TooltipTrigger,
 } from "@/components/ui/tooltip";
-
-interface Attachment {
-name: string;
-url: string;
-filename: string;
-isImage: boolean;
-uploading?: boolean;
-error?: string;
-tempId: string;
-}
+import {
+ALLOWED_ATTACHMENT_MIME_TYPES,
+MAX_ATTACHMENT_FILES,
+MAX_ATTACHMENT_FILE_SIZE_MB,
+clipboardHasText,
+getClipboardFiles,
+usePendingAttachments,
+} from "@/lib/pending-attachments";
 
 interface ContactFormDialogProps {
 onSubmit?: (data: any) => void;
@@ -46,20 +44,8 @@ selectedVehicle?: string | null;
 offices: any[];
 }
 
-const MAX_FILES = 5;
-const MAX_FILE_SIZE_MB = 10;
 const DEFAULT_CITY = "Centralsupport";
 const DEFAULT_VEHICLE = "BIL";
-const ALLOWED_MIME = [
-"image/jpeg", "image/png", "image/gif", "image/webp",
-"application/pdf",
-"application/msword",
-"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-"application/vnd.ms-excel",
-"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-"application/vnd.ms-powerpoint",
-"application/vnd.openxmlformats-officedocument.presentationml.presentation",
-];
 
 const getOfficeDisplayName = (office: any) => {
 const city = String(office?.city || '').trim();
@@ -70,18 +56,45 @@ return String(office?.display_name || (city ? (area ? `${city} - ${area}` : city
 const normalizeOfficeLabel = (value: string | null | undefined) =>
 String(value || '').trim().replace(/[\u2013\u2014]/g, '-').replace(/\s*-\s*/g, ' - ').toLowerCase();
 
-const findOfficeByLabel = (offices: any[], value: string | null | undefined) => {
+const splitCityArea = (value: string | null | undefined) => {
+const normalized = String(value || '').trim();
+const parts = normalized.replace(/[\u2013\u2014]/g, '-').split(/\s+-\s+/);
+return parts.length === 2
+? { city: parts[0].trim(), area: parts[1].trim() }
+: { city: normalized, area: null };
+};
+
+const findSafeOfficeByLabel = (offices: any[], value: string | null | undefined) => {
 const normalized = normalizeOfficeLabel(value);
-return offices.find((office) => [office.routing_tag, office.name, getOfficeDisplayName(office)]
+if (!normalized) return undefined;
+
+const matches = offices.filter((office) => [office.routing_tag, office.name, getOfficeDisplayName(office)]
 .some((candidate) => normalizeOfficeLabel(candidate) === normalized));
+if (matches.length === 1) return matches[0];
+
+const { city, area } = splitCityArea(value);
+if (!city || !area) return undefined;
+const exactMatches = offices.filter((office) =>
+normalizeOfficeLabel(office.city) === normalizeOfficeLabel(city) &&
+normalizeOfficeLabel(office.area) === normalizeOfficeLabel(area)
+);
+return exactMatches.length === 1 ? exactMatches[0] : undefined;
 };
 
 export function ContactFormDialog({ onSubmit, selectedCity, selectedVehicle, offices }: ContactFormDialogProps) {
 const [open, setOpen] = useState(false);
 const [isSubmitting, setIsSubmitting] = useState(false);
 const [wantsCallback, setWantsCallback] = useState(false);
-const [attachments, setAttachments] = useState<Attachment[]>([]);
 const fileInputRef = useRef<HTMLInputElement>(null);
+const {
+attachments,
+activeAttachmentCount,
+isUploading,
+validAttachments,
+addFiles,
+removeAttachment,
+clearAttachments,
+} = usePendingAttachments({ endpoint: "/api/customer/upload" });
 
 const [formData, setFormData] = useState({
 name: "",
@@ -105,85 +118,12 @@ setWantsCallback(false);
 }
 }, [open, selectedCity, selectedVehicle]);
 
-const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-const files = Array.from(e.target.files || []);
-if (!files.length) return;
-
-// Reset input so same file can be re-selected if removed
+const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+const files = e.target.files;
+if (!files?.length) return;
+void addFiles(files);
 if (fileInputRef.current) fileInputRef.current.value = "";
-
-const remaining = MAX_FILES - attachments.filter(a => !a.error).length;
-if (remaining <= 0) {
-toast.error(`Max ${MAX_FILES} filer tillåtna`);
-return;
-}
-
-const toUpload = files.slice(0, remaining);
-if (files.length > remaining) {
-toast.warning(`Bara ${remaining} fler fil(er) kan läggas till (max ${MAX_FILES})`);
-}
-
-for (const file of toUpload) {
-if (!ALLOWED_MIME.includes(file.type)) {
-toast.error(`Filtypen stöds inte: ${file.name}`);
-continue;
-}
-if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
-toast.error(`${file.name} är för stor (max ${MAX_FILE_SIZE_MB} MB)`);
-continue;
-}
-
-const tempId = crypto.randomUUID();
-const isImage = file.type.startsWith("image/");
-
-// Add placeholder with loading state
-setAttachments(prev => [...prev, {
-tempId,
-name: file.name,
-url: "",
-filename: "",
-isImage,
-uploading: true,
-}]);
-
-try {
-const formPayload = new FormData();
-formPayload.append("file", file);
-
-const res = await fetch("/api/customer/upload", {
-method: "POST",
-body: formPayload,
-});
-
-if (!res.ok) {
-const err = await res.json().catch(() => ({}));
-throw new Error(err.error || "Upload misslyckades");
-}
-
-const data = await res.json();
-
-setAttachments(prev => prev.map(a =>
-a.tempId === tempId
-? { ...a, url: data.url, filename: data.filename, uploading: false }
-: a
-));
-} catch (err: any) {
-setAttachments(prev => prev.map(a =>
-a.tempId === tempId
-? { ...a, uploading: false, error: err.message || "Fel vid uppladdning" }
-: a
-));
-toast.error(`Kunde inte ladda upp ${file.name}`);
-}
-}
 };
-
-const removeAttachment = (tempId: string) => {
-setAttachments(prev => prev.filter(a => a.tempId !== tempId));
-};
-
-const isUploading = attachments.some(a => a.uploading);
-const validAttachments = attachments.filter(a => !a.uploading && !a.error);
 
 const handleSubmit = async (e: React.FormEvent) => {
 e.preventDefault();
@@ -198,10 +138,11 @@ return;
 
 setIsSubmitting(true);
 try {
-const selectedOffice = findOfficeByLabel(offices, formData.city);
+const selectedOffice = findSafeOfficeByLabel(offices, formData.city);
 const targetAgentId = selectedOffice ? selectedOffice.routing_tag : null;
-const routingCity = selectedOffice ? selectedOffice.city : (formData.city === DEFAULT_CITY ? DEFAULT_CITY : null);
-const routingArea = selectedOffice ? selectedOffice.area : null;
+const split = splitCityArea(formData.city);
+const routingCity = selectedOffice ? selectedOffice.city : (formData.city === DEFAULT_CITY ? DEFAULT_CITY : (split.city || null));
+const routingArea = selectedOffice ? selectedOffice.area : split.area;
 const phoneDigits = wantsCallback ? formData.phone.trim() : "";
 const { phone: _phone, ...formDataWithoutPhone } = formData;
 
@@ -228,7 +169,7 @@ toast.success("Tack! Ditt meddelande har skickats.");
 setOpen(false);
 setFormData({ name: "", email: "", phone: "", subject: "", message: "", city: "", vehicle: "" });
 setWantsCallback(false);
-setAttachments([]);
+clearAttachments();
 } catch (error) {
 toast.error("Något gick fel. Försök igen senare.");
 } finally {
@@ -237,34 +178,14 @@ setIsSubmitting(false);
 };
 
 const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-const files = Array.from(e.clipboardData.files);
-const itemFiles = files.length ? [] : Array.from(e.clipboardData.items || [])
-.filter(item => item.kind === "file")
-.map(item => item.getAsFile())
-.filter((file): file is File => Boolean(file));
-const pastedFiles = files.length ? files : itemFiles;
+const pastedFiles = getClipboardFiles(e.clipboardData);
 if (!pastedFiles.length) return;
 
-const allowedFiles = pastedFiles.filter(file => ALLOWED_MIME.includes(file.type));
-if (!allowedFiles.length) {
-toast.error("Filtypen stöds inte via inklistring — bifoga filen via gemet 📎");
-return;
-}
-
-if (allowedFiles.length !== pastedFiles.length) {
-toast.error("Filtypen stöds inte via inklistring — bifoga filen via gemet 📎");
-}
-
+if (!clipboardHasText(e.clipboardData)) {
 e.preventDefault();
-const dataTransfer = new DataTransfer();
-allowedFiles.forEach(file => dataTransfer.items.add(file));
+}
 
-const pasteInput = document.createElement("input");
-pasteInput.type = "file";
-pasteInput.multiple = true;
-pasteInput.files = dataTransfer.files;
-
-void handleFileSelect({ target: pasteInput } as React.ChangeEvent<HTMLInputElement>);
+void addFiles(pastedFiles);
 };
 
 const isFormValid =
@@ -358,7 +279,7 @@ aria-label="Telefonnummer"
 <SelectItem value="Centralsupport" className="font-bold">Centralsupport (Huvudinkorgen)</SelectItem>
 </SelectGroup>
 <SelectGroup>
-<SelectLabel className="font-bold border-t mt-2 pt-2">📍 Välj Kontor</SelectLabel>
+<SelectLabel className="font-bold border-t mt-2 pt-2">Välj Kontor</SelectLabel>
 {offices.map((office) => (
 <SelectItem key={office.id} value={getOfficeDisplayName(office)}>{getOfficeDisplayName(office)}</SelectItem>
 ))}
@@ -390,10 +311,9 @@ className="resize-none"
 maxLength={2000}
 />
 
-{/* ── Bilagor ── */}
 <div className="space-y-2">
 {attachments.length > 0 && (
-<ul className="space-y-1.5">
+<ul className="space-y-1.5" data-testid="contact-form-attachments">
 {attachments.map((a) => (
 <li
 key={a.tempId}
@@ -403,7 +323,9 @@ className={`flex items-center gap-2 text-sm rounded-md px-3 py-2 border ${
 	: "border-border bg-muted/40"
 }`}
 >
-{a.uploading ? (
+{a.isImage && a.previewUrl ? (
+  <img src={a.previewUrl} alt={a.name} className="h-12 w-12 shrink-0 rounded border border-border object-cover" />
+) : a.uploading ? (
   <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
 ) : a.isImage ? (
   <Image className="h-4 w-4 shrink-0 text-primary" />
@@ -417,6 +339,7 @@ className={`flex items-center gap-2 text-sm rounded-md px-3 py-2 border ${
   type="button"
   onClick={() => removeAttachment(a.tempId)}
   className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+  aria-label={`Ta bort ${a.name}`}
 >
   <X className="h-3.5 w-3.5" />
 </button>
@@ -425,7 +348,7 @@ className={`flex items-center gap-2 text-sm rounded-md px-3 py-2 border ${
 </ul>
 )}
 
-{attachments.filter(a => !a.error).length < MAX_FILES && (
+{activeAttachmentCount < MAX_ATTACHMENT_FILES && (
 <button
 type="button"
 onClick={() => fileInputRef.current?.click()}
@@ -435,7 +358,7 @@ className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground hover
 <Paperclip className="h-4 w-4 shrink-0" />
 {attachments.length === 0 ? "Bifoga fil eller bild" : "Lägg till fler filer"}
 <span className="text-xs opacity-60">
-({attachments.filter(a => !a.error).length}/{MAX_FILES}, max {MAX_FILE_SIZE_MB} MB/st)
+({activeAttachmentCount}/{MAX_ATTACHMENT_FILES}, max {MAX_ATTACHMENT_FILE_SIZE_MB} MB/st)
 </span>
 </button>
 )}
@@ -444,7 +367,7 @@ className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground hover
 ref={fileInputRef}
 type="file"
 multiple
-accept={ALLOWED_MIME.join(",")}
+accept={ALLOWED_ATTACHMENT_MIME_TYPES.join(",")}
 onChange={handleFileSelect}
 className="hidden"
 />

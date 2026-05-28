@@ -1,4 +1,4 @@
-import { RotateCcw, XCircle, Headset, Moon, Sun } from "lucide-react";
+import { XCircle, Headset, Moon, Sun } from "lucide-react";
 import {
 Tooltip,
 TooltipContent,
@@ -9,8 +9,7 @@ import { TemplatesButton } from "./TemplatesButton";
 import mdaLogo from "@/assets/mda-logga.png";
 
 interface ChatHeaderProps {
-onReset?: () => void;
-onEndSession: () => void;
+onEndSession?: () => void;
 onRequestHuman: () => void;
 isDark: boolean;
 onToggleTheme: () => void;
@@ -21,7 +20,6 @@ onTemplateSelect: (content: string) => void;
 }
 
 export function ChatHeader({
-onReset,
 onEndSession,
 onRequestHuman,
 isDark,
@@ -99,24 +97,8 @@ className="p-1.5 sm:p-2 rounded-lg text-muted-foreground hover:text-foreground h
 </Tooltip>
 )}
 
-{/* Starta ny chatt */}
-{onReset && (
-<Tooltip>
-<TooltipTrigger asChild>
-<button
-onClick={onReset}
-className="p-1.5 sm:p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
->
-<RotateCcw className="w-5 h-5" />
-</button>
-</TooltipTrigger>
-<TooltipContent>
-<p>Starta ny chatt</p>
-</TooltipContent>
-</Tooltip>
-)}
-
-{/* Avsluta ärende - alltid röd och längst till höger */}
+{/* Avsluta ärende - visas först när ett faktiskt ärende/samtal påbörjats */}
+{onEndSession && (
 <Tooltip>
 <TooltipTrigger asChild>
 <button
@@ -130,6 +112,7 @@ className="p-1.5 sm:p-2 rounded-lg text-red-500 hover:text-red-600 hover:bg-red-
 <p>Avsluta ärende</p>
 </TooltipContent>
 </Tooltip>
+)}
 </div>
 </header>
 );

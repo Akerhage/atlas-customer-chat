@@ -1,10 +1,23 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Paperclip, Loader2 } from "lucide-react";
+import { Send, Paperclip, Loader2, X, FileText, Image } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { emitTyping, getSessionId } from "@/lib/atlas-client";
 import { QuickQuestionsButton } from "./QuickQuestionsButton";
-import axios from "axios";
 import { toast } from "sonner";
+import {
+AI_ATTACHMENT_BLOCKED_MESSAGE,
+ALLOWED_ATTACHMENT_MIME_TYPES,
+HTML_IMAGE_PASTE_MESSAGE,
+MAX_ATTACHMENT_FILES,
+MAX_ATTACHMENT_FILE_SIZE_MB,
+appendAttachmentMarkdown,
+clipboardHasFilesOrImages,
+clipboardHasHtmlImages,
+clipboardHasText,
+getClipboardFiles,
+sanitizeHtmlPasteForAiMode,
+usePendingAttachments,
+} from "@/lib/pending-attachments";
 
 type VehicleType = "BIL" | "MC" | "AM" | "LASTBIL" | null;
 
@@ -17,26 +30,18 @@ selectedVehicle?: VehicleType;
 selectedCity?: string | null;
 onVehicleChange: (vehicle: VehicleType) => void;
 onCityChange: (city: string | null) => void;
-offices: any[]; // 🔥 TILLAGD: Krävs för QuickQuestionsButton
-humanMode: boolean; // true = human mode (fil-upload visas), false = AI-läge (fil-knappen dold)
+offices: any[];
+humanMode: boolean;
 aiRepliesEnabled?: boolean;
 }
 
 const TYPING_THROTTLE_MS = 2000;
-const ALLOWED_PASTE = [
-"image/jpeg", "image/png", "image/gif", "image/webp",
-"application/pdf",
-"application/msword",
-"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-"application/vnd.ms-excel",
-"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-"application/vnd.ms-powerpoint",
-"application/vnd.openxmlformats-officedocument.presentationml.presentation",
-];
+const AI_ATTACHMENT_BLOCKED_TOAST_ID = "atlas-ai-attachment-blocked";
+const HTML_IMAGE_PASTE_TOAST_ID = "atlas-html-image-paste";
 
-export function ChatInput({ 
-onSend, 
-disabled = false, 
+export function ChatInput({
+onSend,
+disabled = false,
 placeholder = "Skriv ett meddelande...",
 showQuickQuestions = false,
 selectedVehicle = null,
@@ -48,13 +53,24 @@ humanMode,
 aiRepliesEnabled = true
 }: ChatInputProps) {
 const [message, setMessage] = useState("");
-const [isUploading, setIsUploading] = useState(false);
 const textareaRef = useRef<HTMLTextAreaElement>(null);
 const lastTypingTimeRef = useRef<number>(0);
 const fileInputRef = useRef<HTMLInputElement>(null);
-// Refokus när disabled går från true → false. När `disabled={isTyping}` flippar
-// (AI svarar) blir textarea avaktiverad och browsern tar bort focus; utan denna
-// hook tappas focus permanent och kund måste klicka tillbaka i fältet.
+const {
+attachments,
+activeAttachmentCount,
+isUploading,
+validAttachments,
+addFiles,
+removeAttachment,
+clearAttachments,
+} = usePendingAttachments({
+endpoint: "/api/upload",
+getSessionId,
+});
+
+// Refocus when disabled flips from true to false. When `disabled={isTyping}`
+// toggles while AI answers, the browser removes focus from the textarea.
 const wasDisabledRef = useRef(disabled);
 useEffect(() => {
 if (wasDisabledRef.current && !disabled) {
@@ -80,16 +96,18 @@ textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
 }, [message]);
 
 const handleSubmit = () => {
+if (disabled || isUploading) return;
+
 const trimmed = message.trim();
-if (trimmed && !disabled && !isUploading) {
-onSend(trimmed);
+const outboundMessage = appendAttachmentMarkdown(trimmed, validAttachments);
+if (!outboundMessage) return;
+
+onSend(outboundMessage);
 setMessage("");
+clearAttachments();
 if (textareaRef.current) {
 textareaRef.current.style.height = "auto";
-// Behåll focus så kund kan skriva direkt efter Enter (i människo-läge
-// flippar inte disabled, så useEffecten ovan triggas inte).
 textareaRef.current.focus();
-}
 }
 };
 
@@ -100,80 +118,138 @@ handleSubmit();
 }
 };
 
-const handleFileUpload = async (file: File) => {
-if (file.size > 10 * 1024 * 1024) {
-toast.error("Filen är för stor (Max 10MB)");
-return;
-}
-setIsUploading(true);
-const formData = new FormData();
-formData.append("file", file);
-formData.append("session_id", getSessionId() || '');
-try {
-const res = await axios.post('/api/upload', formData, {
-headers: { "Content-Type": "multipart/form-data" },
-});
-if (res.data.success) {
-const fileLink = file.type.startsWith("image/") ? `![Bild](${res.data.url})` : `📎 [Fil: ${file.name}](${res.data.url})`;
-onSend(fileLink);
-toast.success("Fil skickad!");
-}
-} catch (error) {
-toast.error("Kunde inte ladda upp filen.");
-} finally {
-setIsUploading(false);
-if (fileInputRef.current) fileInputRef.current.value = "";
-}
-};
-
 const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-const file = e.target.files?.[0];
-if (file) handleFileUpload(file);
+const files = e.target.files;
+if (!humanMode || !files?.length) return;
+void addFiles(files);
+if (fileInputRef.current) fileInputRef.current.value = "";
 };
 
-const handlePaste = (e: React.ClipboardEvent) => {
-const files = Array.from(e.clipboardData?.files || []);
-if (files.length > 0) {
-const file = files[0];
-if (ALLOWED_PASTE.includes(file.type)) {
+const insertTextAtSelection = (target: HTMLTextAreaElement, text: string) => {
+if (!text) return;
+
+const start = target.selectionStart ?? target.value.length;
+const end = target.selectionEnd ?? target.value.length;
+const nextMessage = `${target.value.slice(0, start)}${text}${target.value.slice(end)}`;
+const nextCursor = start + text.length;
+setMessage(nextMessage);
+if (text.trim()) handleTyping();
+
+requestAnimationFrame(() => {
+const textarea = textareaRef.current;
+if (!textarea) return;
+textarea.focus();
+textarea.setSelectionRange(nextCursor, nextCursor);
+});
+};
+
+const showAiAttachmentBlockedToast = () => {
+toast.info(AI_ATTACHMENT_BLOCKED_MESSAGE, {
+id: AI_ATTACHMENT_BLOCKED_TOAST_ID,
+});
+};
+
+const showHtmlImagePasteToast = () => {
+toast.info(HTML_IMAGE_PASTE_MESSAGE, {
+id: HTML_IMAGE_PASTE_TOAST_ID,
+});
+};
+
+const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+if (!humanMode) {
+if (!clipboardHasFilesOrImages(e.clipboardData)) return;
+
 e.preventDefault();
-handleFileUpload(file);
-return;
-}
-toast.error("Filtypen stöds inte via inklistring — bifoga filen via gemet 📎");
+const { text } = sanitizeHtmlPasteForAiMode(e.clipboardData);
+insertTextAtSelection(e.currentTarget, text);
+showAiAttachmentBlockedToast();
 return;
 }
 
-const items = e.clipboardData?.items;
-if (!items) return;
-let hasUnsupportedFile = false;
-for (const item of Array.from(items)) {
-if (ALLOWED_PASTE.includes(item.type)) {
-const file = item.getAsFile();
-if (file) {
-e.preventDefault();
-handleFileUpload(file);
+const pastedFiles = getClipboardFiles(e.clipboardData);
+if (!pastedFiles.length) {
+if (clipboardHasHtmlImages(e.clipboardData)) {
+showHtmlImagePasteToast();
 }
 return;
 }
-if (item.kind === 'file') {
-hasUnsupportedFile = true;
+
+if (!clipboardHasText(e.clipboardData)) {
+e.preventDefault();
 }
-}
-if (hasUnsupportedFile) {
-toast.error("Filtypen stöds inte via inklistring — bifoga filen via gemet 📎");
-}
+
+void addFiles(pastedFiles);
 };
+
+const handleDrop = (e: React.DragEvent<HTMLTextAreaElement>) => {
+if (humanMode || !clipboardHasFilesOrImages(e.dataTransfer)) return;
+
+e.preventDefault();
+const { text } = sanitizeHtmlPasteForAiMode(e.dataTransfer);
+insertTextAtSelection(e.currentTarget, text);
+showAiAttachmentBlockedToast();
+};
+
+const canSend = !disabled && !isUploading && Boolean(message.trim() || validAttachments.length);
 
 return (
 <div className="p-4 bg-chat-input border-t border-border">
+{humanMode && attachments.length > 0 && (
+<div className="mb-2 space-y-1.5" data-testid="chat-input-attachments">
+{attachments.map((attachment) => (
+<div
+key={attachment.tempId}
+className={cn(
+"flex items-center gap-2 rounded-lg border px-3 py-2 text-sm",
+attachment.error ? "border-destructive/40 bg-destructive/10 text-destructive" : "border-border bg-secondary/40"
+)}
+>
+{attachment.isImage && attachment.previewUrl ? (
+<img src={attachment.previewUrl} alt={attachment.name} className="h-12 w-12 shrink-0 rounded border border-border object-cover" />
+) : attachment.uploading ? (
+<Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
+) : attachment.isImage ? (
+<Image className="h-4 w-4 shrink-0 text-primary" />
+) : (
+<FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+)}
+<span className="min-w-0 flex-1 truncate">
+{attachment.uploading ? `Laddar upp ${attachment.name}...` : attachment.error ? `${attachment.name} - ${attachment.error}` : attachment.name}
+</span>
+<button
+type="button"
+onClick={() => removeAttachment(attachment.tempId)}
+className="shrink-0 rounded-md p-1 text-muted-foreground hover:bg-white/10 hover:text-foreground transition-colors"
+aria-label={`Ta bort ${attachment.name}`}
+>
+<X className="h-3.5 w-3.5" />
+</button>
+</div>
+))}
+</div>
+)}
+
 <div className={cn("flex items-end gap-2 bg-secondary/50 rounded-2xl px-4 py-2 border border-border/50 transition-all duration-200 focus-within:border-primary/30 input-glow")}>
 {humanMode && (
-<input type="file" ref={fileInputRef} className="hidden" onChange={handleFileSelect} accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" disabled={disabled || isUploading} />
+<input
+type="file"
+ref={fileInputRef}
+className="hidden"
+onChange={handleFileSelect}
+accept={ALLOWED_ATTACHMENT_MIME_TYPES.join(",")}
+multiple
+disabled={disabled || isUploading || activeAttachmentCount >= MAX_ATTACHMENT_FILES}
+/>
 )}
 
 {humanMode && (
-<button onClick={() => fileInputRef.current?.click()} disabled={disabled || isUploading} className={cn("flex-shrink-0 w-8 h-8 -ml-1 mb-0.5 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-white/10 transition-colors duration-200", isUploading && "cursor-wait opacity-70")}>
+<button
+type="button"
+onClick={() => fileInputRef.current?.click()}
+disabled={disabled || isUploading || activeAttachmentCount >= MAX_ATTACHMENT_FILES}
+className={cn("flex-shrink-0 w-8 h-8 -ml-1 mb-0.5 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-white/10 transition-colors duration-200", isUploading && "cursor-wait opacity-70")}
+title={`Bifoga fil eller bild (max ${MAX_ATTACHMENT_FILES}, ${MAX_ATTACHMENT_FILE_SIZE_MB} MB/st)`}
+>
 {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
 </button>
 )}
@@ -184,13 +260,13 @@ value={message}
 onChange={(e) => { setMessage(e.target.value); if (e.target.value.trim()) handleTyping(); }}
 onKeyDown={handleKeyDown}
 onPaste={handlePaste}
-placeholder={isUploading ? "Laddar upp..." : placeholder}
-disabled={disabled || isUploading}
+onDrop={handleDrop}
+placeholder={placeholder}
+disabled={disabled}
 rows={1}
-className="flex-1 resize-none bg-transparent text-sm py-2 text-foreground focus:outline-none min-h-[24px] max-h-[120px]"
+className="flex-1 resize-none bg-transparent text-sm py-2 text-foreground focus:outline-none min-h-[24px] max-h-[120px] chat-input-scrollbar"
 />
 
-{/* 🚀 SKICKAS VIDARE HÄR */}
 {showQuickQuestions && !isUploading && (
 <QuickQuestionsButton
 onSendMessage={onSend}
@@ -199,11 +275,16 @@ selectedCity={selectedCity}
 onVehicleChange={onVehicleChange}
 onCityChange={onCityChange}
 disabled={disabled}
-offices={offices} 
+offices={offices}
 />
 )}
 
-<button onClick={handleSubmit} disabled={disabled || !message.trim() || isUploading} className={cn("flex-shrink-0 w-9 h-9 rounded-xl mb-0.5 flex items-center justify-center transition-all duration-200", message.trim() && !disabled && !isUploading ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-glow" : "bg-muted text-muted-foreground cursor-not-allowed")}>
+<button
+type="button"
+onClick={handleSubmit}
+disabled={!canSend}
+className={cn("flex-shrink-0 w-9 h-9 rounded-xl mb-0.5 flex items-center justify-center transition-all duration-200", canSend ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-glow" : "bg-muted text-muted-foreground cursor-not-allowed")}
+>
 <Send className="w-4 h-4" />
 </button>
 </div>

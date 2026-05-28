@@ -83,10 +83,6 @@ function normalizeOfficeLabel(value: string | null | undefined): string {
 return String(value || '').trim().replace(/[\u2013\u2014]/g, '-').replace(/\s*-\s*/g, ' - ').toLowerCase();
 }
 
-function findOfficeByLabel(offices: Office[], value: string | null | undefined): Office | undefined {
-return findOfficesByLabel(offices, value)[0];
-}
-
 function findOfficesByLabel(offices: Office[], value: string | null | undefined): Office[] {
 const normalized = normalizeOfficeLabel(value);
 if (!normalized) return [];
@@ -130,8 +126,12 @@ return contextMatches.length === 1 ? contextMatches[0] : undefined;
 }
 
 function getContextFromOfficeSelection(offices: Office[], value: string | null | undefined): Pick<ChatContext, 'city' | 'area'> {
-const office = findOfficeByLabel(offices, value);
-if (office) return { city: office.city || null, area: office.area || null };
+// Anta ett konkret kontor (inkl. dess area) BARA när etiketten matchar exakt ETT kontor.
+// En ren stad-etikett (t.ex. "Stockholm") matchar många kontor — välj aldrig tyst det
+// första kontorets area, då poisonas locked_context.area och eskalerings-misroutingen
+// (stad-only → första kontoret) återintroduceras via en annan väg.
+const matches = findOfficesByLabel(offices, value);
+if (matches.length === 1) return { city: matches[0].city || null, area: matches[0].area || null };
 return value ? splitCityArea(value) : { city: null, area: null };
 }
 
@@ -484,15 +484,16 @@ return;
 }
 setIntakeData((prev) => ({ ...prev, email: trimmed }));
 setIntakeStep('phone');
-injectBotMessage('Tack! Vill du lägga till ett mobilnummer? Skriv numret eller **"hoppa över"**.');
+injectBotMessage('Tack! Vill du lägga till ett mobilnummer? Skriv numret, **"nej"** eller **"hoppa över"**.');
 break;
 }
 case 'phone': {
-const skipWords = ['hoppa över', 'hoppa over', 'skip', '-', 'nej', 'ingen'];
-const isSkip = skipWords.includes(trimmed.toLowerCase());
+const normalizedPhoneSkip = trimmed.toLowerCase().replace(/[.!?]+$/g, '').trim();
+const skipWords = ['hoppa över', 'hoppa over', 'skip', '-', 'nej', 'nej tack', 'no', 'n', 'ingen', 'inget', 'inte nu'];
+const isSkip = skipWords.includes(normalizedPhoneSkip);
 const digits = trimmed.replace(/\D/g, '').slice(0, 10);
 if (!isSkip && digits.length < 8) {
-injectBotMessage('Ange ett giltigt mobilnummer (minst 8 siffror) eller skriv **"hoppa över"**.');
+injectBotMessage('Ange ett giltigt mobilnummer (minst 8 siffror), **"nej"** eller **"hoppa över"**.');
 return;
 }
 const safeOffice = findSafeOfficeFromLiveContext(offices, selectedCity, context);
@@ -805,7 +806,7 @@ window.selectedVehicle = newV;
 
 // C) SYNK TILL UI: Uppdatera stads-knappen
 if (newCity) {
-const uiCityLabel = formatCityAreaLabel(newCity, newArea);
+const uiCityLabel = formatCityAreaLabel(newCity, newArea ?? context.area);
 
 if (uiCityLabel && uiCityLabel !== selectedCity) {
 setSelectedCity(uiCityLabel);
@@ -924,29 +925,30 @@ vehicle?: VehicleType;
 }) => {
 if (!name || !email || !city || !vehicle) return;
 
-injectBotMessage(`Tack! Kopplar dig nu till **${city}** för ${VEHICLE_HANDOFF_LABELS[vehicle]}... 🔗`);
-
-setSelectedCity(city);
-setSelectedVehicle(vehicle);
-setHumanMode(true);
-
+const selectedOffice = city === 'Centralsupport' ? undefined : findSafeOfficeFromLiveContext(offices, city, context);
+const split = splitCityArea(city);
 let routingCity: string | null = null;
 let routingArea: string | null = null;
+let handoffCityLabel = city;
 
-if (city !== 'Centralsupport') {
-const ctxResult = getContextFromOfficeSelection(offices, city);
-routingCity = ctxResult.city || null;
-routingArea = ctxResult.area || null;
+if (selectedOffice) {
+routingCity = selectedOffice.city || null;
+routingArea = selectedOffice.area || null;
+handoffCityLabel = getOfficeDisplayName(selectedOffice);
+} else if (city !== 'Centralsupport') {
+routingCity = (context.city && context.area) ? context.city : (split.city || null);
+routingArea = (context.city && context.area) ? context.area || null : split.area || null;
+const formatted = formatCityAreaLabel(routingCity, routingArea);
+if (formatted) handoffCityLabel = formatted;
 }
 
-const selectedOffice = city === 'Centralsupport' ? null : findOfficeByLabel(offices, city);
 const targetAgentId = selectedOffice ? selectedOffice.routing_tag : null;
 
-if (!selectedOffice && city !== 'Centralsupport') {
-const split = splitCityArea(city);
-routingCity = split.city;
-routingArea = split.area;
-}
+injectBotMessage(`Tack! Kopplar dig nu till **${handoffCityLabel}** för ${VEHICLE_HANDOFF_LABELS[vehicle]}... 🔗`);
+
+setSelectedCity(handoffCityLabel);
+setSelectedVehicle(vehicle);
+setHumanMode(true);
 
 sendEscalationSilently({
 vehicle,
@@ -1022,7 +1024,7 @@ setSelectedVehicle(newV);
 window.selectedVehicle = newV;
 }
 if (newCity) {
-const uiCityLabel = formatCityAreaLabel(newCity, newArea);
+const uiCityLabel = formatCityAreaLabel(newCity, newArea ?? context.area);
 if (uiCityLabel && uiCityLabel !== selectedCity) {
 setSelectedCity(uiCityLabel);
 window.selectedCity = uiCityLabel;
@@ -1056,6 +1058,7 @@ setMessages((prev) => [...prev, templateMessage]);
 };
 
 const showWelcomeWidget = aiRepliesEnabled && messages.length === 1 && messages[0].id === 'welcome-msg' && !isTyping;
+const hasCustomerMessage = messages.some((message) => message.role === 'user');
 const handleInputSend = (message: string, contextData?: { vehicle: string; city: string }) => {
 if (!aiRepliesEnabled && !humanMode) {
 handleIntakeInput(message);
@@ -1073,8 +1076,7 @@ handleSendMessage(message, contextData);
 return (
 <div className={`flex flex-col h-full bg-chat-bg ${isDark ? 'dark' : ''}`} data-testid="atlas-chat-shell">
 <ChatHeader
-onReset={messages.length > 1 ? handleReset : undefined}
-onEndSession={handleEndSession}
+onEndSession={hasCustomerMessage ? handleEndSession : undefined}
 onRequestHuman={handleRequestHuman}
 isDark={isDark}
 onToggleTheme={handleToggleTheme}
