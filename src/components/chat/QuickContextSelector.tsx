@@ -268,8 +268,7 @@ selectedCity
 <ChevronDown className="w-3 h-3 shrink-0" />
 </button>
 </DropdownMenuTrigger>
-<DropdownMenuContent className="bg-popover border border-border shadow-lg z-50">
-<ScrollArea className="max-h-72">
+<DropdownMenuContent className="bg-popover border border-border shadow-lg z-50 max-h-72 overflow-y-auto chat-scrollbar">
 {availableOffices.map((office) => (
 <DropdownMenuItem
 key={office.id}
@@ -281,7 +280,6 @@ className="cursor-pointer"
 {getOfficeDisplayName(office)}
 </DropdownMenuItem>
 ))}
-</ScrollArea>
 </DropdownMenuContent>
 </DropdownMenu>
 
