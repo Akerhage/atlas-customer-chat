@@ -35,6 +35,7 @@ offices: any[];
 humanMode: boolean;
 aiRepliesEnabled?: boolean;
 activeVehicles: ActiveVehicle[];
+quickQuestions: string[];
 }
 
 const TYPING_THROTTLE_MS = 2000;
@@ -53,7 +54,8 @@ onCityChange,
 offices,
 humanMode,
 aiRepliesEnabled = true,
-activeVehicles
+activeVehicles,
+quickQuestions
 }: ChatInputProps) {
 const [message, setMessage] = useState("");
 const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -280,6 +282,7 @@ onCityChange={onCityChange}
 disabled={disabled}
 offices={offices}
 activeVehicles={activeVehicles}
+quickQuestions={quickQuestions}
 />
 )}
 

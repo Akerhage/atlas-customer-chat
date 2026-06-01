@@ -28,6 +28,7 @@ onCityChange: (city: string | null) => void;
 disabled?: boolean;
 offices: any[]; // 🔥 TILLAGD
 activeVehicles: ActiveVehicle[];
+quickQuestions: string[];
 }
 
 interface QuestionCategory {
@@ -219,7 +220,8 @@ onVehicleChange,
 onCityChange,
 disabled = false,
 offices, // 🔥 TILLAGD
-activeVehicles
+activeVehicles,
+quickQuestions
 }: QuickQuestionsButtonProps) {
 const [open, setOpen] = useState(false);
 const singletonOffice = offices.length === 1 ? offices[0] : null;
@@ -261,9 +263,14 @@ setOpen(false);
 };
 
 const getQuestions = (): QuestionCategory[] => {
+const tenantQuickQuestions = quickQuestions.map(q => q.trim()).filter(Boolean).slice(0, 12);
+const tenantCategory: QuestionCategory | null = tenantQuickQuestions.length
+? { category: "Vanliga frågor", questions: tenantQuickQuestions }
+: null;
+
 // Om inget är valt, visa bara generella frågor
 if (!effectiveSelectedVehicle || !effectiveSelectedCity) {
-return COMMON_QUESTIONS;
+return tenantCategory ? [tenantCategory, ...COMMON_QUESTIONS] : COMMON_QUESTIONS;
 }
 
 const officeCategory: QuestionCategory = {
@@ -274,7 +281,9 @@ questions: getOfficeQuestions(effectiveSelectedVehicle).questions,
 const vehicleCategories = QUESTIONS_BY_VEHICLE[effectiveSelectedVehicle] || [];
 
 // Ordning: Kontorsfrågor -> Fordonsfrågor -> Generella
-return [officeCategory, ...vehicleCategories, ...COMMON_QUESTIONS];
+return tenantCategory
+? [tenantCategory, officeCategory, ...vehicleCategories, ...COMMON_QUESTIONS]
+: [officeCategory, ...vehicleCategories, ...COMMON_QUESTIONS];
 };
 
 return (

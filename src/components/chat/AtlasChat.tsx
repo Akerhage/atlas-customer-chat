@@ -1269,6 +1269,7 @@ offices={offices}
 humanMode={humanMode}
 aiRepliesEnabled={aiRepliesEnabled}
 activeVehicles={activeVehicles}
+quickQuestions={quickQuestions}
 />
 )}
 
