@@ -458,6 +458,21 @@ export async function getPublicConfig(): Promise<PublicConfig> {
   }
 }
 
+export async function getTenantName(): Promise<string> {
+  try {
+    const response = await fetch('/api/tenant-name', {
+      headers: { [NGROK_SKIP_HEADER]: NGROK_SKIP_VALUE }
+    });
+    if (!response.ok) return 'Atlas';
+    const data = await response.json();
+    return (typeof data?.company_name === 'string' && data.company_name.trim())
+      ? data.company_name.trim()
+      : 'Atlas';
+  } catch {
+    return 'Atlas';
+  }
+}
+
 export interface CustomerTemplate {
   id: number;
   title: string;

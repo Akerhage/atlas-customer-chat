@@ -17,6 +17,7 @@ getSessionId,
 emitEndChat,
 getPublicOffices,
 getPublicConfig,
+getTenantName,
 type ChatContext,
 type HistoryMessage,
 type CustomerReplyEvent,
@@ -253,12 +254,17 @@ vehicle: null,
 // Separate state for selection UI (before first message is sent)
 const [selectedVehicle, setSelectedVehicle] = useState<"BIL" | "MC" | "AM" | "LASTBIL" | null>(null);
 const [selectedCity, setSelectedCity] = useState<string | null>(null);
+const [companyName, setCompanyName] = useState<string | null>(null);
 
 // Hämta kontorslistan från API när chatten bootar
 useEffect(() => {
 getPublicOffices()
 .then(data => setOffices(data))
 .catch(err => console.error("Kunde inte ladda kontor:", err));
+}, []);
+
+useEffect(() => {
+getTenantName().then(setCompanyName);
 }, []);
 
 useEffect(() => {
@@ -1085,6 +1091,7 @@ selectedCity={selectedCity}
 selectedVehicle={selectedVehicle}
 offices={offices} // 🚀 NY: Dynamisk lista tillagd
 onTemplateSelect={handleTemplateSelect}
+companyName={companyName}
 />
 
 {/* Human mode indicator */}
@@ -1138,6 +1145,7 @@ selectedCity={selectedCity}
 onVehicleChange={handleVehicleChange}
 onCityChange={handleCityChange}
 offices={offices}
+companyName={companyName}
 />
 )}
 

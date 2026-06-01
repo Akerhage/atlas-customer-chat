@@ -6,7 +6,6 @@ TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ContactFormDialog } from "./ContactFormDialog";
 import { TemplatesButton } from "./TemplatesButton";
-import mdaLogo from "@/assets/mda-logga.png";
 
 interface ChatHeaderProps {
 onEndSession?: () => void;
@@ -17,6 +16,7 @@ selectedCity?: string | null;
 selectedVehicle?: string | null;
 offices: any[]; // 🔥 TILLAGD: Krävs för mail-formuläret
 onTemplateSelect: (content: string) => void;
+companyName?: string | null;
 }
 
 export function ChatHeader({
@@ -27,21 +27,17 @@ onToggleTheme,
 selectedCity,
 selectedVehicle,
 offices,
-onTemplateSelect
+onTemplateSelect,
+companyName,
 }: ChatHeaderProps) {
+const displayName = companyName || "Atlas";
 return (
 <header className="flex items-center justify-between gap-2 px-3 py-3 sm:px-5 sm:py-4 bg-chat-header border-b border-border">
-{/* Logo & Title */}
+{/* Brand */}
 <div className="flex min-w-0 shrink items-center gap-2 sm:gap-3">
-{/* MDA Logo */}
 <div className="relative shrink-0">
-<div className="flex h-9 w-[116px] items-center rounded-lg border border-border/70 bg-card/80 px-2 shadow-sm sm:h-10 sm:w-[128px]">
-<img
-src={mdaLogo}
-alt="My Driving Academy"
-data-testid="chat-header-logo"
-className="max-h-6 w-full object-contain sm:max-h-7"
-/>
+<div className="flex h-9 items-center rounded-lg border border-border/70 bg-card/80 px-3 shadow-sm sm:h-10" data-testid="chat-header-logo">
+<span className="text-sm font-semibold text-foreground whitespace-nowrap">{displayName}</span>
 </div>
 {/* Online indicator */}
 <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-500 border-2 border-chat-header" />

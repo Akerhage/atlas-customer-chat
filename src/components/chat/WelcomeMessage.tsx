@@ -8,6 +8,7 @@ selectedCity: string | null;
 onVehicleChange: (vehicle: "BIL" | "MC" | "AM" | "LASTBIL" | null) => void;
 onCityChange: (city: string | null) => void;
 offices: any[];
+companyName?: string | null;
 }
 
 export function WelcomeMessage({
@@ -17,7 +18,9 @@ selectedCity,
 onVehicleChange,
 onCityChange,
 offices,
+companyName,
 }: WelcomeMessageProps) {
+const displayName = companyName || "Atlas";
 return (
 <div className="flex flex-col items-center justify-start px-5 pt-4 pb-7 text-center animate-fade-in-up" data-testid="welcome-message">
 {/* Logo */}
@@ -34,7 +37,7 @@ className="h-full w-full object-contain"
 Välkommen till Atlas!
 </h2>
 <p className="text-sm text-muted-foreground mb-6 max-w-[340px] leading-relaxed">
-Chatta med My Driving Academy och Mårtenssons Trafikskola. Vi hjälper dig hitta rätt svar eller rätt kontor.
+Chatta med {displayName}. Vi hjälper dig hitta rätt svar eller rätt kontor.
 </p>
 
 {onQuickAction && (
