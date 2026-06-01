@@ -22,6 +22,7 @@ onVehicleChange: (vehicle: VehicleType) => void;
 onCityChange: (city: string | null) => void;
 offices: any[];
 activeVehicles: ActiveVehicle[];
+quickQuestions: string[];
 }
 
 interface QuestionCategory {
@@ -159,7 +160,8 @@ questions: [
 
 function getSortedQuestionsForVehicle(
 vehicle: ActiveVehicle,
-city: string
+city: string,
+quickQuestions: string[]
 ): QuestionCategory[] {
 const categories = QUESTIONS_BY_VEHICLE[vehicle];
 
@@ -186,6 +188,15 @@ if (!aHasCity && bHasCity) return 1;
 return 0;
 }),
 }));
+
+const tenantQuickQuestions = quickQuestions.map(q => q.trim()).filter(Boolean).slice(0, 12);
+if (tenantQuickQuestions.length > 0) {
+return [
+{ category: "Vanliga frågor", questions: tenantQuickQuestions },
+officeCategory,
+...categoriesWithSortedQuestions,
+];
+}
 
 return [officeCategory, ...categoriesWithSortedQuestions];
 }
@@ -217,12 +228,16 @@ SLÄP: "släp",
 
 // Erbjuder kontoret fordonet? Tom/utelämnad services_offered tolkas permissivt (visa) —
 // backend-vakten är skyddsnät, så vi döljer aldrig ett legitimt kontor av misstag.
+// Matchar på fordonstoken som exakt sträng ELLER som hela ord i en längre service-sträng,
+// t.ex. "BIL" i ["BIL"] och "bil" i ["B automat bil"] matchar båda "bil"-token.
 function officeOffersVehicle(office: any, vehicle: ActiveVehicle): boolean {
 const so = Array.isArray(office?.services_offered)
 ? office.services_offered.map((s: any) => String(s).toLowerCase().trim())
 : [];
 if (so.length === 0) return true;
-return so.includes(VEHICLE_TO_SERVICE_LABEL[vehicle]);
+const token = VEHICLE_TO_SERVICE_LABEL[vehicle];
+const re = new RegExp(`(^|[\\s\\-/])${token}($|[\\s\\-/])`, 'i');
+return so.some(s => s === token || re.test(s));
 }
 
 export function QuickContextSelector({
@@ -233,6 +248,7 @@ onVehicleChange,
 onCityChange,
 offices,
 activeVehicles,
+quickQuestions,
 }: QuickContextSelectorProps) {
 
 const getOfficeDisplayName = (office: any) => {
@@ -376,7 +392,7 @@ className="bg-popover border border-border shadow-lg z-50 w-80"
 align="center"
 >
 <ScrollArea className="h-80">
-{getSortedQuestionsForVehicle(effectiveSelectedVehicle, effectiveSelectedCity).map((cat, catIdx) => (
+{getSortedQuestionsForVehicle(effectiveSelectedVehicle, effectiveSelectedCity, quickQuestions).map((cat, catIdx) => (
 <div key={cat.category}>
 {catIdx > 0 && <DropdownMenuSeparator />}
 <DropdownMenuLabel className="text-xs text-muted-foreground font-medium">

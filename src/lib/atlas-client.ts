@@ -470,6 +470,7 @@ export type ActiveVehicle = "BIL" | "MC" | "AM" | "LASTBIL" | "SLÄP";
 export interface TenantConfig {
   companyName: string;
   activeVehicles: ActiveVehicle[];
+  quickQuestions: string[];
 }
 
 const DEFAULT_ACTIVE_VEHICLES: ActiveVehicle[] = ["BIL", "MC", "AM", "LASTBIL", "SLÄP"];
@@ -489,15 +490,18 @@ export async function getTenantConfig(): Promise<TenantConfig> {
     const response = await fetch('/api/tenant-name', {
       headers: { [NGROK_SKIP_HEADER]: NGROK_SKIP_VALUE }
     });
-    if (!response.ok) return { companyName: 'Atlas', activeVehicles: DEFAULT_ACTIVE_VEHICLES };
+    if (!response.ok) return { companyName: 'Atlas', activeVehicles: DEFAULT_ACTIVE_VEHICLES, quickQuestions: [] };
     const data = await response.json();
     const companyName = (typeof data?.company_name === 'string' && data.company_name.trim()) ? data.company_name.trim() : 'Atlas';
     return {
       companyName,
       activeVehicles: normalizeActiveVehicles(data?.active_vehicles),
+      quickQuestions: Array.isArray(data?.quick_questions)
+        ? data.quick_questions.map((q: unknown) => String(q || "").trim()).filter(Boolean)
+        : [],
     };
   } catch {
-    return { companyName: 'Atlas', activeVehicles: DEFAULT_ACTIVE_VEHICLES };
+    return { companyName: 'Atlas', activeVehicles: DEFAULT_ACTIVE_VEHICLES, quickQuestions: [] };
   }
 }
 

@@ -11,6 +11,7 @@ onCityChange: (city: string | null) => void;
 offices: any[];
 companyName?: string | null;
 activeVehicles: ActiveVehicle[];
+quickQuestions: string[];
 }
 
 export function WelcomeMessage({
@@ -22,6 +23,7 @@ onCityChange,
 offices,
 companyName,
 activeVehicles,
+quickQuestions,
 }: WelcomeMessageProps) {
 const displayName = companyName || "Atlas";
 return (
@@ -52,6 +54,7 @@ onVehicleChange={onVehicleChange}
 onCityChange={onCityChange}
 offices={offices}
 activeVehicles={activeVehicles}
+quickQuestions={quickQuestions}
 />
 )}
 </div>

@@ -259,6 +259,7 @@ const [selectedVehicle, setSelectedVehicle] = useState<VehicleType | null>(null)
 const [selectedCity, setSelectedCity] = useState<string | null>(null);
 const [companyName, setCompanyName] = useState<string | null>(null);
 const [activeVehicles, setActiveVehicles] = useState<VehicleType[]>(['BIL', 'MC', 'AM', 'LASTBIL', 'SLÄP']);
+const [quickQuestions, setQuickQuestions] = useState<string[]>([]);
 
 const activeVehicleChoices = VEHICLE_CHOICES.filter(choice => activeVehicles.includes(choice.value));
 const getSafeActiveVehicle = (value: string | null | undefined): VehicleType | null => {
@@ -280,6 +281,7 @@ useEffect(() => {
 getTenantConfig().then(config => {
 setCompanyName(config.companyName);
 setActiveVehicles(config.activeVehicles);
+setQuickQuestions(config.quickQuestions);
 });
 }, []);
 
@@ -1191,6 +1193,7 @@ onCityChange={handleCityChange}
 offices={offices}
 companyName={companyName}
 activeVehicles={activeVehicles}
+quickQuestions={quickQuestions}
 />
 )}
 
