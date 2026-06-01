@@ -75,14 +75,14 @@ questions: [
 category: "Paket & Pris",
 questions: [
 "Vad kostar körkort för bil i {{stad}}?",
-"Vad är skillnaden på Baspaket, Mellanpaket och Totalpaket?",
-"Kan jag betala mitt körkort med Klarna eller delbetalning?",
+"Vilka körkortspaket erbjuder ni?",
+"Erbjuder ni delbetalning eller avbetalning?",
 ],
 },
 {
 category: "Teori & Risk",
 questions: [
-"Hur fungerar teoriprogrammet 'Mitt Körkort'?",
+"Hur anmäler jag mig som ny elev?",
 "Vad är Riskettan och Risktvåan (halkbanan)?",
 "I vilken ordning ska jag göra riskutbildningarna?",
 ],
@@ -102,7 +102,7 @@ category: "Utbildning & Paket",
 questions: [
 "Vad ingår i en intensivvecka för MC?",
 "Behöver jag ha egen skyddsutrustning för MC-lektioner?",
-"Vad är skillnaden mellan MC-totalpaket och lektionspaket?",
+"Vad är skillnaden mellan MC-paket och lektionspaket?",
 "Var sker MC-manöverkörning i {{stad}}?",
 ],
 },
@@ -119,9 +119,9 @@ LASTBIL: [
 {
 category: "Pris Lastbil i {{stad}}",
 questions: [
-"Vad kostar ett C Totalpaket i {{stad}}?",
+"Vad kostar C-utbildning i {{stad}}?",
 "Vad kostar en C Körlektion i {{stad}}?",
-"Vad kostar ett CE Totalpaket i {{stad}}?",
+"Vad kostar CE-utbildning i {{stad}}?",
 "Vad kostar en CE Körlektion i {{stad}}?",
 "Vad kostar ett C1 Paket i {{stad}}?",
 "Erbjuder ni D-körkort (buss) i {{stad}}?",

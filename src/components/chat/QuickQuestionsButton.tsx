@@ -68,7 +68,7 @@ questions: [
 {
 category: "Betalning & Avbokning",
 questions: [
-"Kan jag betala med Klarna eller delbetalning?",
+"Erbjuder ni delbetalning eller avbetalning?",
 "Vad gäller om jag blir sjuk och måste avboka?",
 "När måste jag senast avboka en körlektion?",
 "Hur fungerar ångerrätten?",
@@ -110,9 +110,9 @@ questions: [
 category: "Paket & Intensiv", 
 questions: [
 "Vad kostar körkort för bil i {{stad}}?", 
-"Vad är skillnaden på Baspaket, Mellanpaket och Totalpaket?",
+"Vilka körkortspaket erbjuder ni?",
 "Hur fungerar en intensivkurs på 2 veckor?", 
-"Vad ingår i ett Totalpaket för bil?"
+"Vad ingår i ert körkortspaket?"
 ] 
 },
 { 
@@ -120,7 +120,7 @@ category: "Risk & Teori",
 questions: [
 "När ska man göra Riskettan och Risktvåan?", 
 "Vad gör man på Halkbanan (Risk 2)?",
-"Hur fungerar appen Mitt Körkort?"
+"Hur anmäler jag mig som ny elev?"
 ] 
 },
 ],
@@ -156,9 +156,9 @@ LASTBIL: [
 {
 category: "Pris Lastbil i {{stad}}",
 questions: [
-"Vad kostar ett C Totalpaket i {{stad}}?",
+"Vad kostar C-utbildning i {{stad}}?",
 "Vad kostar en C Körlektion i {{stad}}?",
-"Vad kostar ett CE Totalpaket i {{stad}}?",
+"Vad kostar CE-utbildning i {{stad}}?",
 "Vad kostar en CE Körlektion i {{stad}}?",
 "Vad kostar ett C1 Paket i {{stad}}?",
 "Erbjuder ni D-körkort (buss) i {{stad}}?",
@@ -186,7 +186,7 @@ questions: [
 category: "Bokning & Kontakt",
 questions: [
 "Hur bokar jag lastbilsutbildning i {{stad}}?",
-"Kan jag betala lastbilsutbildningen med Klarna?",
+"Vilka betalningsalternativ finns för lastbilsutbildning?",
 ],
 },
 ],
