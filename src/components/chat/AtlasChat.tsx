@@ -265,6 +265,9 @@ const getSafeActiveVehicle = (value: string | null | undefined): VehicleType | n
 const vehicle = getSafeVehicle(value);
 return vehicle && activeVehicles.includes(vehicle) ? vehicle : null;
 };
+const singletonOffice = offices.length === 1 ? offices[0] : null;
+const singletonOfficeLabel = singletonOffice ? getOfficeDisplayName(singletonOffice) : null;
+const singletonVehicle = activeVehicles.length === 1 ? activeVehicles[0] : null;
 
 // Hämta kontorslistan från API när chatten bootar
 useEffect(() => {
@@ -286,6 +289,24 @@ setSelectedVehicle(null);
 setContext(prev => ({ ...prev, vehicle: null }));
 }
 }, [activeVehicles, selectedVehicle]);
+
+useEffect(() => {
+if (!singletonVehicle) return;
+if (selectedVehicle === singletonVehicle && context.vehicle === singletonVehicle) return;
+setSelectedVehicle(singletonVehicle);
+setContext(prev => ({ ...prev, vehicle: singletonVehicle }));
+window.selectedVehicle = singletonVehicle;
+}, [singletonVehicle, selectedVehicle, context.vehicle]);
+
+useEffect(() => {
+if (!singletonOffice || !singletonOfficeLabel) return;
+const nextCity = singletonOffice.city || null;
+const nextArea = singletonOffice.area || null;
+if (selectedCity === singletonOfficeLabel && context.city === nextCity && context.area === nextArea) return;
+setSelectedCity(singletonOfficeLabel);
+setContext(prev => ({ ...prev, city: nextCity, area: nextArea }));
+window.selectedCity = singletonOfficeLabel;
+}, [singletonOffice, singletonOfficeLabel, selectedCity, context.city, context.area]);
 
 useEffect(() => {
 let cancelled = false;
@@ -523,8 +544,8 @@ if (!isSkip && digits.length < 8) {
 injectBotMessage('Ange ett giltigt mobilnummer (minst 8 siffror), **"nej"** eller **"hoppa över"**.');
 return;
 }
-const safeOffice = findSafeOfficeFromLiveContext(offices, selectedCity, context);
-const safeVehicle = getSafeActiveVehicle(selectedVehicle) || getSafeActiveVehicle(context.vehicle);
+const safeOffice = findSafeOfficeFromLiveContext(offices, selectedCity, context) || singletonOffice || undefined;
+const safeVehicle = getSafeActiveVehicle(selectedVehicle) || getSafeActiveVehicle(context.vehicle) || singletonVehicle;
 const nextIntakeData = {
 ...intakeData,
 phone: isSkip ? undefined : digits,
@@ -779,9 +800,10 @@ vehicle: getSafeActiveVehicle(contextData.vehicle),
 };
 } else {
 // Använd nuvarande val från fönstret
-const cityArea = selectedCity ? getContextFromOfficeSelection(offices, selectedCity) : { city: null, area: null };
+const cityLabel = selectedCity || singletonOfficeLabel;
+const cityArea = cityLabel ? getContextFromOfficeSelection(offices, cityLabel) : { city: null, area: null };
 messageContext = {
-vehicle: selectedVehicle ?? null,
+vehicle: selectedVehicle ?? singletonVehicle ?? null,
 city: cityArea.city,
 area: cityArea.area,
 };

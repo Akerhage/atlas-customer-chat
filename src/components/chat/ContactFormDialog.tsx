@@ -114,6 +114,10 @@ message: "",
 city: "",
 vehicle: "",
 });
+const singletonOfficeLabel = offices.length === 1 ? getOfficeDisplayName(offices[0]) : null;
+const singletonVehicleOption = activeVehicles.length === 1
+? VEHICLE_OPTIONS.find((option) => option.value === activeVehicles[0])
+: null;
 
 useEffect(() => {
 if (open) {
@@ -122,12 +126,12 @@ const nextVehicle = activeVehicles.includes(selectedVehicle as ActiveVehicle) ? 
 setFormData(prev => ({
 ...prev,
 phone: "",
-city: selectedCity || DEFAULT_CITY,
+city: selectedCity || singletonOfficeLabel || DEFAULT_CITY,
 vehicle: nextVehicle,
 }));
 setWantsCallback(false);
 }
-}, [open, selectedCity, selectedVehicle, activeVehicles]);
+}, [open, selectedCity, selectedVehicle, activeVehicles, singletonOfficeLabel]);
 
 const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
 const files = e.target.files;
@@ -282,6 +286,9 @@ aria-label="Telefonnummer"
 
 <div className="space-y-2">
 <Label className="flex items-center gap-2 font-bold text-primary"><MapPin className="h-4 w-4" /> Kontor *</Label>
+{singletonOfficeLabel ? (
+<div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm">{singletonOfficeLabel}</div>
+) : (
 <Select value={formData.city} onValueChange={(v) => setFormData({ ...formData, city: v })}>
 <SelectTrigger><SelectValue placeholder="Välj kontor" /></SelectTrigger>
 <SelectContent className="max-h-[min(60vh,400px)]">
@@ -297,10 +304,14 @@ aria-label="Telefonnummer"
 </SelectGroup>
 </SelectContent>
 </Select>
+)}
 </div>
 
 <div className="space-y-2">
 <Label className="flex items-center gap-2 font-bold text-primary"><Car className="h-4 w-4" /> Fordon *</Label>
+{singletonVehicleOption ? (
+<div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm">{singletonVehicleOption.label}</div>
+) : (
 <Select value={formData.vehicle} onValueChange={(v) => setFormData({ ...formData, vehicle: v })}>
 <SelectTrigger><SelectValue placeholder="Välj fordonstyp" /></SelectTrigger>
 <SelectContent className="max-w-[calc(100vw-1rem)]">
@@ -309,6 +320,7 @@ aria-label="Telefonnummer"
 ))}
 </SelectContent>
 </Select>
+)}
 </div>
 
 <Textarea

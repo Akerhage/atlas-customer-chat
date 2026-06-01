@@ -222,6 +222,11 @@ offices, // 🔥 TILLAGD
 activeVehicles
 }: QuickQuestionsButtonProps) {
 const [open, setOpen] = useState(false);
+const singletonOffice = offices.length === 1 ? offices[0] : null;
+const singletonOfficeLabel = singletonOffice ? getOfficeDisplayName(singletonOffice) : null;
+const singletonVehicle = activeVehicles.length === 1 ? activeVehicles[0] : null;
+const effectiveSelectedCity = selectedCity || singletonOfficeLabel;
+const effectiveSelectedVehicle = selectedVehicle || singletonVehicle;
 const availableVehicles = (["BIL", "MC", "AM", "LASTBIL", "SLÄP"] as ActiveVehicle[])
 .filter((type) => activeVehicles.includes(type));
 
@@ -239,17 +244,17 @@ const generalCategories = ["Populära frågor", "Betalning & Avbokning", "Tillst
 const isGeneral = generalCategories.includes(category);
 
 // Om generell -> skicka null. Om fordonsspecifik -> skicka vald fordonstyp (om vald).
-const vehiclePayload = isGeneral ? null : (selectedVehicle as string);
+const vehiclePayload = isGeneral ? null : (effectiveSelectedVehicle as string);
 
 // Byt ut {{stad}} mot vald stad, eller ta bort det om ingen stad är vald
-const finalQuestion = selectedCity 
-? question.replace(/\{\{stad\}\}/g, selectedCity) 
+const finalQuestion = effectiveSelectedCity
+? question.replace(/\{\{stad\}\}/g, effectiveSelectedCity)
 : question.replace(/\{\{stad\}\}/g, "").trim();
 
 // Skicka till ChatInput (som skickar till AtlasChat)
 onSendMessage(finalQuestion, {
 vehicle: vehiclePayload as any, 
-city: selectedCity || ""
+city: effectiveSelectedCity || ""
 });
 
 setOpen(false);
@@ -257,16 +262,16 @@ setOpen(false);
 
 const getQuestions = (): QuestionCategory[] => {
 // Om inget är valt, visa bara generella frågor
-if (!selectedVehicle || !selectedCity) {
+if (!effectiveSelectedVehicle || !effectiveSelectedCity) {
 return COMMON_QUESTIONS;
 }
 
 const officeCategory: QuestionCategory = {
-category: getOfficeQuestions(selectedVehicle).category.replace(/\{\{stad\}\}/g, selectedCity),
-questions: getOfficeQuestions(selectedVehicle).questions,
+category: getOfficeQuestions(effectiveSelectedVehicle).category.replace(/\{\{stad\}\}/g, effectiveSelectedCity),
+questions: getOfficeQuestions(effectiveSelectedVehicle).questions,
 };
 
-const vehicleCategories = QUESTIONS_BY_VEHICLE[selectedVehicle] || [];
+const vehicleCategories = QUESTIONS_BY_VEHICLE[effectiveSelectedVehicle] || [];
 
 // Ordning: Kontorsfrågor -> Fordonsfrågor -> Generella
 return [officeCategory, ...vehicleCategories, ...COMMON_QUESTIONS];
@@ -294,12 +299,14 @@ title="Snabbfrågor"
 {/* TOPP: VAL AV STAD & FORDON */}
 <div className="p-3 border-b border-border">
 <p className="text-sm font-medium mb-2">Snabbfrågor</p>
+{(!singletonOffice || !singletonVehicle) && (
 <div className="flex gap-2">
+{!singletonOffice && (
 <DropdownMenu>
 <DropdownMenuTrigger asChild>
-<button className={cn("flex items-center gap-1 px-2 py-1 text-xs rounded-full transition-colors border", selectedCity ? "bg-primary/10 text-primary border-primary/30" : "bg-secondary hover:bg-secondary/80")}>
+<button className={cn("flex items-center gap-1 px-2 py-1 text-xs rounded-full transition-colors border", effectiveSelectedCity ? "bg-primary/10 text-primary border-primary/30" : "bg-secondary hover:bg-secondary/80")}>
 <MapPin className="w-3 h-3" />
-<span className="max-w-[80px] truncate">{selectedCity || "Välj stad"}</span>
+<span className="max-w-[80px] truncate">{effectiveSelectedCity || "Välj stad"}</span>
 <ChevronDown className="w-3 h-3" />
 </button>
 </DropdownMenuTrigger>
@@ -316,11 +323,13 @@ className={cn(selectedCity === getOfficeDisplayName(office) && "bg-primary/10")}
 ))}
 </DropdownMenuContent>
 </DropdownMenu>
+)}
 
+{!singletonVehicle && (
 <DropdownMenu>
 <DropdownMenuTrigger asChild>
-<button className={cn("flex items-center gap-1 px-2 py-1 text-xs rounded-full transition-colors border", selectedVehicle ? "bg-primary/10 text-primary border-primary/30" : "bg-secondary hover:bg-secondary/80")}>
-{selectedVehicle ? <><Car className="w-3 h-3" /><span>{VEHICLE_LABELS[selectedVehicle]}</span></> : <><span>Fordon</span></>}
+<button className={cn("flex items-center gap-1 px-2 py-1 text-xs rounded-full transition-colors border", effectiveSelectedVehicle ? "bg-primary/10 text-primary border-primary/30" : "bg-secondary hover:bg-secondary/80")}>
+{effectiveSelectedVehicle ? <><Car className="w-3 h-3" /><span>{VEHICLE_LABELS[effectiveSelectedVehicle]}</span></> : <><span>Fordon</span></>}
 <ChevronDown className="w-3 h-3" />
 </button>
 </DropdownMenuTrigger>
@@ -332,7 +341,9 @@ className={cn(selectedCity === getOfficeDisplayName(office) && "bg-primary/10")}
 ))}
 </DropdownMenuContent>
 </DropdownMenu>
+)}
 </div>
+)}
 </div>
 
 {/* LISTA MED FRÅGOR */}
@@ -348,10 +359,10 @@ key={q}
 onClick={() => handleQuestionClick(q, cat.category)}
 className={cn(
 "w-full text-left px-2 py-2 text-xs rounded-md transition-colors hover:bg-accent hover:text-accent-foreground",
-q.includes("{{stad}}") && !selectedCity && "opacity-50 cursor-not-allowed"
+q.includes("{{stad}}") && !effectiveSelectedCity && "opacity-50 cursor-not-allowed"
 )}
 >
-{selectedCity ? q.replace(/\{\{stad\}\}/g, selectedCity) : q.replace(/\{\{stad\}\}/g, "...")}
+{effectiveSelectedCity ? q.replace(/\{\{stad\}\}/g, effectiveSelectedCity) : q.replace(/\{\{stad\}\}/g, "...")}
 </button>
 ))}
 </div>

@@ -241,25 +241,31 @@ const area = String(office?.area || '').trim();
 return String(office?.display_name || (city ? (area ? `${city} - ${area}` : city) : '') || office?.name || '').trim();
 };
 
+const singletonOffice = offices.length === 1 ? offices[0] : null;
+const singletonOfficeLabel = singletonOffice ? getOfficeDisplayName(singletonOffice) : null;
+const singletonVehicle = activeVehicles.length === 1 ? activeVehicles[0] : null;
+const effectiveSelectedCity = selectedCity || singletonOfficeLabel;
+const effectiveSelectedVehicle = selectedVehicle || singletonVehicle;
+
 // Bidirektionell filtrering: dölj fordon/kontor som inte hör ihop.
 // Är ett kontor valt → visa bara fordon kontoret erbjuder.
 // Är ett fordon valt → visa bara kontor som erbjuder det fordonet.
-const selectedOffice = selectedCity
-? offices.find((o) => getOfficeDisplayName(o) === selectedCity)
+const selectedOffice = effectiveSelectedCity
+? offices.find((o) => getOfficeDisplayName(o) === effectiveSelectedCity)
 : null;
 
 const availableVehicles = (["AM", "BIL", "MC", "LASTBIL", "SLÄP"] as ActiveVehicle[]).filter(
-(type) => activeVehicles.includes(type) && (!selectedOffice || officeOffersVehicle(selectedOffice, type))
+(type) => activeVehicles.includes(type) && (Boolean(singletonVehicle) || !selectedOffice || officeOffersVehicle(selectedOffice, type))
 );
 
-const availableOffices = selectedVehicle
-? offices.filter((o) => officeOffersVehicle(o, selectedVehicle))
+const availableOffices = effectiveSelectedVehicle && !singletonOffice
+? offices.filter((o) => officeOffersVehicle(o, effectiveSelectedVehicle))
 : offices;
 
 const handleQuestionClick = (question: string) => {
-if (selectedVehicle && selectedCity) {
-const formattedQuestion = question.replace(/\{\{stad\}\}/g, selectedCity);
-onSendMessage(formattedQuestion, { vehicle: selectedVehicle, city: selectedCity });
+if (effectiveSelectedVehicle && effectiveSelectedCity) {
+const formattedQuestion = question.replace(/\{\{stad\}\}/g, effectiveSelectedCity);
+onSendMessage(formattedQuestion, { vehicle: effectiveSelectedVehicle, city: effectiveSelectedCity });
 }
 };
 
@@ -272,17 +278,18 @@ return (
 <div className="flex flex-col items-center gap-2 px-2 py-1 animate-fade-in-up" data-testid="quick-context-selector">
 <div className="flex min-h-[84px] w-full flex-wrap items-start justify-center gap-2">
 {/* City — väljs först */}
+{!singletonOffice && (
 <DropdownMenu>
 <DropdownMenuTrigger asChild>
 <button
 className={`flex min-w-0 max-w-[9.5rem] items-center gap-2 px-3 py-2 text-sm rounded-full transition-colors border ${
-selectedCity
+effectiveSelectedCity
 ? "bg-primary text-primary-foreground border-primary"
 : "bg-secondary hover:bg-secondary/80 text-secondary-foreground border-border/50"
 }`}
 >
 <MapPin className="w-4 h-4 shrink-0" />
-<span className="min-w-0 truncate">{selectedCity || "Kontor/Stad"}</span>
+<span className="min-w-0 truncate">{effectiveSelectedCity || "Kontor/Stad"}</span>
 <ChevronDown className="w-3 h-3 shrink-0" />
 </button>
 </DropdownMenuTrigger>
@@ -300,28 +307,30 @@ className="cursor-pointer"
 ))}
 </DropdownMenuContent>
 </DropdownMenu>
+)}
 
 {/* Vehicle Type — väljs efter kontor */}
+{!singletonVehicle && (
 <DropdownMenu>
 <DropdownMenuTrigger asChild>
 <button
 className={`flex min-w-0 max-w-[9.5rem] items-center gap-2 px-3 py-2 text-sm rounded-full transition-colors border ${
-selectedVehicle
+effectiveSelectedVehicle
 ? "bg-primary text-primary-foreground border-primary"
 : "bg-secondary hover:bg-secondary/80 text-secondary-foreground border-border/50"
 }`}
 >
-{selectedVehicle ? (
+{effectiveSelectedVehicle ? (
 <>
 {(() => {
-const Icon = VEHICLE_ICONS[selectedVehicle];
+const Icon = VEHICLE_ICONS[effectiveSelectedVehicle];
 return <Icon className="w-4 h-4" />;
 })()}
 </>
 ) : (
 <Car className="w-4 h-4" />
 )}
-<span className="min-w-0 truncate">{selectedVehicle ? VEHICLE_LABELS[selectedVehicle] : "Fordonstyp"}</span>
+<span className="min-w-0 truncate">{effectiveSelectedVehicle ? VEHICLE_LABELS[effectiveSelectedVehicle] : "Fordonstyp"}</span>
 <ChevronDown className="w-3 h-3 shrink-0" />
 </button>
 </DropdownMenuTrigger>
@@ -343,30 +352,31 @@ className="flex items-center gap-2 cursor-pointer"
 })}
 </DropdownMenuContent>
 </DropdownMenu>
+)}
 
 {/* Questions - only show if vehicle selected */}
 <DropdownMenu>
 <DropdownMenuTrigger asChild>
 <button
 className={`flex min-w-0 max-w-[9.5rem] items-center gap-2 px-3 py-2 text-sm rounded-full transition-colors border ${
-selectedVehicle && selectedCity
+effectiveSelectedVehicle && effectiveSelectedCity
 ? "bg-accent text-accent-foreground border-accent hover:bg-accent/80"
 : "bg-muted text-muted-foreground border-border/50 cursor-not-allowed opacity-60"
 }`}
-disabled={!selectedVehicle || !selectedCity}
+disabled={!effectiveSelectedVehicle || !effectiveSelectedCity}
 >
 <HelpCircle className="w-4 h-4 shrink-0" />
 Välj fråga
 <ChevronDown className="w-3 h-3 shrink-0" />
 </button>
 </DropdownMenuTrigger>
-{selectedVehicle && selectedCity && (
+{effectiveSelectedVehicle && effectiveSelectedCity && (
 <DropdownMenuContent
 className="bg-popover border border-border shadow-lg z-50 w-80"
 align="center"
 >
 <ScrollArea className="h-80">
-{getSortedQuestionsForVehicle(selectedVehicle, selectedCity).map((cat, catIdx) => (
+{getSortedQuestionsForVehicle(effectiveSelectedVehicle, effectiveSelectedCity).map((cat, catIdx) => (
 <div key={cat.category}>
 {catIdx > 0 && <DropdownMenuSeparator />}
 <DropdownMenuLabel className="text-xs text-muted-foreground font-medium">
@@ -378,7 +388,7 @@ key={idx}
 onClick={() => handleQuestionClick(question)}
 className="cursor-pointer text-sm py-2 whitespace-normal"
 >
-{question.replace(/\{\{stad\}\}/g, selectedCity)}
+{question.replace(/\{\{stad\}\}/g, effectiveSelectedCity)}
 </DropdownMenuItem>
 ))}
 </div>
@@ -391,13 +401,13 @@ className="cursor-pointer text-sm py-2 whitespace-normal"
 
 <div className="flex min-h-5 items-center justify-center gap-2 text-xs text-muted-foreground">
 <p>
-{!selectedCity
+{!effectiveSelectedCity
 ? "Välj kontor/stad först"
-: !selectedVehicle
+: !effectiveSelectedVehicle
 ? "Välj fordonstyp för relevanta frågor"
 : "Välj en fråga eller skriv fritt"}
 </p>
-{(selectedVehicle || selectedCity) && (
+{(selectedVehicle || selectedCity) && !singletonOffice && !singletonVehicle && (
 <button
 onClick={resetSelection}
 className="shrink-0 text-muted-foreground hover:text-foreground underline text-xs"

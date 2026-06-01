@@ -35,6 +35,9 @@ if (!context.city && !context.area && !context.vehicle) {
 return null;
 }
 
+const singletonOffice = offices.length === 1;
+const singletonVehicle = activeVehicles.length === 1;
+
 // 🔥 splitCityArea borttagen helt - den behövs inte längre när vi har office-objekt
 const currentVehicle = VEHICLES
 .filter((vehicle) => activeVehicles.includes(vehicle.value as ActiveVehicle))
@@ -54,6 +57,16 @@ return (
 {/* City tag - clickable with dropdown */}
 {locationLabel && (
 <div className="flex min-w-0 items-center gap-0.5">
+{singletonOffice ? (
+<div
+className="flex min-w-0 max-w-[min(12rem,48vw)] items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-primary"
+title={locationLabel}
+>
+<MapPin className="w-3 h-3 shrink-0" />
+<span className="min-w-0 truncate">{locationLabel}</span>
+</div>
+) : (
+<>
 <DropdownMenu>
 <DropdownMenuTrigger asChild>
 <button
@@ -91,12 +104,24 @@ aria-label="Ta bort stad"
 >
 <X className="w-3 h-3" />
 </button>
+</>
+)}
 </div>
 )}
 
 {/* Vehicle tag - clickable with dropdown */}
 {context.vehicle && currentVehicle && (
 <div className="flex min-w-0 items-center gap-0.5">
+{singletonVehicle ? (
+<div
+className="flex min-w-0 max-w-[min(10rem,38vw)] items-center gap-1 rounded-full bg-accent/10 px-2 py-1 text-accent"
+title={currentVehicle.label}
+>
+<currentVehicle.icon className="w-3 h-3 shrink-0" />
+<span className="min-w-0 truncate">{currentVehicle.label}</span>
+</div>
+) : (
+<>
 <DropdownMenu>
 <DropdownMenuTrigger asChild>
 <button
@@ -131,6 +156,8 @@ aria-label="Ta bort fordon"
 >
 <X className="w-3 h-3" />
 </button>
+</>
+)}
 </div>
 )}
 </div>
