@@ -1,14 +1,16 @@
 import { QuickContextSelector } from "./QuickContextSelector";
 import atlasLogo from "@/assets/atlas-logo.png";
+import type { ActiveVehicle } from "@/lib/atlas-client";
 
 interface WelcomeMessageProps {
 onQuickAction?: (message: string, context?: { vehicle: string; city: string }) => void;
-selectedVehicle: "BIL" | "MC" | "AM" | "LASTBIL" | null;
+selectedVehicle: ActiveVehicle | null;
 selectedCity: string | null;
-onVehicleChange: (vehicle: "BIL" | "MC" | "AM" | "LASTBIL" | null) => void;
+onVehicleChange: (vehicle: ActiveVehicle | null) => void;
 onCityChange: (city: string | null) => void;
 offices: any[];
 companyName?: string | null;
+activeVehicles: ActiveVehicle[];
 }
 
 export function WelcomeMessage({
@@ -19,6 +21,7 @@ onVehicleChange,
 onCityChange,
 offices,
 companyName,
+activeVehicles,
 }: WelcomeMessageProps) {
 const displayName = companyName || "Atlas";
 return (
@@ -48,6 +51,7 @@ selectedCity={selectedCity}
 onVehicleChange={onVehicleChange}
 onCityChange={onCityChange}
 offices={offices}
+activeVehicles={activeVehicles}
 />
 )}
 </div>

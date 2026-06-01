@@ -9,8 +9,10 @@ DropdownMenuLabel,
 DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import type { ActiveVehicle } from "@/lib/atlas-client";
 
-type VehicleType = "BIL" | "MC" | "AM" | "LASTBIL" | null;
+
+type VehicleType = ActiveVehicle | null;
 
 interface QuickContextSelectorProps {
 onSendMessage: (message: string, context?: { vehicle: string; city: string }) => void;
@@ -19,6 +21,7 @@ selectedCity: string | null;
 onVehicleChange: (vehicle: VehicleType) => void;
 onCityChange: (city: string | null) => void;
 offices: any[];
+activeVehicles: ActiveVehicle[];
 }
 
 interface QuestionCategory {
@@ -26,14 +29,15 @@ category: string;
 questions: string[];
 }
 
-const VEHICLE_QUESTION_LABELS: Record<"BIL" | "MC" | "AM" | "LASTBIL", string> = {
+const VEHICLE_QUESTION_LABELS: Record<ActiveVehicle, string> = {
 BIL:     "bilkörkorts",
 MC:      "MC-",
 AM:      "AM/moped-",
 LASTBIL: "lastbils",
+SLÄP:    "släpvagns",
 };
 
-function getOfficeQuestions(vehicle: "BIL" | "MC" | "AM" | "LASTBIL" | null): QuestionCategory {
+function getOfficeQuestions(vehicle: ActiveVehicle | null): QuestionCategory {
 const fordonsord = vehicle ? VEHICLE_QUESTION_LABELS[vehicle] : "körkorts";
 return {
 category: "Om kontoret i {{stad}}",
@@ -44,7 +48,7 @@ questions: [
 };
 }
 
-const QUESTIONS_BY_VEHICLE: Record<"BIL" | "MC" | "AM" | "LASTBIL", QuestionCategory[]> = {
+const QUESTIONS_BY_VEHICLE: Record<ActiveVehicle, QuestionCategory[]> = {
 AM: [
 {
 category: "AM-utbildning",
@@ -141,10 +145,20 @@ questions: [
 ],
 },
 ],
+SLÄP: [
+{
+category: "Släp & BE/B96",
+questions: [
+"Vad är skillnaden mellan B96 och BE?",
+"Vad krävs för att ta BE-körkort?",
+"Vad kostar släputbildning i {{stad}}?",
+],
+},
+],
 };
 
 function getSortedQuestionsForVehicle(
-vehicle: "BIL" | "MC" | "AM" | "LASTBIL",
+vehicle: ActiveVehicle,
 city: string
 ): QuestionCategory[] {
 const categories = QUESTIONS_BY_VEHICLE[vehicle];
@@ -181,6 +195,7 @@ BIL: Car,
 MC: Bike,
 AM: CircleDot,
 LASTBIL: Truck,
+SLÄP: Car,
 };
 
 const VEHICLE_LABELS = {
@@ -188,19 +203,21 @@ BIL: "Bil (B)",
 MC: "Motorcykel",
 AM: "Moped (AM)",
 LASTBIL: "Lastbil / Buss",
+SLÄP: "Släp (BE/B96)",
 };
 
 // Mappar vår fordonskod till etiketten som används i kontorens services_offered.
-const VEHICLE_TO_SERVICE_LABEL: Record<"BIL" | "MC" | "AM" | "LASTBIL", string> = {
+const VEHICLE_TO_SERVICE_LABEL: Record<ActiveVehicle, string> = {
 BIL: "bil",
 MC: "mc",
 AM: "am",
 LASTBIL: "lastbil",
+SLÄP: "släp",
 };
 
 // Erbjuder kontoret fordonet? Tom/utelämnad services_offered tolkas permissivt (visa) —
 // backend-vakten är skyddsnät, så vi döljer aldrig ett legitimt kontor av misstag.
-function officeOffersVehicle(office: any, vehicle: "BIL" | "MC" | "AM" | "LASTBIL"): boolean {
+function officeOffersVehicle(office: any, vehicle: ActiveVehicle): boolean {
 const so = Array.isArray(office?.services_offered)
 ? office.services_offered.map((s: any) => String(s).toLowerCase().trim())
 : [];
@@ -215,6 +232,7 @@ selectedCity,
 onVehicleChange,
 onCityChange,
 offices,
+activeVehicles,
 }: QuickContextSelectorProps) {
 
 const getOfficeDisplayName = (office: any) => {
@@ -230,8 +248,8 @@ const selectedOffice = selectedCity
 ? offices.find((o) => getOfficeDisplayName(o) === selectedCity)
 : null;
 
-const availableVehicles = (["AM", "BIL", "MC", "LASTBIL"] as const).filter(
-(type) => !selectedOffice || officeOffersVehicle(selectedOffice, type)
+const availableVehicles = (["AM", "BIL", "MC", "LASTBIL", "SLÄP"] as ActiveVehicle[]).filter(
+(type) => activeVehicles.includes(type) && (!selectedOffice || officeOffersVehicle(selectedOffice, type))
 );
 
 const availableOffices = selectedVehicle

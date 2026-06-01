@@ -36,16 +36,25 @@ clipboardHasText,
 getClipboardFiles,
 usePendingAttachments,
 } from "@/lib/pending-attachments";
+import type { ActiveVehicle } from "@/lib/atlas-client";
 
 interface ContactFormDialogProps {
 onSubmit?: (data: any) => void;
 selectedCity?: string | null;
 selectedVehicle?: string | null;
 offices: any[];
+activeVehicles: ActiveVehicle[];
 }
 
 const DEFAULT_CITY = "Centralsupport";
 const DEFAULT_VEHICLE = "BIL";
+const VEHICLE_OPTIONS: { value: ActiveVehicle; label: string }[] = [
+{ value: "BIL", label: "Bil (B)" },
+{ value: "MC", label: "Motorcykel (A)" },
+{ value: "AM", label: "Moped (AM)" },
+{ value: "LASTBIL", label: "Lastbil / Buss" },
+{ value: "SLÄP", label: "Släp (BE/B96)" },
+];
 
 const getOfficeDisplayName = (office: any) => {
 const city = String(office?.city || '').trim();
@@ -81,7 +90,7 @@ normalizeOfficeLabel(office.area) === normalizeOfficeLabel(area)
 return exactMatches.length === 1 ? exactMatches[0] : undefined;
 };
 
-export function ContactFormDialog({ onSubmit, selectedCity, selectedVehicle, offices }: ContactFormDialogProps) {
+export function ContactFormDialog({ onSubmit, selectedCity, selectedVehicle, offices, activeVehicles }: ContactFormDialogProps) {
 const [open, setOpen] = useState(false);
 const [isSubmitting, setIsSubmitting] = useState(false);
 const [wantsCallback, setWantsCallback] = useState(false);
@@ -108,15 +117,17 @@ vehicle: "",
 
 useEffect(() => {
 if (open) {
+const fallbackVehicle = activeVehicles.includes(DEFAULT_VEHICLE) ? DEFAULT_VEHICLE : activeVehicles[0] || DEFAULT_VEHICLE;
+const nextVehicle = activeVehicles.includes(selectedVehicle as ActiveVehicle) ? selectedVehicle : fallbackVehicle;
 setFormData(prev => ({
 ...prev,
 phone: "",
 city: selectedCity || DEFAULT_CITY,
-vehicle: selectedVehicle || DEFAULT_VEHICLE,
+vehicle: nextVehicle,
 }));
 setWantsCallback(false);
 }
-}, [open, selectedCity, selectedVehicle]);
+}, [open, selectedCity, selectedVehicle, activeVehicles]);
 
 const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
 const files = e.target.files;
@@ -293,10 +304,9 @@ aria-label="Telefonnummer"
 <Select value={formData.vehicle} onValueChange={(v) => setFormData({ ...formData, vehicle: v })}>
 <SelectTrigger><SelectValue placeholder="Välj fordonstyp" /></SelectTrigger>
 <SelectContent className="max-w-[calc(100vw-1rem)]">
-<SelectItem value="BIL">Bil (B)</SelectItem>
-<SelectItem value="MC">Motorcykel (A)</SelectItem>
-<SelectItem value="AM">Moped (AM)</SelectItem>
-<SelectItem value="LASTBIL">Lastbil / Buss</SelectItem>
+{VEHICLE_OPTIONS.filter((option) => activeVehicles.includes(option.value)).map((option) => (
+<SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+))}
 </SelectContent>
 </Select>
 </div>

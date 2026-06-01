@@ -458,26 +458,51 @@ export async function getPublicConfig(): Promise<PublicConfig> {
   }
 }
 
-export async function getTenantName(): Promise<string> {
-  try {
-    const response = await fetch('/api/tenant-name', {
-      headers: { [NGROK_SKIP_HEADER]: NGROK_SKIP_VALUE }
-    });
-    if (!response.ok) return 'Atlas';
-    const data = await response.json();
-    return (typeof data?.company_name === 'string' && data.company_name.trim())
-      ? data.company_name.trim()
-      : 'Atlas';
-  } catch {
-    return 'Atlas';
-  }
-}
-
 export interface CustomerTemplate {
   id: number;
   title: string;
   content: string;
   sub_group?: string | null;
+}
+
+export type ActiveVehicle = "BIL" | "MC" | "AM" | "LASTBIL" | "SLÄP";
+
+export interface TenantConfig {
+  companyName: string;
+  activeVehicles: ActiveVehicle[];
+}
+
+const DEFAULT_ACTIVE_VEHICLES: ActiveVehicle[] = ["BIL", "MC", "AM", "LASTBIL", "SLÄP"];
+
+function normalizeActiveVehicles(value: unknown): ActiveVehicle[] {
+  if (!Array.isArray(value)) return DEFAULT_ACTIVE_VEHICLES;
+  const valid = new Set(DEFAULT_ACTIVE_VEHICLES);
+  const vehicles = value
+    .map((item) => String(item || "").trim().toUpperCase())
+    .filter((item): item is ActiveVehicle => valid.has(item as ActiveVehicle))
+    .filter((item, index, arr) => arr.indexOf(item) === index);
+  return vehicles.length ? vehicles : DEFAULT_ACTIVE_VEHICLES;
+}
+
+export async function getTenantConfig(): Promise<TenantConfig> {
+  try {
+    const response = await fetch('/api/tenant-name', {
+      headers: { [NGROK_SKIP_HEADER]: NGROK_SKIP_VALUE }
+    });
+    if (!response.ok) return { companyName: 'Atlas', activeVehicles: DEFAULT_ACTIVE_VEHICLES };
+    const data = await response.json();
+    const companyName = (typeof data?.company_name === 'string' && data.company_name.trim()) ? data.company_name.trim() : 'Atlas';
+    return {
+      companyName,
+      activeVehicles: normalizeActiveVehicles(data?.active_vehicles),
+    };
+  } catch {
+    return { companyName: 'Atlas', activeVehicles: DEFAULT_ACTIVE_VEHICLES };
+  }
+}
+
+export async function getTenantName(): Promise<string> {
+  return (await getTenantConfig()).companyName;
 }
 
 /**

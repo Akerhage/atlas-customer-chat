@@ -17,19 +17,20 @@ getSessionId,
 emitEndChat,
 getPublicOffices,
 getPublicConfig,
-getTenantName,
+getTenantConfig,
 type ChatContext,
 type HistoryMessage,
 type CustomerReplyEvent,
 type SessionStatusEvent,
 type SessionWarningEvent,
+type ActiveVehicle,
 } from "@/lib/atlas-client";
 import { toast } from "sonner";
 
 declare global {
 interface Window {
 selectedCity: string | null;
-selectedVehicle: "BIL" | "MC" | "AM" | "LASTBIL" | null;
+selectedVehicle: ActiveVehicle | null;
 }
 }
 
@@ -43,7 +44,7 @@ choices?: { label: string; value: string }[];
 }
 
 type IntakeStep = 'name' | 'email' | 'phone' | 'office' | 'vehicle' | null;
-type VehicleType = "BIL" | "MC" | "AM" | "LASTBIL";
+type VehicleType = ActiveVehicle;
 
 interface Office {
 id: number;
@@ -146,6 +147,7 @@ const VEHICLE_CHOICES: { label: string; value: VehicleType }[] = [
 { label: 'Motorcykel (A)', value: 'MC'      },
 { label: 'Moped (AM)',     value: 'AM'      },
 { label: 'Lastbil / Buss', value: 'LASTBIL' },
+{ label: 'Släp (BE/B96)',  value: 'SLÄP'    },
 ];
 
 const VEHICLE_HANDOFF_LABELS: Record<VehicleType, string> = {
@@ -153,6 +155,7 @@ BIL: 'Bil',
 MC: 'MC',
 AM: 'Moped',
 LASTBIL: 'Lastbil / Buss',
+SLÄP: 'Släp',
 };
 
 function getSafeVehicle(value: string | null | undefined): VehicleType | null {
@@ -252,9 +255,16 @@ area: null,
 vehicle: null,
 });
 // Separate state for selection UI (before first message is sent)
-const [selectedVehicle, setSelectedVehicle] = useState<"BIL" | "MC" | "AM" | "LASTBIL" | null>(null);
+const [selectedVehicle, setSelectedVehicle] = useState<VehicleType | null>(null);
 const [selectedCity, setSelectedCity] = useState<string | null>(null);
 const [companyName, setCompanyName] = useState<string | null>(null);
+const [activeVehicles, setActiveVehicles] = useState<VehicleType[]>(['BIL', 'MC', 'AM', 'LASTBIL', 'SLÄP']);
+
+const activeVehicleChoices = VEHICLE_CHOICES.filter(choice => activeVehicles.includes(choice.value));
+const getSafeActiveVehicle = (value: string | null | undefined): VehicleType | null => {
+const vehicle = getSafeVehicle(value);
+return vehicle && activeVehicles.includes(vehicle) ? vehicle : null;
+};
 
 // Hämta kontorslistan från API när chatten bootar
 useEffect(() => {
@@ -264,8 +274,18 @@ getPublicOffices()
 }, []);
 
 useEffect(() => {
-getTenantName().then(setCompanyName);
+getTenantConfig().then(config => {
+setCompanyName(config.companyName);
+setActiveVehicles(config.activeVehicles);
+});
 }, []);
+
+useEffect(() => {
+if (selectedVehicle && !activeVehicles.includes(selectedVehicle)) {
+setSelectedVehicle(null);
+setContext(prev => ({ ...prev, vehicle: null }));
+}
+}, [activeVehicles, selectedVehicle]);
 
 useEffect(() => {
 let cancelled = false;
@@ -299,9 +319,10 @@ document.documentElement.classList.remove('dark');
 }, [isDark]);
 
 // Keep context in sync with selections so it can be sent even for manual input
-const handleVehicleChange = (vehicle: "BIL" | "MC" | "AM" | "LASTBIL" | null) => {
-setSelectedVehicle(vehicle);
-setContext((prev) => ({ ...prev, vehicle }));
+const handleVehicleChange = (vehicle: VehicleType | null) => {
+const safeVehicle = vehicle && activeVehicles.includes(vehicle) ? vehicle : null;
+setSelectedVehicle(safeVehicle);
+setContext((prev) => ({ ...prev, vehicle: safeVehicle }));
 };
 
 const handleCityChange = (locationLabel: string | null) => {
@@ -503,7 +524,7 @@ injectBotMessage('Ange ett giltigt mobilnummer (minst 8 siffror), **"nej"** elle
 return;
 }
 const safeOffice = findSafeOfficeFromLiveContext(offices, selectedCity, context);
-const safeVehicle = getSafeVehicle(selectedVehicle) || getSafeVehicle(context.vehicle);
+const safeVehicle = getSafeActiveVehicle(selectedVehicle) || getSafeActiveVehicle(context.vehicle);
 const nextIntakeData = {
 ...intakeData,
 phone: isSkip ? undefined : digits,
@@ -524,7 +545,7 @@ return;
 
 if (safeOffice) {
 setIntakeStep('vehicle');
-injectBotMessage('Vad gäller ärendet?', VEHICLE_CHOICES);
+injectBotMessage('Vad gäller ärendet?', activeVehicleChoices);
 return;
 }
 
@@ -753,7 +774,7 @@ let messageContext: ChatContext;
 if (contextData) {
 // Snabbvalet skickade med specifik stad/fordon - ANVÄND DET
 messageContext = { 
-vehicle: contextData.vehicle as "BIL" | "MC" | "AM" | "LASTBIL" | null,
+vehicle: getSafeActiveVehicle(contextData.vehicle),
 ...getContextFromOfficeSelection(offices, contextData.city)
 };
 } else {
@@ -793,7 +814,7 @@ return;
 
 // 4. Uppdatera context OCH de visuella knapparna om servern ändrat kontext
 if (response.locked_context) {
-const newV = response.locked_context.vehicle as "BIL" | "MC" | "AM" | "LASTBIL" | null;
+const newV = getSafeActiveVehicle(response.locked_context.vehicle);
 const newCity = response.locked_context.city;
 const newArea = response.locked_context.area;
 
@@ -801,7 +822,7 @@ const newArea = response.locked_context.area;
 setContext({
 city: newCity ?? context.city ?? null,
 area: newArea ?? context.area ?? null,
-vehicle: newV ?? context.vehicle ?? null,
+vehicle: newV ?? getSafeActiveVehicle(context.vehicle) ?? null,
 });
 
 // B) SYNK TILL UI: Uppdatera fordonstyp-knappen
@@ -878,7 +899,7 @@ connectSocket(handleAgentReply, handleSessionStatus, handleAgentTyping, handleIn
 
 const handleQuickAction = (message: string, contextData?: { vehicle: string; city: string }) => {
 if (contextData) {
-handleVehicleChange(contextData.vehicle as "BIL" | "MC" | "AM" | "LASTBIL");
+handleVehicleChange(getSafeActiveVehicle(contextData.vehicle));
 handleCityChange(contextData.city);
 }
 handleSendMessage(message, contextData);
@@ -975,11 +996,12 @@ BIL: 'Bil (B)',
 MC: 'Motorcykel (A)',
 AM: 'Moped (AM)',
 LASTBIL: 'Lastbil / Buss',
+SLÄP: 'Släp (BE/B96)',
 };
 
 if (intakeStep === 'office') {
 injectUserMessage(value);
-const safeVehicle = getSafeVehicle(intakeData.vehicle);
+const safeVehicle = getSafeActiveVehicle(intakeData.vehicle);
 if (safeVehicle) {
 setIntakeStep(null);
 finishIntakeHandoff({
@@ -992,13 +1014,13 @@ return;
 
 setIntakeData((prev) => ({ ...prev, city: value }));
 setIntakeStep('vehicle');
-injectBotMessage('Vad gäller ärendet?', VEHICLE_CHOICES);
+injectBotMessage('Vad gäller ärendet?', activeVehicleChoices);
 
 } else if (intakeStep === 'vehicle') {
 injectUserMessage(vehicleLabels[value] || value);
 setIntakeStep(null);
 
-const finalVehicle = getSafeVehicle(value);
+const finalVehicle = getSafeActiveVehicle(value);
 if (!finalVehicle) return;
 finishIntakeHandoff({
 ...intakeData,
@@ -1017,13 +1039,13 @@ notifySiblingTabs();
 lastMessageCountRef.current += 1;
 
 if (response.locked_context) {
-const newV = response.locked_context.vehicle as "BIL" | "MC" | "AM" | "LASTBIL" | null;
+const newV = getSafeActiveVehicle(response.locked_context.vehicle);
 const newCity = response.locked_context.city;
 const newArea = response.locked_context.area;
 setContext({
 city: newCity ?? context.city ?? null,
 area: newArea ?? context.area ?? null,
-vehicle: newV ?? context.vehicle ?? null,
+vehicle: newV ?? getSafeActiveVehicle(context.vehicle) ?? null,
 });
 if (newV && newV !== selectedVehicle) {
 setSelectedVehicle(newV);
@@ -1086,12 +1108,12 @@ onEndSession={hasCustomerMessage ? handleEndSession : undefined}
 onRequestHuman={handleRequestHuman}
 isDark={isDark}
 onToggleTheme={handleToggleTheme}
-// 🔥 FIX 3: Dina rader här är kvar
 selectedCity={selectedCity}
 selectedVehicle={selectedVehicle}
-offices={offices} // 🚀 NY: Dynamisk lista tillagd
+offices={offices}
 onTemplateSelect={handleTemplateSelect}
 companyName={companyName}
+activeVehicles={activeVehicles}
 />
 
 {/* Human mode indicator */}
@@ -1146,6 +1168,7 @@ onVehicleChange={handleVehicleChange}
 onCityChange={handleCityChange}
 offices={offices}
 companyName={companyName}
+activeVehicles={activeVehicles}
 />
 )}
 
@@ -1179,11 +1202,14 @@ context={context}
 offices={offices} // 🚀 NY: Dynamisk lista tillagd
 onUpdateContext={(updates) => {
 // 1. Uppdatera Huvud-Context (Backend)
-setContext(prev => ({ ...prev, ...updates }));
+const safeUpdates = updates.vehicle !== undefined
+? { ...updates, vehicle: getSafeActiveVehicle(updates.vehicle as string | null) }
+: updates;
+setContext(prev => ({ ...prev, ...safeUpdates }));
 
 // 2. Uppdatera UI-State (Knapparna/ChatInput) - DETTA SAKNADES (BEVARAT)
 if (updates.vehicle !== undefined) {
-const v = updates.vehicle as "BIL" | "MC" | "AM" | "LASTBIL" | null;
+const v = getSafeActiveVehicle(updates.vehicle as string | null);
 setSelectedVehicle(v); 
 window.selectedVehicle = v;
 }
@@ -1194,6 +1220,7 @@ setSelectedCity(c);
 window.selectedCity = c;
 }
 }}
+activeVehicles={activeVehicles}
 />
 )}
 
@@ -1216,6 +1243,7 @@ selectedCity={selectedCity}
 offices={offices}
 humanMode={humanMode}
 aiRepliesEnabled={aiRepliesEnabled}
+activeVehicles={activeVehicles}
 />
 )}
 

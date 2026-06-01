@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Send, Paperclip, Loader2, X, FileText, Image } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { emitTyping, getSessionId } from "@/lib/atlas-client";
+import type { ActiveVehicle } from "@/lib/atlas-client";
 import { QuickQuestionsButton } from "./QuickQuestionsButton";
 import { toast } from "sonner";
 import {
@@ -19,7 +20,7 @@ sanitizeHtmlPasteForAiMode,
 usePendingAttachments,
 } from "@/lib/pending-attachments";
 
-type VehicleType = "BIL" | "MC" | "AM" | "LASTBIL" | null;
+type VehicleType = ActiveVehicle | null;
 
 interface ChatInputProps {
 onSend: (message: string, context?: { vehicle: string; city: string }) => void;
@@ -33,6 +34,7 @@ onCityChange: (city: string | null) => void;
 offices: any[];
 humanMode: boolean;
 aiRepliesEnabled?: boolean;
+activeVehicles: ActiveVehicle[];
 }
 
 const TYPING_THROTTLE_MS = 2000;
@@ -50,7 +52,8 @@ onVehicleChange,
 onCityChange,
 offices,
 humanMode,
-aiRepliesEnabled = true
+aiRepliesEnabled = true,
+activeVehicles
 }: ChatInputProps) {
 const [message, setMessage] = useState("");
 const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -276,6 +279,7 @@ onVehicleChange={onVehicleChange}
 onCityChange={onCityChange}
 disabled={disabled}
 offices={offices}
+activeVehicles={activeVehicles}
 />
 )}
 

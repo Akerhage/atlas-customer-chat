@@ -7,11 +7,13 @@ DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { ChatContext } from "@/lib/atlas-client";
+import type { ActiveVehicle } from "@/lib/atlas-client";
 
 interface ContextIndicatorProps {
 context: ChatContext;
 onUpdateContext: (updates: Partial<ChatContext>) => void;
 offices: any[]; // 🔥 TILLAGD
+activeVehicles: ActiveVehicle[];
 }
 
 const VEHICLES = [
@@ -19,6 +21,7 @@ const VEHICLES = [
 { value: "BIL", label: "Bil (B)", icon: Car },
 { value: "MC", label: "Motorcykel", icon: Bike },
 { value: "LASTBIL", label: "Lastbil / Buss", icon: Truck },
+{ value: "SLÄP", label: "Släp (BE/B96)", icon: Car },
 ];
 
 const getOfficeDisplayName = (office: any) => {
@@ -27,13 +30,15 @@ const area = String(office?.area || '').trim();
 return String(office?.display_name || (city ? (area ? `${city} - ${area}` : city) : '') || office?.name || '').trim();
 };
 
-export function ContextIndicator({ context, onUpdateContext, offices }: ContextIndicatorProps) {
+export function ContextIndicator({ context, onUpdateContext, offices, activeVehicles }: ContextIndicatorProps) {
 if (!context.city && !context.area && !context.vehicle) {
 return null;
 }
 
 // 🔥 splitCityArea borttagen helt - den behövs inte längre när vi har office-objekt
-const currentVehicle = VEHICLES.find((v) => v.value === context.vehicle);
+const currentVehicle = VEHICLES
+.filter((vehicle) => activeVehicles.includes(vehicle.value as ActiveVehicle))
+.find((v) => v.value === context.vehicle);
 
 const locationLabel = context.city
 ? context.area && !context.city.includes(' - ')
@@ -104,7 +109,7 @@ title={currentVehicle.label}
 </button>
 </DropdownMenuTrigger>
 <DropdownMenuContent className="bg-popover border border-border shadow-lg z-50">
-{VEHICLES.map((vehicle) => {
+{VEHICLES.filter((vehicle) => activeVehicles.includes(vehicle.value as ActiveVehicle)).map((vehicle) => {
 const VehicleIcon = vehicle.icon;
 return (
 <DropdownMenuItem

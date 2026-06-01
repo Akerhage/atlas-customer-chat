@@ -15,8 +15,9 @@ PopoverContent,
 PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import type { ActiveVehicle } from "@/lib/atlas-client";
 
-type VehicleType = "BIL" | "MC" | "AM" | "LASTBIL" | null;
+type VehicleType = ActiveVehicle | null;
 
 interface QuickQuestionsButtonProps {
 onSendMessage: (message: string, context?: { vehicle: string; city: string }) => void;
@@ -26,6 +27,7 @@ onVehicleChange: (vehicle: VehicleType) => void;
 onCityChange: (city: string | null) => void;
 disabled?: boolean;
 offices: any[]; // 🔥 TILLAGD
+activeVehicles: ActiveVehicle[];
 }
 
 interface QuestionCategory {
@@ -34,15 +36,16 @@ questions: string[];
 }
 
 // Fordonsnamn för snabbfrågetext (kortform, läsbar i meningar)
-const VEHICLE_QUESTION_LABELS: Record<"BIL" | "MC" | "AM" | "LASTBIL", string> = {
+const VEHICLE_QUESTION_LABELS: Record<ActiveVehicle, string> = {
 BIL:     "bilkörkorts",
 MC:      "MC-",
 AM:      "AM/moped-",
 LASTBIL: "lastbils",
+SLÄP:    "släpvagns",
 };
 
 // Kontorsspecifika frågor – anpassas dynamiskt efter valt fordon
-function getOfficeQuestions(vehicle: "BIL" | "MC" | "AM" | "LASTBIL" | null): QuestionCategory {
+function getOfficeQuestions(vehicle: ActiveVehicle | null): QuestionCategory {
 const fordonsord = vehicle ? VEHICLE_QUESTION_LABELS[vehicle] : "körkorts";
 return {
 category: "Om kontoret i {{stad}}",
@@ -82,7 +85,7 @@ questions: [
 },
 ];
 
-const QUESTIONS_BY_VEHICLE: Record<"BIL" | "MC" | "AM" | "LASTBIL", QuestionCategory[]> = {
+const QUESTIONS_BY_VEHICLE: Record<ActiveVehicle, QuestionCategory[]> = {
 AM: [{
 category: "AM & Mopedutbildning",
 questions: [
@@ -187,10 +190,20 @@ questions: [
 ],
 },
 ],
+SLÄP: [
+{
+category: "Släp & BE/B96",
+questions: [
+"Vad är skillnaden mellan B96 och BE?",
+"Vad krävs för att ta BE-körkort?",
+"Vad kostar släputbildning i {{stad}}?",
+],
+},
+],
 };
 
-const VEHICLE_ICONS = { BIL: Car, MC: Bike, AM: CircleDot, LASTBIL: Truck };
-const VEHICLE_LABELS = { BIL: "Bil", MC: "MC", AM: "Moped", LASTBIL: "Lastbil" };
+const VEHICLE_ICONS = { BIL: Car, MC: Bike, AM: CircleDot, LASTBIL: Truck, SLÄP: Car };
+const VEHICLE_LABELS = { BIL: "Bil", MC: "MC", AM: "Moped", LASTBIL: "Lastbil", SLÄP: "Släp" };
 
 const getOfficeDisplayName = (office: any) => {
 const city = String(office?.city || '').trim();
@@ -205,9 +218,12 @@ selectedCity,
 onVehicleChange,
 onCityChange,
 disabled = false,
-offices // 🔥 TILLAGD
+offices, // 🔥 TILLAGD
+activeVehicles
 }: QuickQuestionsButtonProps) {
 const [open, setOpen] = useState(false);
+const availableVehicles = (["BIL", "MC", "AM", "LASTBIL", "SLÄP"] as ActiveVehicle[])
+.filter((type) => activeVehicles.includes(type));
 
 const handleOpenChange = (isOpen: boolean) => {
 setOpen(isOpen);
@@ -309,7 +325,7 @@ className={cn(selectedCity === getOfficeDisplayName(office) && "bg-primary/10")}
 </button>
 </DropdownMenuTrigger>
 <DropdownMenuContent>
-{(["BIL", "MC", "AM", "LASTBIL"] as const).map((type) => (
+{availableVehicles.map((type) => (
 <DropdownMenuItem key={type} onClick={() => onVehicleChange(type)} className={cn(selectedVehicle === type && "bg-primary/10")}>
 {VEHICLE_LABELS[type]}
 </DropdownMenuItem>

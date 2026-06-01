@@ -6,6 +6,7 @@ TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ContactFormDialog } from "./ContactFormDialog";
 import { TemplatesButton } from "./TemplatesButton";
+import type { ActiveVehicle } from "@/lib/atlas-client";
 
 interface ChatHeaderProps {
 onEndSession?: () => void;
@@ -14,9 +15,10 @@ isDark: boolean;
 onToggleTheme: () => void;
 selectedCity?: string | null;
 selectedVehicle?: string | null;
-offices: any[]; // 🔥 TILLAGD: Krävs för mail-formuläret
+offices: any[];
 onTemplateSelect: (content: string) => void;
 companyName?: string | null;
+activeVehicles: ActiveVehicle[];
 }
 
 export function ChatHeader({
@@ -29,6 +31,7 @@ selectedVehicle,
 offices,
 onTemplateSelect,
 companyName,
+activeVehicles,
 }: ChatHeaderProps) {
 const displayName = companyName || "Atlas";
 return (
@@ -59,6 +62,7 @@ return (
 selectedCity={selectedCity}
 selectedVehicle={selectedVehicle}
 offices={offices}
+activeVehicles={activeVehicles}
 />
 
 {/* Prata med människa */}
