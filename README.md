@@ -1,73 +1,96 @@
-# Welcome to your Lovable project
+# Atlas Kundchatt
 
-## Project info
+This repository contains the source for the Atlas customer chat at
+`/kundchatt/`. The built bundle is copied into the main Atlas repository under
+`C:\Atlas\kundchatt`.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Critical Tenant Rules
 
-## How can I edit this code?
+The customer chat is shared code for all Atlas boxes. Do not create separate git
+branches for individual boxes such as `atlas`, `atlas-htig`, `atlas-base`, or a
+future customer. Tenant identity must come from same-origin runtime APIs on the
+box that serves the widget.
 
-There are several ways of editing your application.
+Required runtime sources:
 
-**Use Lovable**
+- `GET /api/tenant-name`
+- `GET /api/public/config`
+- `GET /api/public/offices`
+- `GET /api/public/templates/kundchatt`
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+The production bundle must not hardcode a customer logo, customer name, support
+name, website, office list, or customer-specific questions. In particular, do not
+import or render `mda-logga.png` or any future customer logo in React code. The
+chat header and welcome UI must use `company_logo_url` and `company_name` from
+`/api/tenant-name`, with Atlas as the only allowed fallback.
 
-Changes made via Lovable will be committed automatically to this repo.
+Relative logo URLs from `/api/tenant-name`, for example
+`/api/public/tenant-assets/...`, must resolve against the current origin. This
+keeps the same bundle safe on `atlas-support.se`, `htig.atlas-support.se`,
+`base.atlas-support.se`, and future boxes.
 
-**Use your preferred IDE**
+## Build And Verify
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+Before a customer chat deploy:
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+```powershell
+cd C:\Atlas\tests\kundchatt_source_code_v7
+git status -sb
+npm run build
+rg -n "mda-logga|mydriving|Hållbara Trafikskolan|ATLAS BASPRODUKT" dist\assets\*.js
+rg -n "tenant-name|company_logo_url" dist\assets\*.js
+```
 
-Follow these steps:
+Expected result:
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+- The first `rg` returns no matches in built JS.
+- The second `rg` confirms that runtime tenant branding is used.
+- Visual smoke is run on every affected live box, not only local code.
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+## Git And Deploy Practice
 
-# Step 3: Install the necessary dependencies.
+Commit source changes in this repository. Commit the built `kundchatt/` output in
+the main Atlas repository only after the source build is verified.
+
+Do not commit tenant data in either repo. The following are box-specific and must
+remain VPS-only:
+
+- `.env`
+- `atlas.db`
+- `knowledge/`
+- `config.json`
+- `utils/booking-links.json`
+- `uploads/`
+- `public/tenant-assets/`
+
+When deploying, copy a consistent `kundchatt/index.html` plus the referenced JS
+and CSS assets together. Never leave a new JS file in `kundchatt/assets/` while
+`index.html` still points to an older bundle.
+
+Recommended commit shape:
+
+```powershell
+# Source repo
+git add src package.json package-lock.json README.md
+git commit -m "fix(customer-chat): runtime tenant branding"
+git push origin <branch>
+
+# Main Atlas repo, after copying dist to C:\Atlas\kundchatt
+git -C C:\Atlas add kundchatt
+git -C C:\Atlas commit -m "build(customer-chat): update runtime tenant branding bundle"
+```
+
+## Local Development
+
+```powershell
 npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
+## Stack
 
 - Vite
 - TypeScript
 - React
 - shadcn-ui
 - Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
