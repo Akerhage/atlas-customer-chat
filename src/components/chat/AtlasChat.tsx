@@ -258,6 +258,7 @@ vehicle: null,
 const [selectedVehicle, setSelectedVehicle] = useState<VehicleType | null>(null);
 const [selectedCity, setSelectedCity] = useState<string | null>(null);
 const [companyName, setCompanyName] = useState<string | null>(null);
+const [companyLogoUrl, setCompanyLogoUrl] = useState<string | null>(null);
 const [activeVehicles, setActiveVehicles] = useState<VehicleType[]>(['BIL', 'MC', 'AM', 'LASTBIL', 'SLÄP']);
 const [quickQuestions, setQuickQuestions] = useState<string[]>([]);
 
@@ -280,6 +281,7 @@ getPublicOffices()
 useEffect(() => {
 getTenantConfig().then(config => {
 setCompanyName(config.companyName);
+setCompanyLogoUrl(config.companyLogoUrl);
 setActiveVehicles(config.activeVehicles);
 setQuickQuestions(config.quickQuestions);
 });
@@ -1137,6 +1139,7 @@ selectedVehicle={selectedVehicle}
 offices={offices}
 onTemplateSelect={handleTemplateSelect}
 companyName={companyName}
+companyLogoUrl={companyLogoUrl}
 activeVehicles={activeVehicles}
 />
 
@@ -1192,6 +1195,7 @@ onVehicleChange={handleVehicleChange}
 onCityChange={handleCityChange}
 offices={offices}
 companyName={companyName}
+companyLogoUrl={companyLogoUrl}
 activeVehicles={activeVehicles}
 quickQuestions={quickQuestions}
 />

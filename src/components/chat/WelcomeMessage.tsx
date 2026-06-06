@@ -1,6 +1,6 @@
 import { QuickContextSelector } from "./QuickContextSelector";
 import atlasLogo from "@/assets/atlas-logo.png";
-import type { ActiveVehicle } from "@/lib/atlas-client";
+import { resolveTenantAssetUrl, type ActiveVehicle } from "@/lib/atlas-client";
 
 interface WelcomeMessageProps {
 onQuickAction?: (message: string, context?: { vehicle: string; city: string }) => void;
@@ -10,6 +10,7 @@ onVehicleChange: (vehicle: ActiveVehicle | null) => void;
 onCityChange: (city: string | null) => void;
 offices: any[];
 companyName?: string | null;
+companyLogoUrl?: string | null;
 activeVehicles: ActiveVehicle[];
 quickQuestions: string[];
 }
@@ -22,17 +23,19 @@ onVehicleChange,
 onCityChange,
 offices,
 companyName,
+companyLogoUrl,
 activeVehicles,
 quickQuestions,
 }: WelcomeMessageProps) {
 const displayName = companyName || "Atlas";
+const logoSrc = resolveTenantAssetUrl(companyLogoUrl) || atlasLogo;
 return (
 <div className="flex flex-col items-center justify-start px-5 pt-4 pb-7 text-center animate-fade-in-up" data-testid="welcome-message">
 {/* Logo */}
 <div className="w-16 h-16 rounded-2xl bg-card border border-border/70 flex items-center justify-center shadow-sm mb-5 p-2">
 <img
-src={atlasLogo}
-alt="Atlas"
+src={logoSrc}
+alt={displayName}
 data-testid="atlas-welcome-brand"
 className="h-full w-full object-contain"
 />

@@ -469,11 +469,18 @@ export type ActiveVehicle = "BIL" | "MC" | "AM" | "LASTBIL" | "SLÄP";
 
 export interface TenantConfig {
   companyName: string;
+  companyLogoUrl: string | null;
   activeVehicles: ActiveVehicle[];
   quickQuestions: string[];
 }
 
 const DEFAULT_ACTIVE_VEHICLES: ActiveVehicle[] = ["BIL", "MC", "AM", "LASTBIL", "SLÄP"];
+const DEFAULT_TENANT_CONFIG: TenantConfig = {
+  companyName: 'Atlas',
+  companyLogoUrl: null,
+  activeVehicles: DEFAULT_ACTIVE_VEHICLES,
+  quickQuestions: [],
+};
 
 function normalizeActiveVehicles(value: unknown): ActiveVehicle[] {
   if (!Array.isArray(value)) return DEFAULT_ACTIVE_VEHICLES;
@@ -485,23 +492,41 @@ function normalizeActiveVehicles(value: unknown): ActiveVehicle[] {
   return vehicles.length ? vehicles : DEFAULT_ACTIVE_VEHICLES;
 }
 
+function normalizeTenantLogoUrl(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  return trimmed;
+}
+
+export function resolveTenantAssetUrl(value: string | null | undefined): string | null {
+  const trimmed = String(value || '').trim();
+  if (!trimmed) return null;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (trimmed.startsWith('/') && !trimmed.startsWith('//')) {
+    return `${window.location.origin}${trimmed}`;
+  }
+  return null;
+}
+
 export async function getTenantConfig(): Promise<TenantConfig> {
   try {
     const response = await fetch('/api/tenant-name', {
       headers: { [NGROK_SKIP_HEADER]: NGROK_SKIP_VALUE }
     });
-    if (!response.ok) return { companyName: 'Atlas', activeVehicles: DEFAULT_ACTIVE_VEHICLES, quickQuestions: [] };
+    if (!response.ok) return DEFAULT_TENANT_CONFIG;
     const data = await response.json();
     const companyName = (typeof data?.company_name === 'string' && data.company_name.trim()) ? data.company_name.trim() : 'Atlas';
     return {
       companyName,
+      companyLogoUrl: normalizeTenantLogoUrl(data?.company_logo_url),
       activeVehicles: normalizeActiveVehicles(data?.active_vehicles),
       quickQuestions: Array.isArray(data?.quick_questions)
         ? data.quick_questions.map((q: unknown) => String(q || "").trim()).filter(Boolean)
         : [],
     };
   } catch {
-    return { companyName: 'Atlas', activeVehicles: DEFAULT_ACTIVE_VEHICLES, quickQuestions: [] };
+    return DEFAULT_TENANT_CONFIG;
   }
 }
 
