@@ -212,6 +212,24 @@ const area = String(office?.area || '').trim();
 return String(office?.display_name || (city ? (area ? `${city} - ${area}` : city) : '') || office?.name || '').trim();
 };
 
+const VEHICLE_TO_SERVICE_LABEL: Record<ActiveVehicle, string> = {
+BIL: "bil",
+MC: "mc",
+AM: "am",
+LASTBIL: "lastbil",
+SLÄP: "släp",
+};
+
+function officeOffersVehicle(office: any, vehicle: ActiveVehicle): boolean {
+const so = Array.isArray(office?.services_offered)
+  ? office.services_offered.map((s: any) => String(s).toLowerCase().trim())
+  : [];
+if (so.length === 0) return true;
+const token = VEHICLE_TO_SERVICE_LABEL[vehicle];
+const re = new RegExp(`(^|[\\s\\-/])${token}($|[\\s\\-/])`, 'i');
+return so.some(s => s === token || re.test(s));
+}
+
 export function QuickQuestionsButton({
 onSendMessage,
 selectedVehicle,
@@ -229,8 +247,17 @@ const singletonOfficeLabel = singletonOffice ? getOfficeDisplayName(singletonOff
 const singletonVehicle = activeVehicles.length === 1 ? activeVehicles[0] : null;
 const effectiveSelectedCity = selectedCity || singletonOfficeLabel;
 const effectiveSelectedVehicle = selectedVehicle || singletonVehicle;
+
+const selectedOffice = effectiveSelectedCity
+  ? offices.find((o) => getOfficeDisplayName(o) === effectiveSelectedCity)
+  : null;
+
 const availableVehicles = (["BIL", "MC", "AM", "LASTBIL", "SLÄP"] as ActiveVehicle[])
-.filter((type) => activeVehicles.includes(type));
+.filter((type) => activeVehicles.includes(type) && (Boolean(singletonVehicle) || !selectedOffice || officeOffersVehicle(selectedOffice, type)));
+
+const availableOffices = effectiveSelectedVehicle && !singletonOffice
+  ? offices.filter((o) => officeOffersVehicle(o, effectiveSelectedVehicle))
+  : offices;
 
 const handleOpenChange = (isOpen: boolean) => {
 setOpen(isOpen);
@@ -263,7 +290,7 @@ setOpen(false);
 };
 
 const getQuestions = (): QuestionCategory[] => {
-const tenantQuickQuestions = quickQuestions.map(q => q.trim()).filter(Boolean).slice(0, 12);
+const tenantQuickQuestions = quickQuestions.map(q => q.trim()).filter(Boolean).slice(0, 20);
 const tenantCategory: QuestionCategory | null = tenantQuickQuestions.length
 ? { category: "Vanliga frågor", questions: tenantQuickQuestions }
 : null;
@@ -320,10 +347,10 @@ title="Snabbfrågor"
 </button>
 </DropdownMenuTrigger>
 <DropdownMenuContent className="max-h-60 overflow-y-auto">
-{/* 🚀 Dynamisk loop: Renderar kontoren direkt från databasen */}
-{offices.map((office) => (
-<DropdownMenuItem 
-key={office.id} 
+{/* Kontor filtrerade per valt fordon (bidirektionell filtrering) */}
+{availableOffices.map((office) => (
+<DropdownMenuItem
+key={office.id}
 onClick={() => onCityChange(getOfficeDisplayName(office))}
 className={cn(selectedCity === getOfficeDisplayName(office) && "bg-primary/10")}
 >
