@@ -865,9 +865,12 @@ if (uiCityLabel && uiCityLabel !== selectedCity) {
 setSelectedCity(uiCityLabel);
 window.selectedCity = uiCityLabel;
 
+const isSingleton = !!singletonOffice && !!singletonVehicle;
+if (!isSingleton) {
 toast.info(`Vi har anpassat dina val till ${uiCityLabel} och ${newV || 'fordon'}.`, {
 duration: 3000,
 });
+}
 }
 }
 }

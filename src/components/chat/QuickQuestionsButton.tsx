@@ -263,7 +263,7 @@ setOpen(false);
 };
 
 const getQuestions = (): QuestionCategory[] => {
-const tenantQuickQuestions = quickQuestions.map(q => q.trim()).filter(Boolean).slice(0, 12);
+const tenantQuickQuestions = quickQuestions.map(q => q.trim()).filter(Boolean).slice(0, 20);
 const tenantCategory: QuestionCategory | null = tenantQuickQuestions.length
 ? { category: "Vanliga frågor", questions: tenantQuickQuestions }
 : null;

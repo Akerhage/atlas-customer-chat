@@ -34,7 +34,7 @@ keeps the same bundle safe on `atlas-support.se`, `htig.atlas-support.se`,
 Before a customer chat deploy:
 
 ```powershell
-cd C:\Atlas\tests\kundchatt_source_code_v7
+cd C:\Atlas\tests\kundchatt_runtime_logo_worktree
 git status -sb
 npm run build
 rg -n "mda-logga|mydriving|Hållbara Trafikskolan|ATLAS BASPRODUKT" dist\assets\*.js

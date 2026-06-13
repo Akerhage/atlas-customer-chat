@@ -189,7 +189,7 @@ return 0;
 }),
 }));
 
-const tenantQuickQuestions = quickQuestions.map(q => q.trim()).filter(Boolean).slice(0, 12);
+const tenantQuickQuestions = quickQuestions.map(q => q.trim()).filter(Boolean).slice(0, 20);
 if (tenantQuickQuestions.length > 0) {
 return [
 { category: "Vanliga frågor", questions: tenantQuickQuestions },
