@@ -11,6 +11,11 @@ branches for individual boxes such as `atlas`, `atlas-htig`, `atlas-base`, or a
 future customer. Tenant identity must come from same-origin runtime APIs on the
 box that serves the widget.
 
+Before any production build or deploy, declare the target scope in the Atlas
+main repo terms: `BOX1`, `BOX2`, `BOX3`, `ALL_BOXES`, or `READ_ONLY`. If scope is
+unclear, stop and ask. Customer chat code is shared; tenant differences must
+come from runtime APIs, not from separate source branches.
+
 Required runtime sources:
 
 - `GET /api/tenant-name`
