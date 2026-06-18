@@ -27,6 +27,7 @@ locked_context?: ChatContext;
 human_mode?: boolean;
 is_archived?: boolean;
 close_reason?: string | null;
+choices?: { label: string; value: string }[];
 }
 
 export interface HistoryMessage {
@@ -387,6 +388,7 @@ return {
   human_mode: data.human_mode,
   is_archived: data.is_archived || false,
   close_reason: data.close_reason || null,
+  choices: data.choices,
 };
 }
 

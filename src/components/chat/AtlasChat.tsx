@@ -891,6 +891,7 @@ id: (Date.now() + 1).toString(),
 role: 'assistant',
 content: response.answer,
 timestamp: new Date(),
+choices: response.choices,
 };
 setMessages((prev) => [...prev, assistantMessage]);
 }
@@ -1027,6 +1028,11 @@ AM: 'Moped (AM)',
 LASTBIL: 'Lastbil / Buss',
 SLÄP: 'Släp (BE/B96)',
 };
+
+if (!intakeStep) {
+handleSendMessage(value);
+return;
+}
 
 if (intakeStep === 'office') {
 injectUserMessage(value);
