@@ -401,19 +401,25 @@ margin-top: 0;
 margin-bottom: 0;
 }
 
-/* Bot-svar: återställ luft mellan stycken/paket och listrader som Tailwind-preflight
-   nollställer. Typografi-pluginet (prose) är inte aktivt här, så markdown-elementen
-   får ingen spacing annars — detta ger "luft" mellan varje paket och tjänst. */
+/* Bot-svar: typografi-pluginet (prose) är inte aktivt här och Tailwind-preflight
+   nollställer markdown-marginaler. Vi sätter egen spacing: TIGHT mellan rader inom
+   ett paket, men tydlig separation FÖRE varje pakettitel så grupperingen syns. */
 .atlas-bot-message .atlas-message-content p,
 .atlas-bot-message .atlas-message-content ul,
 .atlas-bot-message .atlas-message-content ol {
-margin-top: 0.6rem;
-margin-bottom: 0.6rem;
+margin-top: 0.3rem;
+margin-bottom: 0.3rem;
 }
 
 .atlas-bot-message .atlas-message-content li {
-margin-top: 0.25rem;
-margin-bottom: 0.25rem;
+margin-top: 0.15rem;
+margin-bottom: 0.15rem;
+}
+
+/* Pakettitel = stycke som inleds med fet text (t.ex. "**Totalpaket 10 BIL**:").
+   Större luft ovanför → man ser var ett nytt paket börjar. */
+.atlas-bot-message .atlas-message-content p:has(> strong:first-child) {
+margin-top: 1.15rem;
 }
 
 .atlas-bot-message .atlas-message-content > :first-child {
