@@ -400,3 +400,26 @@ margin-top: 0;
 .atlas-user-message .atlas-message-content > :last-child {
 margin-bottom: 0;
 }
+
+/* Bot-svar: återställ luft mellan stycken/paket och listrader som Tailwind-preflight
+   nollställer. Typografi-pluginet (prose) är inte aktivt här, så markdown-elementen
+   får ingen spacing annars — detta ger "luft" mellan varje paket och tjänst. */
+.atlas-bot-message .atlas-message-content p,
+.atlas-bot-message .atlas-message-content ul,
+.atlas-bot-message .atlas-message-content ol {
+margin-top: 0.6rem;
+margin-bottom: 0.6rem;
+}
+
+.atlas-bot-message .atlas-message-content li {
+margin-top: 0.25rem;
+margin-bottom: 0.25rem;
+}
+
+.atlas-bot-message .atlas-message-content > :first-child {
+margin-top: 0;
+}
+
+.atlas-bot-message .atlas-message-content > :last-child {
+margin-bottom: 0;
+}

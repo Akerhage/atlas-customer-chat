@@ -77,7 +77,7 @@ isUser
 "text-sm leading-relaxed max-w-none",
 isUser
 ? "atlas-user-message"
-: "prose prose-sm prose-p:my-1 prose-ul:my-1 prose-li:my-0 prose-strong:font-semibold"
+: "atlas-bot-message"
 )}>
 <div className="atlas-message-content">
 <ReactMarkdown
