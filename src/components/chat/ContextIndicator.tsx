@@ -1,4 +1,4 @@
-import { X, ChevronDown, MapPin, Car, Bike, CircleDot, Truck } from "lucide-react";
+import { X, ChevronDown, MapPin, Car, Bike, CircleDot, Truck, HelpCircle } from "lucide-react";
 import {
 DropdownMenu,
 DropdownMenuContent,
@@ -31,7 +31,8 @@ return String(office?.display_name || (city ? (area ? `${city} - ${area}` : city
 };
 
 export function ContextIndicator({ context, onUpdateContext, offices, activeVehicles }: ContextIndicatorProps) {
-if (!context.city && !context.area && !context.vehicle) {
+const isGeneralVehicle = context.vehicle_choice === 'OVRIGT' && !context.vehicle;
+if (!context.city && !context.area && !context.vehicle && !isGeneralVehicle) {
 return null;
 }
 
@@ -110,6 +111,25 @@ aria-label="Ta bort stad"
 )}
 
 {/* Vehicle tag - clickable with dropdown */}
+{isGeneralVehicle && (
+<div className="flex min-w-0 items-center gap-0.5">
+<div
+className="flex min-w-0 max-w-[min(10rem,38vw)] items-center gap-1 rounded-l-full bg-accent/10 px-2 py-1 text-accent"
+title="Övrigt / Allmän fråga"
+>
+<HelpCircle className="w-3 h-3 shrink-0" />
+<span className="min-w-0 truncate">Övrigt</span>
+</div>
+<button
+onClick={() => onUpdateContext({ vehicle: null, vehicle_choice: null, clear_vehicle: false })}
+className="shrink-0 p-1 rounded-r-full bg-accent/10 text-accent hover:bg-accent/30 transition-colors"
+aria-label="Ta bort Övrigt"
+>
+<X className="w-3 h-3" />
+</button>
+</div>
+)}
+
 {context.vehicle && currentVehicle && (
 <div className="flex min-w-0 items-center gap-0.5">
 {singletonVehicle ? (

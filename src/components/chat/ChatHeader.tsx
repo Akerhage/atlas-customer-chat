@@ -16,6 +16,7 @@ isDark: boolean;
 onToggleTheme: () => void;
 selectedCity?: string | null;
 selectedVehicle?: string | null;
+generalMode?: boolean;
 offices: any[];
 onTemplateSelect: (content: string) => void;
 companyName?: string | null;
@@ -30,6 +31,7 @@ isDark,
 onToggleTheme,
 selectedCity,
 selectedVehicle,
+generalMode = false,
 offices,
 onTemplateSelect,
 companyName,
@@ -69,6 +71,7 @@ className="max-h-6 w-full object-contain sm:max-h-7"
 <ContactFormDialog
 selectedCity={selectedCity}
 selectedVehicle={selectedVehicle}
+generalMode={generalMode}
 offices={offices}
 activeVehicles={activeVehicles}
 />

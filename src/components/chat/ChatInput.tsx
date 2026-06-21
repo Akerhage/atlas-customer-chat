@@ -23,13 +23,15 @@ usePendingAttachments,
 type VehicleType = ActiveVehicle | null;
 
 interface ChatInputProps {
-onSend: (message: string, context?: { vehicle: string; city: string }) => void;
+onSend: (message: string, context?: { vehicle: string | null; city: string; vehicle_choice?: string | null; clear_vehicle?: boolean }) => void;
 disabled?: boolean;
 placeholder?: string;
 showQuickQuestions?: boolean;
 selectedVehicle?: VehicleType;
 selectedCity?: string | null;
 onVehicleChange: (vehicle: VehicleType) => void;
+onGeneralVehicleSelect: () => void;
+generalMode: boolean;
 onCityChange: (city: string | null) => void;
 offices: any[];
 humanMode: boolean;
@@ -50,6 +52,8 @@ showQuickQuestions = false,
 selectedVehicle = null,
 selectedCity = null,
 onVehicleChange,
+onGeneralVehicleSelect,
+generalMode,
 onCityChange,
 offices,
 humanMode,
@@ -278,6 +282,8 @@ onSendMessage={onSend}
 selectedVehicle={selectedVehicle}
 selectedCity={selectedCity}
 onVehicleChange={onVehicleChange}
+onGeneralVehicleSelect={onGeneralVehicleSelect}
+generalMode={generalMode}
 onCityChange={onCityChange}
 disabled={disabled}
 offices={offices}

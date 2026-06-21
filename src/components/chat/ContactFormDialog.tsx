@@ -42,13 +42,16 @@ interface ContactFormDialogProps {
 onSubmit?: (data: any) => void;
 selectedCity?: string | null;
 selectedVehicle?: string | null;
+generalMode?: boolean;
 offices: any[];
 activeVehicles: ActiveVehicle[];
 }
 
 const DEFAULT_CITY = "Centralsupport";
 const DEFAULT_VEHICLE = "BIL";
-const VEHICLE_OPTIONS: { value: ActiveVehicle; label: string }[] = [
+const GENERAL_VEHICLE_VALUE = "OVRIGT";
+const VEHICLE_OPTIONS: { value: ActiveVehicle | typeof GENERAL_VEHICLE_VALUE; label: string }[] = [
+{ value: GENERAL_VEHICLE_VALUE, label: "Övrigt / Allmän fråga" },
 { value: "BIL", label: "Bil (B)" },
 { value: "MC", label: "Motorcykel (A)" },
 { value: "AM", label: "Moped (AM)" },
@@ -90,7 +93,7 @@ normalizeOfficeLabel(office.area) === normalizeOfficeLabel(area)
 return exactMatches.length === 1 ? exactMatches[0] : undefined;
 };
 
-export function ContactFormDialog({ onSubmit, selectedCity, selectedVehicle, offices, activeVehicles }: ContactFormDialogProps) {
+export function ContactFormDialog({ onSubmit, selectedCity, selectedVehicle, generalMode = false, offices, activeVehicles }: ContactFormDialogProps) {
 const [open, setOpen] = useState(false);
 const [isSubmitting, setIsSubmitting] = useState(false);
 const [wantsCallback, setWantsCallback] = useState(false);
@@ -115,14 +118,10 @@ city: "",
 vehicle: "",
 });
 const singletonOfficeLabel = offices.length === 1 ? getOfficeDisplayName(offices[0]) : null;
-const singletonVehicleOption = activeVehicles.length === 1
-? VEHICLE_OPTIONS.find((option) => option.value === activeVehicles[0])
-: null;
-
 useEffect(() => {
 if (open) {
 const fallbackVehicle = activeVehicles.includes(DEFAULT_VEHICLE) ? DEFAULT_VEHICLE : activeVehicles[0] || DEFAULT_VEHICLE;
-const nextVehicle = activeVehicles.includes(selectedVehicle as ActiveVehicle) ? selectedVehicle : fallbackVehicle;
+const nextVehicle = generalMode ? GENERAL_VEHICLE_VALUE : (activeVehicles.includes(selectedVehicle as ActiveVehicle) ? selectedVehicle : fallbackVehicle);
 setFormData(prev => ({
 ...prev,
 phone: "",
@@ -131,7 +130,7 @@ vehicle: nextVehicle,
 }));
 setWantsCallback(false);
 }
-}, [open, selectedCity, selectedVehicle, activeVehicles, singletonOfficeLabel]);
+}, [open, selectedCity, selectedVehicle, generalMode, activeVehicles, singletonOfficeLabel]);
 
 const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
 const files = e.target.files;
@@ -159,13 +158,16 @@ const split = splitCityArea(formData.city);
 const routingCity = selectedOffice ? selectedOffice.city : (formData.city === DEFAULT_CITY ? DEFAULT_CITY : (split.city || null));
 const routingArea = selectedOffice ? selectedOffice.area : split.area;
 const phoneDigits = wantsCallback ? formData.phone.trim() : "";
-const { phone: _phone, ...formDataWithoutPhone } = formData;
+const isGeneralVehicle = formData.vehicle === GENERAL_VEHICLE_VALUE;
+const { phone: _phone, vehicle: _vehicle, ...formDataWithoutPhone } = formData;
 
 const response = await fetch("/api/customer/message-form", {
 method: "POST",
 headers: { "Content-Type": "application/json" },
 body: JSON.stringify({
 ...formDataWithoutPhone,
+vehicle: isGeneralVehicle ? "" : formData.vehicle,
+...(isGeneralVehicle ? { vehicle_choice: GENERAL_VEHICLE_VALUE } : {}),
 ...(phoneDigits ? { phone: phoneDigits } : {}),
 agent_id: targetAgentId,
 city: routingCity,
@@ -309,18 +311,14 @@ aria-label="Telefonnummer"
 
 <div className="space-y-2">
 <Label className="flex items-center gap-2 font-bold text-primary"><Car className="h-4 w-4" /> Fordon *</Label>
-{singletonVehicleOption ? (
-<div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm">{singletonVehicleOption.label}</div>
-) : (
 <Select value={formData.vehicle} onValueChange={(v) => setFormData({ ...formData, vehicle: v })}>
 <SelectTrigger><SelectValue placeholder="Välj fordonstyp" /></SelectTrigger>
 <SelectContent className="max-w-[calc(100vw-1rem)]">
-{VEHICLE_OPTIONS.filter((option) => activeVehicles.includes(option.value)).map((option) => (
+{VEHICLE_OPTIONS.filter((option) => option.value === GENERAL_VEHICLE_VALUE || activeVehicles.includes(option.value as ActiveVehicle)).map((option) => (
 <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
 ))}
 </SelectContent>
 </Select>
-)}
 </div>
 
 <Textarea

@@ -3,10 +3,12 @@ import atlasLogo from "@/assets/atlas-logo.png";
 import { resolveTenantAssetUrl, type ActiveVehicle } from "@/lib/atlas-client";
 
 interface WelcomeMessageProps {
-onQuickAction?: (message: string, context?: { vehicle: string; city: string }) => void;
+onQuickAction?: (message: string, context?: { vehicle: string | null; city: string; vehicle_choice?: string | null; clear_vehicle?: boolean }) => void;
 selectedVehicle: ActiveVehicle | null;
 selectedCity: string | null;
 onVehicleChange: (vehicle: ActiveVehicle | null) => void;
+onGeneralVehicleSelect: () => void;
+generalMode: boolean;
 onCityChange: (city: string | null) => void;
 offices: any[];
 companyName?: string | null;
@@ -20,6 +22,8 @@ onQuickAction,
 selectedVehicle,
 selectedCity,
 onVehicleChange,
+onGeneralVehicleSelect,
+generalMode,
 onCityChange,
 offices,
 companyName,
@@ -54,6 +58,8 @@ onSendMessage={onQuickAction}
 selectedVehicle={selectedVehicle}
 selectedCity={selectedCity}
 onVehicleChange={onVehicleChange}
+onGeneralVehicleSelect={onGeneralVehicleSelect}
+generalMode={generalMode}
 onCityChange={onCityChange}
 offices={offices}
 activeVehicles={activeVehicles}

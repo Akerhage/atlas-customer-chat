@@ -12,6 +12,8 @@ export interface ChatContext {
 city?: string | null;
 area?: string | null;
 vehicle?: string | null;
+vehicle_choice?: string | null;
+clear_vehicle?: boolean;
 agent_id?: string | null;
 }
 
@@ -327,7 +329,7 @@ export async function sendMessage(
     isFirstMessage,
   };
 
-  if (context && (context.city || context.area || context.vehicle || context.agent_id || context.name || context.email || context.phone)) {
+  if (context && (context.city || context.area || context.vehicle || context.vehicle_choice || context.clear_vehicle || context.agent_id || context.name || context.email || context.phone)) {
     const locked_context: any = {
       city: context.city ?? null,
       area: context.area ?? null,
@@ -335,12 +337,14 @@ export async function sendMessage(
       agent_id: context.agent_id ?? null,
     };
 
+    if (context.vehicle_choice) locked_context.vehicle_choice = context.vehicle_choice;
     if (context.name) locked_context.name = context.name;
     if (context.email) locked_context.email = context.email;
     if (context.phone) locked_context.phone = context.phone;
 
     body.context = { locked_context };
     body.locked_context = locked_context;
+    if (context.clear_vehicle) body.clear_vehicle = true;
     if (locked_context.name) body.name = locked_context.name;
     if (locked_context.email) body.email = locked_context.email;
     if (locked_context.phone) body.phone = locked_context.phone;

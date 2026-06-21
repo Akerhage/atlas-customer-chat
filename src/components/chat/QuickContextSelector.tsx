@@ -15,10 +15,12 @@ import type { ActiveVehicle } from "@/lib/atlas-client";
 type VehicleType = ActiveVehicle | null;
 
 interface QuickContextSelectorProps {
-onSendMessage: (message: string, context?: { vehicle: string; city: string }) => void;
+onSendMessage: (message: string, context?: { vehicle: string | null; city: string; vehicle_choice?: string | null; clear_vehicle?: boolean }) => void;
 selectedVehicle: VehicleType;
 selectedCity: string | null;
 onVehicleChange: (vehicle: VehicleType) => void;
+onGeneralVehicleSelect: () => void;
+generalMode: boolean;
 onCityChange: (city: string | null) => void;
 offices: any[];
 activeVehicles: ActiveVehicle[];
@@ -159,11 +161,11 @@ questions: [
 };
 
 function getSortedQuestionsForVehicle(
-vehicle: ActiveVehicle,
+vehicle: ActiveVehicle | null,
 city: string,
 quickQuestions: string[]
 ): QuestionCategory[] {
-const categories = QUESTIONS_BY_VEHICLE[vehicle];
+const categories = vehicle ? (QUESTIONS_BY_VEHICLE[vehicle] || []) : [];
 
 const officeCategory: QuestionCategory = {
 category: getOfficeQuestions(vehicle).category.replace(/\{\{stad\}\}/g, city),
@@ -245,6 +247,8 @@ onSendMessage,
 selectedVehicle,
 selectedCity,
 onVehicleChange,
+onGeneralVehicleSelect,
+generalMode,
 onCityChange,
 offices,
 activeVehicles,
@@ -261,7 +265,7 @@ const singletonOffice = offices.length === 1 ? offices[0] : null;
 const singletonOfficeLabel = singletonOffice ? getOfficeDisplayName(singletonOffice) : null;
 const singletonVehicle = activeVehicles.length === 1 ? activeVehicles[0] : null;
 const effectiveSelectedCity = selectedCity || singletonOfficeLabel;
-const effectiveSelectedVehicle = selectedVehicle || singletonVehicle;
+const effectiveSelectedVehicle = generalMode ? null : (selectedVehicle || singletonVehicle);
 
 // Bidirektionell filtrering: dölj fordon/kontor som inte hör ihop.
 // Är ett kontor valt → visa bara fordon kontoret erbjuder.
@@ -279,9 +283,11 @@ const availableOffices = effectiveSelectedVehicle && !singletonOffice
 : offices;
 
 const handleQuestionClick = (question: string) => {
-if (effectiveSelectedVehicle && effectiveSelectedCity) {
+if ((effectiveSelectedVehicle || generalMode) && effectiveSelectedCity) {
 const formattedQuestion = question.replace(/\{\{stad\}\}/g, effectiveSelectedCity);
-onSendMessage(formattedQuestion, { vehicle: effectiveSelectedVehicle, city: effectiveSelectedCity });
+onSendMessage(formattedQuestion, generalMode
+? { vehicle: null, city: effectiveSelectedCity, vehicle_choice: 'OVRIGT', clear_vehicle: true }
+: { vehicle: effectiveSelectedVehicle, city: effectiveSelectedCity });
 }
 };
 
@@ -326,17 +332,19 @@ className="cursor-pointer"
 )}
 
 {/* Vehicle Type — väljs efter kontor */}
-{!singletonVehicle && (
+{(
 <DropdownMenu>
 <DropdownMenuTrigger asChild>
 <button
 className={`flex min-w-0 max-w-[9.5rem] items-center gap-2 px-3 py-2 text-sm rounded-full transition-colors border ${
-effectiveSelectedVehicle
+effectiveSelectedVehicle || generalMode
 ? "bg-primary text-primary-foreground border-primary"
 : "bg-secondary hover:bg-secondary/80 text-secondary-foreground border-border/50"
 }`}
 >
-{effectiveSelectedVehicle ? (
+{generalMode ? (
+<HelpCircle className="w-4 h-4" />
+) : effectiveSelectedVehicle ? (
 <>
 {(() => {
 const Icon = VEHICLE_ICONS[effectiveSelectedVehicle];
@@ -346,11 +354,19 @@ return <Icon className="w-4 h-4" />;
 ) : (
 <Car className="w-4 h-4" />
 )}
-<span className="min-w-0 truncate">{effectiveSelectedVehicle ? VEHICLE_LABELS[effectiveSelectedVehicle] : "Fordonstyp"}</span>
+<span className="min-w-0 truncate">{generalMode ? "Övrigt" : (effectiveSelectedVehicle ? VEHICLE_LABELS[effectiveSelectedVehicle] : "Fordonstyp")}</span>
 <ChevronDown className="w-3 h-3 shrink-0" />
 </button>
 </DropdownMenuTrigger>
 <DropdownMenuContent className="bg-popover text-popover-foreground border border-border shadow-lg z-50">
+<DropdownMenuItem
+onSelect={onGeneralVehicleSelect}
+className="flex items-center gap-2 cursor-pointer"
+>
+<HelpCircle className="w-4 h-4" />
+Övrigt / Allmän fråga
+</DropdownMenuItem>
+<DropdownMenuSeparator />
 {availableVehicles.map((type) => {
 const Icon = VEHICLE_ICONS[type];
 return (
@@ -375,24 +391,24 @@ className="flex items-center gap-2 cursor-pointer"
 <DropdownMenuTrigger asChild>
 <button
 className={`flex min-w-0 max-w-[9.5rem] items-center gap-2 px-3 py-2 text-sm rounded-full transition-colors border ${
-effectiveSelectedVehicle && effectiveSelectedCity
+(effectiveSelectedVehicle || generalMode) && effectiveSelectedCity
 ? "bg-accent text-accent-foreground border-accent hover:bg-accent/80"
 : "bg-muted text-muted-foreground border-border/50 cursor-not-allowed opacity-60"
 }`}
-disabled={!effectiveSelectedVehicle || !effectiveSelectedCity}
+disabled={!(effectiveSelectedVehicle || generalMode) || !effectiveSelectedCity}
 >
 <HelpCircle className="w-4 h-4 shrink-0" />
 Välj fråga
 <ChevronDown className="w-3 h-3 shrink-0" />
 </button>
 </DropdownMenuTrigger>
-{effectiveSelectedVehicle && effectiveSelectedCity && (
+{(effectiveSelectedVehicle || generalMode) && effectiveSelectedCity && (
 <DropdownMenuContent
 className="bg-popover border border-border shadow-lg z-50 w-80"
 align="center"
 >
 <ScrollArea className="h-80">
-{getSortedQuestionsForVehicle(effectiveSelectedVehicle, effectiveSelectedCity, quickQuestions).map((cat, catIdx) => (
+{getSortedQuestionsForVehicle(generalMode ? null : effectiveSelectedVehicle, effectiveSelectedCity, quickQuestions).map((cat, catIdx) => (
 <div key={cat.category}>
 {catIdx > 0 && <DropdownMenuSeparator />}
 <DropdownMenuLabel className="text-xs text-muted-foreground font-medium">
@@ -420,10 +436,10 @@ className="cursor-pointer text-sm py-2 whitespace-normal"
 {!effectiveSelectedCity
 ? "Välj kontor/stad först"
 : !effectiveSelectedVehicle
-? "Välj fordonstyp för relevanta frågor"
+? generalMode ? "Övrigt valt – skriv eller välj en allmän fråga" : "Välj fordonstyp eller Övrigt"
 : "Välj en fråga eller skriv fritt"}
 </p>
-{(selectedVehicle || selectedCity) && !singletonOffice && !singletonVehicle && (
+{(selectedVehicle || selectedCity || generalMode) && (!singletonOffice || !singletonVehicle || generalMode) && (
 <button
 onClick={resetSelection}
 className="shrink-0 text-muted-foreground hover:text-foreground underline text-xs"

@@ -45,6 +45,7 @@ choices?: { label: string; value: string }[];
 
 type IntakeStep = 'name' | 'email' | 'phone' | 'office' | 'vehicle' | null;
 type VehicleType = ActiveVehicle;
+type QuickContextPayload = { vehicle: string | null; city: string; vehicle_choice?: string | null; clear_vehicle?: boolean };
 
 interface Office {
 id: number;
@@ -257,6 +258,7 @@ vehicle: null,
 // Separate state for selection UI (before first message is sent)
 const [selectedVehicle, setSelectedVehicle] = useState<VehicleType | null>(null);
 const [selectedCity, setSelectedCity] = useState<string | null>(null);
+const [generalMode, setGeneralMode] = useState(false);
 const [companyName, setCompanyName] = useState<string | null>(null);
 const [companyLogoUrl, setCompanyLogoUrl] = useState<string | null>(null);
 const [activeVehicles, setActiveVehicles] = useState<VehicleType[]>(['BIL', 'MC', 'AM', 'LASTBIL', 'SLÄP']);
@@ -296,11 +298,12 @@ setContext(prev => ({ ...prev, vehicle: null }));
 
 useEffect(() => {
 if (!singletonVehicle) return;
+if (generalMode) return;
 if (selectedVehicle === singletonVehicle && context.vehicle === singletonVehicle) return;
 setSelectedVehicle(singletonVehicle);
 setContext(prev => ({ ...prev, vehicle: singletonVehicle }));
 window.selectedVehicle = singletonVehicle;
-}, [singletonVehicle, selectedVehicle, context.vehicle]);
+}, [singletonVehicle, selectedVehicle, context.vehicle, generalMode]);
 
 useEffect(() => {
 if (!singletonOffice || !singletonOfficeLabel) return;
@@ -346,8 +349,16 @@ document.documentElement.classList.remove('dark');
 // Keep context in sync with selections so it can be sent even for manual input
 const handleVehicleChange = (vehicle: VehicleType | null) => {
 const safeVehicle = vehicle && activeVehicles.includes(vehicle) ? vehicle : null;
+setGeneralMode(false);
 setSelectedVehicle(safeVehicle);
 setContext((prev) => ({ ...prev, vehicle: safeVehicle }));
+};
+
+const handleGeneralVehicleSelect = () => {
+setGeneralMode(true);
+setSelectedVehicle(null);
+setContext((prev) => ({ ...prev, vehicle: null, vehicle_choice: 'OVRIGT', clear_vehicle: true }));
+window.selectedVehicle = null;
 };
 
 const handleCityChange = (locationLabel: string | null) => {
@@ -761,7 +772,7 @@ return () => clearInterval(pollInterval);
 }, [humanMode, isArchived, pollHistory]);
 
 
-const handleSendMessage = async (content: string, contextData?: { vehicle: string; city: string }) => {
+const handleSendMessage = async (content: string, contextData?: QuickContextPayload) => {
 if (!aiRepliesEnabled && !humanMode) {
 if (!intakeStep) {
 setIntakeStep('name');
@@ -798,19 +809,28 @@ let messageContext: ChatContext;
 
 if (contextData) {
 // Snabbvalet skickade med specifik stad/fordon - ANVÄND DET
+const useGeneralVehicle = contextData.clear_vehicle === true || contextData.vehicle_choice === 'OVRIGT' || contextData.vehicle === null;
 messageContext = { 
-vehicle: getSafeActiveVehicle(contextData.vehicle),
+vehicle: useGeneralVehicle ? null : getSafeActiveVehicle(contextData.vehicle),
 ...getContextFromOfficeSelection(offices, contextData.city)
 };
+if (useGeneralVehicle) {
+messageContext.vehicle_choice = 'OVRIGT';
+messageContext.clear_vehicle = true;
+}
 } else {
 // Använd nuvarande val från fönstret
 const cityLabel = selectedCity || singletonOfficeLabel;
 const cityArea = cityLabel ? getContextFromOfficeSelection(offices, cityLabel) : { city: null, area: null };
 messageContext = {
-vehicle: selectedVehicle ?? singletonVehicle ?? null,
+vehicle: generalMode ? null : (selectedVehicle ?? singletonVehicle ?? null),
 city: cityArea.city,
 area: cityArea.area,
 };
+if (generalMode) {
+messageContext.vehicle_choice = 'OVRIGT';
+messageContext.clear_vehicle = true;
+}
 }
 
 // 2. Lägg till användarens meddelande i listan
@@ -841,6 +861,7 @@ return;
 // 4. Uppdatera context OCH de visuella knapparna om servern ändrat kontext
 if (response.locked_context) {
 const newV = getSafeActiveVehicle(response.locked_context.vehicle);
+const vehicleChoice = (response.locked_context as any).vehicle_choice;
 const newCity = response.locked_context.city;
 const newArea = response.locked_context.area;
 
@@ -848,13 +869,20 @@ const newArea = response.locked_context.area;
 setContext({
 city: newCity ?? context.city ?? null,
 area: newArea ?? context.area ?? null,
-vehicle: newV ?? getSafeActiveVehicle(context.vehicle) ?? null,
+vehicle: newV ?? (vehicleChoice === 'OVRIGT' ? null : getSafeActiveVehicle(context.vehicle) ?? null),
+vehicle_choice: vehicleChoice === 'OVRIGT' ? 'OVRIGT' : null,
+clear_vehicle: vehicleChoice === 'OVRIGT',
 });
 
 // B) SYNK TILL UI: Uppdatera fordonstyp-knappen
 if (newV && newV !== selectedVehicle && !(selectedVehicle === 'LASTBIL' && newV === 'BIL')) {
+setGeneralMode(false);
 setSelectedVehicle(newV);
 window.selectedVehicle = newV;
+} else if (vehicleChoice === 'OVRIGT') {
+setGeneralMode(true);
+setSelectedVehicle(null);
+window.selectedVehicle = null;
 }
 
 // C) SYNK TILL UI: Uppdatera stads-knappen
@@ -910,6 +938,7 @@ setMessages([createWelcomeMessage(aiRepliesEnabled)]);
 setContext({ city: null, area: null, vehicle: null });
 setSelectedVehicle(null);
 setSelectedCity(null);
+setGeneralMode(false);
 setHumanMode(false);
 setIntakeStep(aiRepliesEnabled ? null : 'name');
 setIntakeData({});
@@ -927,9 +956,13 @@ resetSession();
 connectSocket(handleAgentReply, handleSessionStatus, handleAgentTyping, handleInactivityWarning, handleSessionAssigned);
 };
 
-const handleQuickAction = (message: string, contextData?: { vehicle: string; city: string }) => {
+const handleQuickAction = (message: string, contextData?: QuickContextPayload) => {
 if (contextData) {
+if (contextData.clear_vehicle === true || contextData.vehicle_choice === 'OVRIGT' || contextData.vehicle === null) {
+handleGeneralVehicleSelect();
+} else {
 handleVehicleChange(getSafeActiveVehicle(contextData.vehicle));
+}
 handleCityChange(contextData.city);
 }
 handleSendMessage(message, contextData);
@@ -1075,16 +1108,24 @@ lastMessageCountRef.current += 1;
 
 if (response.locked_context) {
 const newV = getSafeActiveVehicle(response.locked_context.vehicle);
+const vehicleChoice = (response.locked_context as any).vehicle_choice;
 const newCity = response.locked_context.city;
 const newArea = response.locked_context.area;
 setContext({
 city: newCity ?? context.city ?? null,
 area: newArea ?? context.area ?? null,
-vehicle: newV ?? getSafeActiveVehicle(context.vehicle) ?? null,
+vehicle: newV ?? (vehicleChoice === 'OVRIGT' ? null : getSafeActiveVehicle(context.vehicle) ?? null),
+vehicle_choice: vehicleChoice === 'OVRIGT' ? 'OVRIGT' : null,
+clear_vehicle: vehicleChoice === 'OVRIGT',
 });
 if (newV && newV !== selectedVehicle) {
+setGeneralMode(false);
 setSelectedVehicle(newV);
 window.selectedVehicle = newV;
+} else if (vehicleChoice === 'OVRIGT') {
+setGeneralMode(true);
+setSelectedVehicle(null);
+window.selectedVehicle = null;
 }
 if (newCity) {
 const uiCityLabel = formatCityAreaLabel(newCity, newArea ?? context.area);
@@ -1122,7 +1163,7 @@ setMessages((prev) => [...prev, templateMessage]);
 
 const showWelcomeWidget = aiRepliesEnabled && messages.length === 1 && messages[0].id === 'welcome-msg' && !isTyping;
 const hasCustomerMessage = messages.some((message) => message.role === 'user');
-const handleInputSend = (message: string, contextData?: { vehicle: string; city: string }) => {
+const handleInputSend = (message: string, contextData?: QuickContextPayload) => {
 if (!aiRepliesEnabled && !humanMode) {
 handleIntakeInput(message);
 return;
@@ -1145,6 +1186,7 @@ isDark={isDark}
 onToggleTheme={handleToggleTheme}
 selectedCity={selectedCity}
 selectedVehicle={selectedVehicle}
+generalMode={generalMode}
 offices={offices}
 onTemplateSelect={handleTemplateSelect}
 companyName={companyName}
@@ -1201,6 +1243,8 @@ onQuickAction={handleQuickAction}
 selectedVehicle={selectedVehicle}
 selectedCity={selectedCity}
 onVehicleChange={handleVehicleChange}
+onGeneralVehicleSelect={handleGeneralVehicleSelect}
+generalMode={generalMode}
 onCityChange={handleCityChange}
 offices={offices}
 companyName={companyName}
@@ -1248,8 +1292,17 @@ setContext(prev => ({ ...prev, ...safeUpdates }));
 // 2. Uppdatera UI-State (Knapparna/ChatInput) - DETTA SAKNADES (BEVARAT)
 if (updates.vehicle !== undefined) {
 const v = getSafeActiveVehicle(updates.vehicle as string | null);
+if (v) setGeneralMode(false);
 setSelectedVehicle(v); 
 window.selectedVehicle = v;
+}
+
+if (updates.vehicle_choice !== undefined) {
+setGeneralMode(updates.vehicle_choice === 'OVRIGT');
+if (updates.vehicle_choice === 'OVRIGT') {
+setSelectedVehicle(null);
+window.selectedVehicle = null;
+}
 }
 
 if (updates.city !== undefined) {
@@ -1276,6 +1329,8 @@ placeholder={!aiRepliesEnabled && !humanMode ? "Skriv ditt svar..." : (humanMode
 showQuickQuestions={aiRepliesEnabled && !humanMode && messages.length > 1}
 selectedVehicle={selectedVehicle}
 onVehicleChange={handleVehicleChange}
+onGeneralVehicleSelect={handleGeneralVehicleSelect}
+generalMode={generalMode}
 onCityChange={handleCityChange}
 selectedCity={selectedCity}
 offices={offices}

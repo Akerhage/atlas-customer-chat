@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ListTodo, ChevronDown, MapPin, Car, Bike, CircleDot, Truck } from "lucide-react";
+import { ListTodo, ChevronDown, MapPin, Car, Bike, CircleDot, Truck, HelpCircle } from "lucide-react";
 import {
 DropdownMenu,
 DropdownMenuContent,
@@ -20,10 +20,12 @@ import type { ActiveVehicle } from "@/lib/atlas-client";
 type VehicleType = ActiveVehicle | null;
 
 interface QuickQuestionsButtonProps {
-onSendMessage: (message: string, context?: { vehicle: string; city: string }) => void;
+onSendMessage: (message: string, context?: { vehicle: string | null; city: string; vehicle_choice?: string | null; clear_vehicle?: boolean }) => void;
 selectedVehicle: VehicleType;
 selectedCity: string | null;
 onVehicleChange: (vehicle: VehicleType) => void;
+onGeneralVehicleSelect: () => void;
+generalMode: boolean;
 onCityChange: (city: string | null) => void;
 disabled?: boolean;
 offices: any[]; // 🔥 TILLAGD
@@ -217,6 +219,8 @@ onSendMessage,
 selectedVehicle,
 selectedCity,
 onVehicleChange,
+onGeneralVehicleSelect,
+generalMode,
 onCityChange,
 disabled = false,
 offices, // 🔥 TILLAGD
@@ -228,7 +232,7 @@ const singletonOffice = offices.length === 1 ? offices[0] : null;
 const singletonOfficeLabel = singletonOffice ? getOfficeDisplayName(singletonOffice) : null;
 const singletonVehicle = activeVehicles.length === 1 ? activeVehicles[0] : null;
 const effectiveSelectedCity = selectedCity || singletonOfficeLabel;
-const effectiveSelectedVehicle = selectedVehicle || singletonVehicle;
+const effectiveSelectedVehicle = generalMode ? null : (selectedVehicle || singletonVehicle);
 const availableVehicles = (["BIL", "MC", "AM", "LASTBIL", "SLÄP"] as ActiveVehicle[])
 .filter((type) => activeVehicles.includes(type));
 
@@ -243,7 +247,7 @@ const handleQuestionClick = (question: string, category: string) => {
 // 2. Fordonsspecifika frågor skickas med vehicle: VALD_FORDON.
 
 const generalCategories = ["Populära frågor", "Betalning & Avbokning", "Tillstånd & Regler"];
-const isGeneral = generalCategories.includes(category);
+const isGeneral = generalMode || generalCategories.includes(category);
 
 // Om generell -> skicka null. Om fordonsspecifik -> skicka vald fordonstyp (om vald).
 const vehiclePayload = isGeneral ? null : (effectiveSelectedVehicle as string);
@@ -256,7 +260,8 @@ const finalQuestion = effectiveSelectedCity
 // Skicka till ChatInput (som skickar till AtlasChat)
 onSendMessage(finalQuestion, {
 vehicle: vehiclePayload as any, 
-city: effectiveSelectedCity || ""
+city: effectiveSelectedCity || "",
+...(isGeneral ? { vehicle_choice: 'OVRIGT', clear_vehicle: true } : {})
 });
 
 setOpen(false);
@@ -308,7 +313,7 @@ title="Snabbfrågor"
 {/* TOPP: VAL AV STAD & FORDON */}
 <div className="p-3 border-b border-border">
 <p className="text-sm font-medium mb-2">Snabbfrågor</p>
-{(!singletonOffice || !singletonVehicle) && (
+{(!singletonOffice || !singletonVehicle || singletonVehicle || generalMode) && (
 <div className="flex gap-2">
 {!singletonOffice && (
 <DropdownMenu>
@@ -334,15 +339,19 @@ className={cn(selectedCity === getOfficeDisplayName(office) && "bg-primary/10")}
 </DropdownMenu>
 )}
 
-{!singletonVehicle && (
+{(
 <DropdownMenu>
 <DropdownMenuTrigger asChild>
-<button className={cn("flex items-center gap-1 px-2 py-1 text-xs rounded-full transition-colors border", effectiveSelectedVehicle ? "bg-primary/10 text-primary border-primary/30" : "bg-secondary hover:bg-secondary/80")}>
-{effectiveSelectedVehicle ? <><Car className="w-3 h-3" /><span>{VEHICLE_LABELS[effectiveSelectedVehicle]}</span></> : <><span>Fordon</span></>}
+<button className={cn("flex items-center gap-1 px-2 py-1 text-xs rounded-full transition-colors border", effectiveSelectedVehicle || generalMode ? "bg-primary/10 text-primary border-primary/30" : "bg-secondary hover:bg-secondary/80")}>
+{generalMode ? <><HelpCircle className="w-3 h-3" /><span>Övrigt</span></> : effectiveSelectedVehicle ? <><Car className="w-3 h-3" /><span>{VEHICLE_LABELS[effectiveSelectedVehicle]}</span></> : <><span>Fordon</span></>}
 <ChevronDown className="w-3 h-3" />
 </button>
 </DropdownMenuTrigger>
 <DropdownMenuContent>
+<DropdownMenuItem onClick={onGeneralVehicleSelect} className={cn(generalMode && "bg-primary/10")}>
+<span className="inline-flex items-center gap-2"><HelpCircle className="w-3 h-3" />Övrigt / Allmän fråga</span>
+</DropdownMenuItem>
+<DropdownMenuSeparator />
 {availableVehicles.map((type) => (
 <DropdownMenuItem key={type} onClick={() => onVehicleChange(type)} className={cn(selectedVehicle === type && "bg-primary/10")}>
 {VEHICLE_LABELS[type]}
