@@ -105,7 +105,7 @@ category: "Kom igång med Bil",
 questions: [
 "Hur tar man B-körkort steg för steg?", 
 "Vad är en Testlektion och hur bokar jag den?", 
-"Vad krävs för att få övningsköra privat?", 
+"Vad krävs för att få övningsköra bil privat?",
 "Måste elev och handledare gå kursen samtidigt?"
 ] 
 },
@@ -208,6 +208,52 @@ questions: [
 const VEHICLE_ICONS = { BIL: Car, MC: Bike, AM: CircleDot, LASTBIL: Truck, SLÄP: Car };
 const VEHICLE_LABELS = { BIL: "Bil", MC: "MC", AM: "Moped", LASTBIL: "Lastbil", SLÄP: "Släp" };
 
+// Mappar vår fordonskod till etiketten som används i kontorens services_offered.
+const VEHICLE_TO_SERVICE_LABEL: Record<ActiveVehicle, string> = {
+BIL: "bil",
+MC: "mc",
+AM: "am",
+LASTBIL: "lastbil",
+SLÄP: "släp",
+};
+
+// Erbjuder kontoret fordonet? Tom/utelämnad services_offered tolkas permissivt (visa) —
+// backend-vakten är skyddsnät, så vi döljer aldrig ett legitimt kontor av misstag.
+// Matchar på fordonstoken som exakt sträng ELLER som hela ord i en längre service-sträng,
+// t.ex. "BIL" i ["BIL"] och "bil" i ["B automat bil"] matchar båda "bil"-token.
+function officeOffersVehicle(office: any, vehicle: ActiveVehicle): boolean {
+const so = Array.isArray(office?.services_offered)
+? office.services_offered.map((s: any) => String(s).toLowerCase().trim())
+: [];
+if (so.length === 0) return true;
+const token = VEHICLE_TO_SERVICE_LABEL[vehicle];
+const re = new RegExp(`(^|[\\s\\-/])${token}($|[\\s\\-/])`, 'i');
+return so.some(s => s === token || re.test(s));
+}
+
+const TENANT_QUESTION_VEHICLE_PATTERNS: Record<ActiveVehicle, RegExp[]> = {
+BIL: [/\bbil(?:en|ar|körkort|korkort|utbildning|lektion|paket)?\b/i, /\bb[-\s]?körkort\b/i],
+MC: [/\bmc\b/i, /\bmotorcykel/i, /\ba1\b/i, /\ba2\b/i, /\brisk\s*2\s*för\s*mc\b/i, /\brisktvåan\s+för\s+mc\b/i],
+AM: [/\bam\b/i, /\bmoped/i, /\bklass\s*[12]\b/i, /\bförarbevis/i],
+LASTBIL: [/\blastbil/i, /\bc1e?\b/i, /\bce\b/i, /\bykb\b/i, /\bbuss\b/i, /\bd[-\s]?körkort\b/i],
+SLÄP: [/\bsläp/i, /\bsläpvagn/i, /\bBE\b/, /\bb96\b/i, /\butökat\s+b\b/i],
+};
+
+function getQuestionVehicleHints(question: string): ActiveVehicle[] {
+return (Object.keys(TENANT_QUESTION_VEHICLE_PATTERNS) as ActiveVehicle[]).filter((vehicle) =>
+TENANT_QUESTION_VEHICLE_PATTERNS[vehicle].some((pattern) => pattern.test(question))
+);
+}
+
+function filterTenantQuickQuestions(questions: string[], allowedVehicles: ActiveVehicle[] | null): string[] {
+if (!allowedVehicles || allowedVehicles.length === 0) return questions;
+return questions.filter((question) => {
+const hints = getQuestionVehicleHints(question);
+if (hints.length === 0) return true;
+return hints.some((hint) => allowedVehicles.includes(hint));
+});
+}
+
 const getOfficeDisplayName = (office: any) => {
 const city = String(office?.city || '').trim();
 const area = String(office?.area || '').trim();
@@ -232,9 +278,19 @@ const singletonOffice = offices.length === 1 ? offices[0] : null;
 const singletonOfficeLabel = singletonOffice ? getOfficeDisplayName(singletonOffice) : null;
 const singletonVehicle = activeVehicles.length === 1 ? activeVehicles[0] : null;
 const effectiveSelectedCity = selectedCity || singletonOfficeLabel;
-const effectiveSelectedVehicle = generalMode ? null : (selectedVehicle || singletonVehicle);
+const selectedOffice = effectiveSelectedCity
+? offices.find((o) => getOfficeDisplayName(o) === effectiveSelectedCity)
+: null;
+const rawSelectedVehicle = generalMode ? null : (selectedVehicle || singletonVehicle);
+const effectiveSelectedVehicle = rawSelectedVehicle && (Boolean(singletonVehicle) || !selectedOffice || officeOffersVehicle(selectedOffice, rawSelectedVehicle))
+? rawSelectedVehicle
+: null;
 const availableVehicles = (["BIL", "MC", "AM", "LASTBIL", "SLÄP"] as ActiveVehicle[])
-.filter((type) => activeVehicles.includes(type));
+.filter((type) => activeVehicles.includes(type) && (Boolean(singletonVehicle) || !selectedOffice || officeOffersVehicle(selectedOffice, type)));
+
+const availableOffices = effectiveSelectedVehicle && !singletonOffice
+? offices.filter((o) => officeOffersVehicle(o, effectiveSelectedVehicle))
+: offices;
 
 const handleOpenChange = (isOpen: boolean) => {
 setOpen(isOpen);
@@ -268,7 +324,17 @@ setOpen(false);
 };
 
 const getQuestions = (): QuestionCategory[] => {
-const tenantQuickQuestions = quickQuestions.map(q => q.trim()).filter(Boolean).slice(0, 20);
+const tenantQuestionVehicleFilter = generalMode
+? null
+: effectiveSelectedVehicle
+? [effectiveSelectedVehicle]
+: selectedOffice
+? availableVehicles
+: null;
+const tenantQuickQuestions = filterTenantQuickQuestions(
+quickQuestions.map(q => q.trim()).filter(Boolean).slice(0, 20),
+tenantQuestionVehicleFilter
+);
 const tenantCategory: QuestionCategory | null = tenantQuickQuestions.length
 ? { category: "Vanliga frågor", questions: tenantQuickQuestions }
 : null;
@@ -326,7 +392,7 @@ title="Snabbfrågor"
 </DropdownMenuTrigger>
 <DropdownMenuContent className="max-h-60 overflow-y-auto">
 {/* 🚀 Dynamisk loop: Renderar kontoren direkt från databasen */}
-{offices.map((office) => (
+{availableOffices.map((office) => (
 <DropdownMenuItem 
 key={office.id} 
 onClick={() => onCityChange(getOfficeDisplayName(office))}

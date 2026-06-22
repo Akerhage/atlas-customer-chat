@@ -70,7 +70,7 @@ category: "Kom igång med Bil",
 questions: [
 "Hur tar man körkort för bil – steg för steg?",
 "Vad är en Testlektion och hur bokar jag den?",
-"Vad krävs för att få övningsköra privat?",
+"Vad krävs för att få övningsköra bil privat?",
 "Måste elev och handledare gå handledarkursen samtidigt?",
 ],
 },
