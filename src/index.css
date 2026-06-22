@@ -421,6 +421,18 @@ margin-bottom: 0.15rem;
 margin-top: 0.05rem;
 }
 
+/* Prisrad i paketöversikten: <p>Pris: <strong>...</strong></p>. Strong är
+   första element-barnet, så regeln måste slå pakettitelns :has-regel nedan. */
+.atlas-bot-message .atlas-message-content ul + p:has(> strong:first-child),
+.atlas-bot-message .atlas-message-content ol + p:has(> strong:first-child) {
+margin-top: 0.05rem;
+}
+
+.atlas-bot-message .atlas-message-content ul:has(+ p > strong:first-child),
+.atlas-bot-message .atlas-message-content ol:has(+ p > strong:first-child) {
+margin-bottom: 0.1rem;
+}
+
 /* Pakettitel = stycke som inleds med fet text (t.ex. "**Totalpaket 10 BIL**:").
    Större luft ovanför → man ser var ett nytt paket börjar. */
 .atlas-bot-message .atlas-message-content p:has(> strong:first-child) {
