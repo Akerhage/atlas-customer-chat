@@ -38,22 +38,14 @@ category: string;
 questions: string[];
 }
 
-// Fordonsnamn för snabbfrågetext (kortform, läsbar i meningar)
-const VEHICLE_QUESTION_LABELS: Record<ActiveVehicle, string> = {
-BIL:     "bilkörkorts",
-MC:      "MC-",
-AM:      "AM/moped-",
-LASTBIL: "lastbils",
-SLÄP:    "släpvagns",
-};
-
-// Kontorsspecifika frågor – anpassas dynamiskt efter valt fordon
-function getOfficeQuestions(vehicle: ActiveVehicle | null): QuestionCategory {
-const fordonsord = vehicle ? VEHICLE_QUESTION_LABELS[vehicle] : "körkorts";
+// Kontorsspecifika frågor. Paket-/utbudsöversikten ligger numera i respektive
+// fordonskategori med deterministisk formulering ("Vilka ...paket erbjuder ni i
+// {{stad}}?") — den gamla "Vilka X-utbildningar erbjuder ni"-frågan föll till
+// LLM-vägen och dumpade kontorsnamn som "innehåll", så den togs bort här.
+function getOfficeQuestions(): QuestionCategory {
 return {
 category: "Om kontoret i {{stad}}",
 questions: [
-`Vilka ${fordonsord}utbildningar erbjuder ni i {{stad}}?`,
 "Var i {{stad}} ligger kontoret och när har ni öppet?",
 ],
 };
@@ -112,10 +104,8 @@ questions: [
 { 
 category: "Paket & Intensiv", 
 questions: [
-"Vad kostar körkort för bil i {{stad}}?", 
-"Vilka körkortspaket erbjuder ni?",
-"Hur fungerar en intensivkurs på 2 veckor?", 
-"Vad ingår i ert körkortspaket?"
+"Vilka körkortspaket erbjuder ni i {{stad}}?",
+"Hur fungerar en intensivkurs på 2 veckor?"
 ] 
 },
 { 
@@ -138,9 +128,10 @@ questions: [
 ] 
 },
 { 
-category: "MC-Utbildning", 
+category: "MC-Utbildning",
 questions: [
-"Vad ingår i en intensivvecka för MC?", 
+"Vilka MC-paket erbjuder ni i {{stad}}?",
+"Vad ingår i en intensivvecka för MC?",
 "Får jag låna skyddsutrustning och kläder?", 
 "Vad är en Startlektion för MC?", 
 "Kör ni på bana eller i trafik?"
@@ -159,11 +150,8 @@ LASTBIL: [
 {
 category: "Pris Lastbil i {{stad}}",
 questions: [
-"Vad kostar C-utbildning i {{stad}}?",
+"Vilka körkortspaket för lastbil erbjuder ni i {{stad}}?",
 "Vad kostar en C Körlektion i {{stad}}?",
-"Vad kostar CE-utbildning i {{stad}}?",
-"Vad kostar en CE Körlektion i {{stad}}?",
-"Vad kostar ett C1 Paket i {{stad}}?",
 "Erbjuder ni D-körkort (buss) i {{stad}}?",
 ],
 },
@@ -189,7 +177,6 @@ questions: [
 category: "Bokning & Kontakt",
 questions: [
 "Hur bokar jag lastbilsutbildning i {{stad}}?",
-"Vilka betalningsalternativ finns för lastbilsutbildning?",
 ],
 },
 ],
@@ -345,8 +332,8 @@ return tenantCategory ? [tenantCategory, ...COMMON_QUESTIONS] : COMMON_QUESTIONS
 }
 
 const officeCategory: QuestionCategory = {
-category: getOfficeQuestions(effectiveSelectedVehicle).category.replace(/\{\{stad\}\}/g, effectiveSelectedCity),
-questions: getOfficeQuestions(effectiveSelectedVehicle).questions,
+category: getOfficeQuestions().category.replace(/\{\{stad\}\}/g, effectiveSelectedCity),
+questions: getOfficeQuestions().questions,
 };
 
 const vehicleCategories = QUESTIONS_BY_VEHICLE[effectiveSelectedVehicle] || [];

@@ -32,20 +32,14 @@ category: string;
 questions: string[];
 }
 
-const VEHICLE_QUESTION_LABELS: Record<ActiveVehicle, string> = {
-BIL:     "bilkörkorts",
-MC:      "MC-",
-AM:      "AM/moped-",
-LASTBIL: "lastbils",
-SLÄP:    "släpvagns",
-};
-
-function getOfficeQuestions(vehicle: ActiveVehicle | null): QuestionCategory {
-const fordonsord = vehicle ? VEHICLE_QUESTION_LABELS[vehicle] : "körkorts";
+// Paket-/utbudsöversikten ligger numera i respektive fordonskategori med
+// deterministisk formulering ("Vilka ...paket erbjuder ni i {{stad}}?"). Den
+// gamla "Vilka X-utbildningar erbjuder ni"-frågan föll till LLM-vägen och
+// dumpade kontorsnamn som "innehåll", så den togs bort här.
+function getOfficeQuestions(): QuestionCategory {
 return {
 category: "Om kontoret i {{stad}}",
 questions: [
-`Vilka ${fordonsord}utbildningar erbjuder ni i {{stad}}?`,
 "Var i {{stad}} ligger kontoret och när har ni öppet?",
 ],
 };
@@ -77,8 +71,7 @@ questions: [
 {
 category: "Paket & Pris",
 questions: [
-"Vad kostar körkort för bil i {{stad}}?",
-"Vilka körkortspaket erbjuder ni?",
+"Vilka körkortspaket erbjuder ni i {{stad}}?",
 "Erbjuder ni delbetalning eller avbetalning?",
 ],
 },
@@ -97,7 +90,7 @@ category: "Behörigheter & Start",
 questions: [
 "Vad är skillnaden mellan A1, A2 och A-behörighet?",
 "Jag är nybörjare på MC – hur börjar jag?",
-"Vad kostar ett körkort för MC i {{stad}}?",
+"Vilka MC-paket erbjuder ni i {{stad}}?",
 ],
 },
 {
@@ -122,11 +115,8 @@ LASTBIL: [
 {
 category: "Pris Lastbil i {{stad}}",
 questions: [
-"Vad kostar C-utbildning i {{stad}}?",
+"Vilka körkortspaket för lastbil erbjuder ni i {{stad}}?",
 "Vad kostar en C Körlektion i {{stad}}?",
-"Vad kostar CE-utbildning i {{stad}}?",
-"Vad kostar en CE Körlektion i {{stad}}?",
-"Vad kostar ett C1 Paket i {{stad}}?",
 "Erbjuder ni D-körkort (buss) i {{stad}}?",
 ],
 },
@@ -168,8 +158,8 @@ quickQuestions: string[]
 const categories = vehicle ? (QUESTIONS_BY_VEHICLE[vehicle] || []) : [];
 
 const officeCategory: QuestionCategory = {
-category: getOfficeQuestions(vehicle).category.replace(/\{\{stad\}\}/g, city),
-questions: getOfficeQuestions(vehicle).questions,
+category: getOfficeQuestions().category.replace(/\{\{stad\}\}/g, city),
+questions: getOfficeQuestions().questions,
 };
 
 const sortedCategories = [...categories].sort((a, b) => {
