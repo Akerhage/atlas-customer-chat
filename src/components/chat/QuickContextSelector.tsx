@@ -52,7 +52,6 @@ category: "AM-utbildning",
 questions: [
 "Hur gammal måste man vara för att börja AM-kursen?",
 "Vad kostar AM-kursen och vad ingår i priset?",
-"Behöver man körkortstillstånd för AM?",
 "Får man övningsköra moped privat hemma?",
 "Hur fungerar teoriprovet och uppkörningen för moped?",
 ],
@@ -72,7 +71,6 @@ questions: [
 category: "Paket & Pris",
 questions: [
 "Vilka körkortspaket erbjuder ni i {{stad}}?",
-"Erbjuder ni delbetalning eller avbetalning?",
 ],
 },
 {
@@ -98,7 +96,6 @@ category: "Utbildning & Paket",
 questions: [
 "Vad ingår i en intensivvecka för MC?",
 "Behöver jag ha egen skyddsutrustning för MC-lektioner?",
-"Vad är skillnaden mellan MC-paket och lektionspaket?",
 "Var sker MC-manöverkörning i {{stad}}?",
 ],
 },
@@ -132,7 +129,6 @@ questions: [
 {
 category: "YKB & Fortbildning",
 questions: [
-"Vad kostar YKB-fortbildning i {{stad}}?",
 "Hur många delkurser ingår i YKB-fortbildningen?",
 "Vad är skillnaden på YKB grundutbildning och fortbildning?",
 ],
@@ -142,8 +138,6 @@ SLÄP: [
 {
 category: "Släp & BE/B96",
 questions: [
-"Vad är skillnaden mellan B96 och BE?",
-"Vad krävs för att ta BE-körkort?",
 "Vad kostar släputbildning i {{stad}}?",
 ],
 },

@@ -140,9 +140,7 @@ questions: [
 { 
 category: "Risk & Prov MC", 
 questions: [
-"Vad är Riskettan för MC?", 
-"Vad gör man på Risktvåan för MC?",
-"Vad ingår i uppkörningen för MC?"
+"Vad är Riskettan och Risktvåan för MC?"
 ] 
 },
 ],
@@ -169,7 +167,6 @@ category: "YKB & Yrkestrafik",
 questions: [
 "Vad är YKB och behöver jag det?",
 "Vad är skillnaden på YKB grundutbildning och fortbildning?",
-"Hur många timmar är YKB-fortbildningen och vad kostar den?",
 "Hur ofta måste man förnya YKB?",
 ],
 },

@@ -416,6 +416,11 @@ margin-top: 0.15rem;
 margin-bottom: 0.15rem;
 }
 
+.atlas-bot-message .atlas-message-content ul + p,
+.atlas-bot-message .atlas-message-content ol + p {
+margin-top: 0.05rem;
+}
+
 /* Pakettitel = stycke som inleds med fet text (t.ex. "**Totalpaket 10 BIL**:").
    Större luft ovanför → man ser var ett nytt paket börjar. */
 .atlas-bot-message .atlas-message-content p:has(> strong:first-child) {
