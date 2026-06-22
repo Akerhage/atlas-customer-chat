@@ -244,7 +244,7 @@ name?: string;
 email?: string;
 phone?: string;
 city?: string;
-vehicle?: VehicleType;
+vehicle?: VehicleType | null;
 }>({});
 const [archivedMessage, setArchivedMessage] = useState<string | null>(null);
 const [inactivityWarning, setInactivityWarning] = useState(false);
@@ -560,26 +560,29 @@ injectBotMessage('Ange ett giltigt mobilnummer (minst 8 siffror), **"nej"** elle
 return;
 }
 const safeOffice = findSafeOfficeFromLiveContext(offices, selectedCity, context) || singletonOffice || undefined;
-const safeVehicle = getSafeActiveVehicle(selectedVehicle) || getSafeActiveVehicle(context.vehicle) || singletonVehicle;
+// "Övrigt / Allmän fråga" ska bäras hela vägen — aldrig falla tillbaka på singleton-fordon.
+const isGeneral = generalMode || context.vehicle_choice === 'OVRIGT';
+const safeVehicle = isGeneral ? null : (getSafeActiveVehicle(selectedVehicle) || getSafeActiveVehicle(context.vehicle) || singletonVehicle);
 const nextIntakeData = {
 ...intakeData,
 phone: isSkip ? undefined : digits,
 city: safeOffice ? getOfficeDisplayName(safeOffice) : intakeData.city,
-vehicle: safeVehicle || intakeData.vehicle,
+vehicle: isGeneral ? null : (safeVehicle || intakeData.vehicle),
 };
 setIntakeData(nextIntakeData);
 
-if (safeOffice && safeVehicle) {
+if (safeOffice && (safeVehicle || isGeneral)) {
 setIntakeStep(null);
 finishIntakeHandoff({
 ...nextIntakeData,
 city: getOfficeDisplayName(safeOffice),
-vehicle: safeVehicle,
+vehicle: isGeneral ? null : safeVehicle,
+general: isGeneral,
 });
 return;
 }
 
-if (safeOffice) {
+if (safeOffice && !isGeneral) {
 setIntakeStep('vehicle');
 injectBotMessage('Vad gäller ärendet?', activeVehicleChoices);
 return;
@@ -1006,14 +1009,17 @@ email,
 phone,
 city,
 vehicle,
+general = false,
 }: {
 name?: string;
 email?: string;
 phone?: string;
 city?: string;
-vehicle?: VehicleType;
+vehicle?: VehicleType | null;
+general?: boolean;
 }) => {
-if (!name || !email || !city || !vehicle) return;
+// Kund som valt "Övrigt / Allmän fråga" eskalerar utan fordon (general=true).
+if (!name || !email || !city || (!vehicle && !general)) return;
 
 const selectedOffice = city === 'Centralsupport' ? undefined : findSafeOfficeFromLiveContext(offices, city, context);
 const split = splitCityArea(city);
@@ -1034,13 +1040,33 @@ if (formatted) handoffCityLabel = formatted;
 
 const targetAgentId = selectedOffice ? selectedOffice.routing_tag : null;
 
-injectBotMessage(`Tack! Kopplar dig nu till **${handoffCityLabel}** för ${VEHICLE_HANDOFF_LABELS[vehicle]}... 🔗`);
+injectBotMessage(general
+? `Tack! Kopplar dig nu till **${handoffCityLabel}**... 🔗`
+: `Tack! Kopplar dig nu till **${handoffCityLabel}** för ${VEHICLE_HANDOFF_LABELS[vehicle as VehicleType]}... 🔗`);
 
 setSelectedCity(handoffCityLabel);
-setSelectedVehicle(vehicle);
+if (general) {
+setGeneralMode(true);
+setSelectedVehicle(null);
+window.selectedVehicle = null;
+} else {
+setSelectedVehicle(vehicle as VehicleType);
+}
 setHumanMode(true);
 
-sendEscalationSilently({
+sendEscalationSilently(general
+? {
+vehicle: null,
+vehicle_choice: 'OVRIGT',
+clear_vehicle: true,
+city: routingCity,
+area: routingArea,
+agent_id: targetAgentId,
+name,
+email,
+phone,
+}
+: {
 vehicle,
 city: routingCity,
 area: routingArea,
@@ -1069,13 +1095,16 @@ return;
 
 if (intakeStep === 'office') {
 injectUserMessage(value);
-const safeVehicle = getSafeActiveVehicle(intakeData.vehicle);
-if (safeVehicle) {
+// Övrigt-kund tvingas aldrig välja fordon efter kontorsvalet — avsluta direkt som Övrigt.
+const isGeneral = generalMode || context.vehicle_choice === 'OVRIGT';
+const safeVehicle = isGeneral ? null : getSafeActiveVehicle(intakeData.vehicle);
+if (safeVehicle || isGeneral) {
 setIntakeStep(null);
 finishIntakeHandoff({
 ...intakeData,
 city: value,
-vehicle: safeVehicle,
+vehicle: isGeneral ? null : safeVehicle,
+general: isGeneral,
 });
 return;
 }
