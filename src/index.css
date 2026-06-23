@@ -417,10 +417,7 @@ margin-bottom: 0.15rem;
 }
 
 .atlas-bot-message .atlas-message-content p > a:only-child {
-display: inline-flex;
-align-items: center;
-justify-content: center;
-gap: 0.4rem;
+display: inline-block;
 max-width: 100%;
 padding: 0.62rem 0.95rem;
 border-radius: 999px;
