@@ -176,7 +176,9 @@ return 0;
 }));
 
 const tenantQuickQuestions = quickQuestions.map(q => q.trim()).filter(Boolean).slice(0, 20);
-if (tenantQuickQuestions.length > 0) {
+// Tenantfrågor är adminstyrda och kan vara plats-/fordonsberoende utan tydlig
+// markör i texten. Visa dem bara i konkret fordonsläge, inte i Övrigt/allmänt.
+if (vehicle && tenantQuickQuestions.length > 0) {
 return [
 { category: "Vanliga frågor", questions: tenantQuickQuestions },
 officeCategory,

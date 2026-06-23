@@ -323,9 +323,13 @@ const tenantCategory: QuestionCategory | null = tenantQuickQuestions.length
 ? { category: "Vanliga frågor", questions: tenantQuickQuestions }
 : null;
 
-// Om inget är valt, visa bara generella frågor
+// Tenantens egna snabbfrågor kan vara kontors-/fordonsspecifika även om texten
+// saknar tydliga tokens. Visa dem först när både plats och fordon är kända.
+const canShowTenantQuestions = Boolean(effectiveSelectedCity && effectiveSelectedVehicle);
+
+// Om plats eller fordon saknas, visa bara bevisat generella frågor.
 if (!effectiveSelectedVehicle || !effectiveSelectedCity) {
-return tenantCategory ? [tenantCategory, ...COMMON_QUESTIONS] : COMMON_QUESTIONS;
+return COMMON_QUESTIONS;
 }
 
 const officeCategory: QuestionCategory = {
@@ -336,7 +340,7 @@ questions: getOfficeQuestions().questions,
 const vehicleCategories = QUESTIONS_BY_VEHICLE[effectiveSelectedVehicle] || [];
 
 // Ordning: Kontorsfrågor -> Fordonsfrågor -> Generella
-return tenantCategory
+return canShowTenantQuestions && tenantCategory
 ? [tenantCategory, officeCategory, ...vehicleCategories, ...COMMON_QUESTIONS]
 : [officeCategory, ...vehicleCategories, ...COMMON_QUESTIONS];
 };
