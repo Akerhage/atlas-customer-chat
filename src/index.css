@@ -416,6 +416,40 @@ margin-top: 0.15rem;
 margin-bottom: 0.15rem;
 }
 
+.atlas-bot-message .atlas-message-content p > a:only-child {
+display: inline-flex;
+align-items: center;
+justify-content: center;
+gap: 0.4rem;
+max-width: 100%;
+padding: 0.62rem 0.95rem;
+border-radius: 999px;
+border: 1px solid hsl(var(--primary) / 0.28);
+background: hsl(var(--primary) / 0.12);
+color: hsl(var(--primary));
+font-weight: 700;
+line-height: 1.25;
+text-align: center;
+text-decoration: none;
+box-shadow: 0 8px 20px hsl(var(--primary) / 0.12);
+transition: background var(--atlas-motion-short) var(--atlas-motion-ease),
+border-color var(--atlas-motion-short) var(--atlas-motion-ease),
+box-shadow var(--atlas-motion-short) var(--atlas-motion-ease),
+transform var(--atlas-motion-short) var(--atlas-motion-ease);
+}
+
+.atlas-bot-message .atlas-message-content p > a:only-child:hover {
+background: hsl(var(--primary) / 0.18);
+border-color: hsl(var(--primary) / 0.42);
+box-shadow: 0 10px 24px hsl(var(--primary) / 0.16);
+transform: translateY(-1px);
+}
+
+.atlas-bot-message .atlas-message-content p > a:only-child:focus-visible {
+outline: 2px solid hsl(var(--primary) / 0.55);
+outline-offset: 2px;
+}
+
 .atlas-bot-message .atlas-message-content ul + p,
 .atlas-bot-message .atlas-message-content ol + p {
 margin-top: 0.05rem;

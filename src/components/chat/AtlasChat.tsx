@@ -173,9 +173,9 @@ Jag har stenkoll på våra priser, produkter, utbildningar och kontor, men även
 
 Vill du hellre prata med en människa?
 
-Skriv bara *"jag vill prata med en människa"*.
+[💬 Prata med en människa](#atlas-human)
 
-Eller klicka på headsetikonen i menyn ovanför chatten.
+Du kan också skriva *"jag vill prata med en människa"* eller klicka på headsetikonen i menyn ovanför chatten.
 
 Vad kan jag hjälpa dig med idag?`;
 
@@ -1294,6 +1294,7 @@ isLatest={index === messages.length - 1}
 senderName={message.senderName}
 choices={message.choices}
 onChoiceSelect={handleChoiceSelected}
+onRequestHuman={handleRequestHuman}
 />
 ))}
 

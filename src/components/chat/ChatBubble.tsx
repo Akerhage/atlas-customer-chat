@@ -29,9 +29,10 @@ isLatest?: boolean;
 senderName?: string | null;
 choices?: { label: string; value: string }[];
 onChoiceSelect?: (value: string) => void;
+onRequestHuman?: () => void;
 }
 
-export function ChatBubble({ content, isUser, timestamp, isLatest, senderName, choices, onChoiceSelect }: ChatBubbleProps) {
+export function ChatBubble({ content, isUser, timestamp, isLatest, senderName, choices, onChoiceSelect, onRequestHuman }: ChatBubbleProps) {
 // Visa agentens namn om angivet, annars "Atlas" för AI-svar
 const displayName = isUser ? 'Du' : (senderName || 'Atlas');
 const hasLargeChoiceSet = (choices?.length ?? 0) > 12;
@@ -83,9 +84,22 @@ isUser
 <ReactMarkdown
 rehypePlugins={[rehypeRaw, [rehypeSanitize, sanitizeSchema]]}
 components={{
-a: ({ node, ...props }) => (
-<a {...props} target="_blank" rel="noopener noreferrer" />
-),
+a: ({ node, ...props }) => {
+const href = typeof props.href === 'string' ? props.href : '';
+if (href === '#atlas-human') {
+return (
+<a
+{...props}
+href={href}
+onClick={(event) => {
+event.preventDefault();
+onRequestHuman?.();
+}}
+/>
+);
+}
+return <a {...props} target="_blank" rel="noopener noreferrer" />;
+},
 }}
 >
 {content}
