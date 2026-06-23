@@ -112,7 +112,7 @@ export function TemplatesButton({ onSelect }: TemplatesButtonProps) {
             Här kan du läsa mer om våra paket, vår policy, våra kurser, utbildningar och erbjudanden — klicka för att visa i chatten
           </p>
         </div>
-        <ScrollArea className="max-h-96">
+        <ScrollArea className="max-h-96 [&>[data-radix-scroll-area-viewport]]:max-h-96">
           <div
             className={cn(
               "p-2",
