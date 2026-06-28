@@ -4,9 +4,8 @@ import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import { Car, User } from "lucide-react";
 
-// Tillåt formaterings-taggar och bilder men blockera script och on*-attribut.
-// Utökar defaultSchema så att befintliga markdown-element (a, strong, em osv)
-// och mallinnehåll (img, inline styles) renderas korrekt.
+// Tillåt markdown-formattering och bilder men blockera script, on*-attribut
+// och fri inline-styling/classer som kan spräcka chatlayouten.
 const sanitizeSchema = {
 ...defaultSchema,
 tagNames: [
@@ -15,9 +14,8 @@ tagNames: [
 ],
 attributes: {
 ...defaultSchema.attributes,
-'*': ['style', 'className', 'class'],
 'a': ['href', 'target', 'rel'],
-'img': ['src', 'alt', 'width', 'height', 'style'],
+'img': ['src', 'alt', 'width', 'height'],
 },
 };
 
