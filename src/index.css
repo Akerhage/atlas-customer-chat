@@ -446,6 +446,16 @@ margin-top: 0;
 margin-bottom: 0;
 }
 
+/* Inklistrad bild i user-bubblan: tydlig inramning, ingen tema-artefakt vid
+   mörkt<->ljust-byte (Jobb 4 2026-06-28). */
+.atlas-user-message .atlas-message-content img {
+display: block;
+max-width: 100%;
+height: auto;
+border-radius: 10px;
+margin: 2px 0;
+}
+
 /* Bot-svar: typografi-pluginet (prose) är inte aktivt här och Tailwind-preflight
    nollställer markdown-marginaler. Vi sätter egen spacing: TIGHT mellan rader inom
    ett paket, men tydlig separation FÖRE varje pakettitel så grupperingen syns. */
