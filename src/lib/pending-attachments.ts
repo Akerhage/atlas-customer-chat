@@ -51,6 +51,10 @@ function getFileSignature(file: File): string {
   return `${file.name}:${file.type}:${file.size}:${file.lastModified}`;
 }
 
+function stripPasteControlChars(value: string): string {
+  return value.replace(/[\u200B-\u200D\uFEFF]/g, "");
+}
+
 export function getClipboardFiles(data: DataTransfer | null): File[] {
   if (!data) return [];
 
@@ -99,13 +103,24 @@ export function clipboardHasText(data: DataTransfer | null): boolean {
 }
 
 function normalizePastedText(value: string): string {
-  return value
+  return stripPasteControlChars(value)
     .replace(/\r\n/g, "\n")
     .replace(/\u00a0/g, " ")
     .split("\n")
     .map((line) => line.replace(/[ \t]+/g, " ").trim())
     .filter(Boolean)
     .join("\n");
+}
+
+function normalizePastedMarkdown(value: string): string {
+  return stripPasteControlChars(value)
+    .replace(/\r\n/g, "\n")
+    .replace(/\u00a0/g, " ")
+    .split("\n")
+    .map((line) => line.replace(/[ \t]+/g, " ").trim())
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 function extractTextWithoutImages(root: ParentNode): string {
@@ -146,6 +161,73 @@ function extractTextWithoutImages(root: ParentNode): string {
   return normalizePastedText(parts.join(""));
 }
 
+function extractMarkdownWithoutImages(root: ParentNode): string {
+  const blockTags = new Set([
+    "ADDRESS", "ARTICLE", "ASIDE", "BLOCKQUOTE", "DIV", "FIGCAPTION",
+    "FIGURE", "FOOTER", "FORM", "H1", "H2", "H3", "H4", "H5", "H6",
+    "HEADER", "MAIN", "NAV", "P", "PRE", "SECTION", "TABLE", "TD", "TH", "TR",
+  ]);
+
+  const inlineText = (node: Node): string => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return stripPasteControlChars(node.textContent || "").replace(/\s+/g, " ");
+    }
+
+    if (node.nodeType !== Node.ELEMENT_NODE) return "";
+
+    const element = node as HTMLElement;
+    const tagName = element.tagName;
+    if (tagName === "IMG" || tagName === "PICTURE" || tagName === "SOURCE" || tagName === "SCRIPT" || tagName === "STYLE") {
+      return "";
+    }
+    if (tagName === "BR") return "  \n";
+
+    const children = Array.from(element.childNodes).map(inlineText).join("");
+    const text = children.trim();
+    if (!text) return "";
+
+    if (tagName === "STRONG" || tagName === "B") return `**${text}**`;
+    if (tagName === "EM" || tagName === "I") return `*${text}*`;
+    if (tagName === "A") {
+      const href = element.getAttribute("href") || "";
+      return href ? `[${text}](${href})` : text;
+    }
+
+    return children;
+  };
+
+  const blockMarkdown = (node: Node): string => {
+    if (node.nodeType === Node.TEXT_NODE) return inlineText(node);
+    if (node.nodeType !== Node.ELEMENT_NODE) return "";
+
+    const element = node as HTMLElement;
+    const tagName = element.tagName;
+    if (tagName === "IMG" || tagName === "PICTURE" || tagName === "SOURCE" || tagName === "SCRIPT" || tagName === "STYLE") {
+      return "";
+    }
+    if (tagName === "BR") return "  \n";
+    if (tagName === "UL" || tagName === "OL") {
+      const items = Array.from(element.children)
+        .filter((child) => child.tagName === "LI")
+        .map((child, index) => {
+          const marker = tagName === "OL" ? `${index + 1}.` : "-";
+          return `${marker} ${Array.from(child.childNodes).map(inlineText).join("").trim()}`;
+        })
+        .filter(Boolean);
+      return items.length ? `${items.join("\n")}\n\n` : "";
+    }
+
+    if (blockTags.has(tagName)) {
+      const content = Array.from(element.childNodes).map(blockMarkdown).join("").trim();
+      return content ? `${content}\n\n` : "";
+    }
+
+    return inlineText(node);
+  };
+
+  return normalizePastedMarkdown(Array.from(root.childNodes).map(blockMarkdown).join(""));
+}
+
 export function sanitizeHtmlPasteForAiMode(data: DataTransfer | null): { text: string; removedImages: boolean } {
   if (!data) return { text: "", removedImages: false };
 
@@ -155,14 +237,15 @@ export function sanitizeHtmlPasteForAiMode(data: DataTransfer | null): { text: s
     return { text: normalizePastedText(data.getData("text/plain") || ""), removedImages: false };
   }
 
+  const plainText = normalizePastedText(data.getData("text/plain") || "");
   if (typeof DOMParser === "undefined") {
-    return { text: "", removedImages: true };
+    return { text: plainText, removedImages: true };
   }
 
   const doc = new DOMParser().parseFromString(html, "text/html");
   doc.querySelectorAll("img, picture, source").forEach((node) => node.remove());
   return {
-    text: extractTextWithoutImages(doc.body),
+    text: extractMarkdownWithoutImages(doc.body) || plainText || extractTextWithoutImages(doc.body),
     removedImages: true,
   };
 }

@@ -393,6 +393,18 @@ box-shadow: none;
 background: transparent;
 }
 
+.atlas-user-message .atlas-message-content p,
+.atlas-user-message .atlas-message-content ul,
+.atlas-user-message .atlas-message-content ol {
+margin-top: 0.3rem;
+margin-bottom: 0.3rem;
+}
+
+.atlas-user-message .atlas-message-content li {
+margin-top: 0.15rem;
+margin-bottom: 0.15rem;
+}
+
 .atlas-user-message .atlas-message-content > :first-child {
 margin-top: 0;
 }
