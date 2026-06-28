@@ -95,6 +95,11 @@ export function clipboardHasHtmlImages(data: DataTransfer | null): boolean {
   return /<img\b/i.test(data.getData("text/html"));
 }
 
+export function clipboardHasHtmlContent(data: DataTransfer | null): boolean {
+  if (!data) return false;
+  return Boolean(data.getData("text/html").trim());
+}
+
 export function clipboardHasText(data: DataTransfer | null): boolean {
   if (!data) return false;
   const plainText = data.getData("text/plain");
@@ -233,13 +238,13 @@ export function sanitizeHtmlPasteForAiMode(data: DataTransfer | null): { text: s
 
   const html = data.getData("text/html");
   const removedImages = /<img\b/i.test(html);
-  if (!removedImages) {
+  if (!html.trim()) {
     return { text: normalizePastedText(data.getData("text/plain") || ""), removedImages: false };
   }
 
   const plainText = normalizePastedText(data.getData("text/plain") || "");
   if (typeof DOMParser === "undefined") {
-    return { text: plainText, removedImages: true };
+    return { text: plainText, removedImages };
   }
 
   const doc = new DOMParser().parseFromString(html, "text/html");

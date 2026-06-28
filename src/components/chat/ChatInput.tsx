@@ -13,6 +13,7 @@ MAX_ATTACHMENT_FILES,
 MAX_ATTACHMENT_FILE_SIZE_MB,
 appendAttachmentMarkdown,
 clipboardHasFilesOrImages,
+clipboardHasHtmlContent,
 clipboardHasHtmlImages,
 clipboardHasText,
 getClipboardFiles,
@@ -166,22 +167,27 @@ id: HTML_IMAGE_PASTE_TOAST_ID,
 
 const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
 if (!humanMode) {
-if (!clipboardHasFilesOrImages(e.clipboardData)) return;
+const hasBlockedAttachment = clipboardHasFilesOrImages(e.clipboardData);
+if (!hasBlockedAttachment && !clipboardHasHtmlContent(e.clipboardData)) return;
 
 e.preventDefault();
 const { text } = sanitizeHtmlPasteForAiMode(e.clipboardData);
 insertTextAtSelection(e.currentTarget, text);
+if (hasBlockedAttachment) {
 showAiAttachmentBlockedToast();
+}
 return;
 }
 
 const pastedFiles = getClipboardFiles(e.clipboardData);
 if (!pastedFiles.length) {
-if (clipboardHasHtmlImages(e.clipboardData)) {
-showHtmlImagePasteToast();
+if (clipboardHasHtmlContent(e.clipboardData)) {
 e.preventDefault();
-const { text } = sanitizeHtmlPasteForAiMode(e.clipboardData);
+const { text, removedImages } = sanitizeHtmlPasteForAiMode(e.clipboardData);
 if (text) insertTextAtSelection(e.currentTarget, text);
+if (removedImages || clipboardHasHtmlImages(e.clipboardData)) {
+showHtmlImagePasteToast();
+}
 }
 return;
 }
