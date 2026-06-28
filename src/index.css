@@ -393,16 +393,49 @@ box-shadow: none;
 background: transparent;
 }
 
+.atlas-user-message .atlas-message-content {
+line-height: 1.6;
+letter-spacing: 0;
+}
+
 .atlas-user-message .atlas-message-content p,
 .atlas-user-message .atlas-message-content ul,
 .atlas-user-message .atlas-message-content ol {
-margin-top: 0.3rem;
-margin-bottom: 0.3rem;
+margin-top: 0.42rem;
+margin-bottom: 0.42rem;
 }
 
 .atlas-user-message .atlas-message-content li {
-margin-top: 0.15rem;
-margin-bottom: 0.15rem;
+margin-top: 0.22rem;
+margin-bottom: 0.22rem;
+padding-left: 0.05rem;
+}
+
+.atlas-user-message .atlas-message-content ul,
+.atlas-user-message .atlas-message-content ol {
+padding-left: 1.1rem;
+}
+
+.atlas-user-message .atlas-message-content a {
+color: hsl(var(--bubble-user-text));
+font-weight: 800;
+text-decoration: underline;
+text-decoration-thickness: 1.5px;
+text-underline-offset: 2px;
+}
+
+.atlas-user-message .atlas-message-content strong {
+font-weight: 850;
+}
+
+.atlas-user-message .atlas-message-content p:has(> strong:first-child) {
+margin-top: 0.9rem;
+margin-bottom: 0.34rem;
+}
+
+.atlas-user-message .atlas-message-content p:has(> em:first-child) {
+margin-top: 0.38rem;
+margin-bottom: 0.38rem;
 }
 
 .atlas-user-message .atlas-message-content > :first-child {
