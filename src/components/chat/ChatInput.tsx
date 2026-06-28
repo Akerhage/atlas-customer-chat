@@ -177,19 +177,12 @@ return;
 
 const pastedFiles = getClipboardFiles(e.clipboardData);
 if (!pastedFiles.length) {
-const hasHtmlImages = clipboardHasHtmlImages(e.clipboardData);
-const hasHtml = e.clipboardData.types.includes('text/html');
-
-if (hasHtmlImages) {
+if (clipboardHasHtmlImages(e.clipboardData)) {
 showHtmlImagePasteToast();
-}
-
-if (hasHtml) {
 e.preventDefault();
 const { text } = sanitizeHtmlPasteForAiMode(e.clipboardData);
 if (text) insertTextAtSelection(e.currentTarget, text);
 }
-
 return;
 }
 
