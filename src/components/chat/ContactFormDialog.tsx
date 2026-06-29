@@ -34,9 +34,11 @@ HTML_IMAGE_PASTE_MESSAGE,
 MAX_ATTACHMENT_FILES,
 MAX_ATTACHMENT_FILE_SIZE_MB,
 MAX_CUSTOMER_MESSAGE_LENGTH,
+clipboardHasHtmlContent,
 clipboardHasHtmlImages,
 clipboardHasText,
 getClipboardFiles,
+sanitizeHtmlPasteForAiMode,
 usePendingAttachments,
 } from "@/lib/pending-attachments";
 import type { ActiveVehicle } from "@/lib/atlas-client";
@@ -198,11 +200,30 @@ setIsSubmitting(false);
 }
 };
 
+const insertMessageAtSelection = (target: HTMLTextAreaElement, text: string) => {
+if (!text) return;
+const start = target.selectionStart ?? target.value.length;
+const end = target.selectionEnd ?? target.value.length;
+const next = `${target.value.slice(0, start)}${text}${target.value.slice(end)}`
+.slice(0, MAX_CUSTOMER_MESSAGE_LENGTH);
+const nextCursor = Math.min(start + text.length, next.length);
+setFormData((prev) => ({ ...prev, message: next }));
+requestAnimationFrame(() => {
+target.focus();
+target.setSelectionRange(nextCursor, nextCursor);
+});
+};
+
 const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
 const pastedFiles = getClipboardFiles(e.clipboardData);
 if (!pastedFiles.length) {
-if (clipboardHasHtmlImages(e.clipboardData)) {
+if (clipboardHasHtmlContent(e.clipboardData)) {
+e.preventDefault();
+const { text, removedImages } = sanitizeHtmlPasteForAiMode(e.clipboardData);
+if (text) insertMessageAtSelection(e.currentTarget, text);
+if (removedImages || clipboardHasHtmlImages(e.clipboardData)) {
 toast.info(HTML_IMAGE_PASTE_MESSAGE, { id: HTML_IMAGE_PASTE_TOAST_ID });
+}
 }
 return;
 }
