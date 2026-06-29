@@ -189,13 +189,15 @@ function extractMarkdownWithoutImages(root: ParentNode): string {
 
     const children = Array.from(element.childNodes).map(inlineText).join("");
     const text = children.trim();
-    if (!text) return "";
+    if (!text) return /\s/.test(children) ? " " : "";
+    const lead = /^\s/.test(children) ? " " : "";
+    const trail = /\s$/.test(children) ? " " : "";
 
-    if (tagName === "STRONG" || tagName === "B") return `**${text}**`;
-    if (tagName === "EM" || tagName === "I") return `*${text}*`;
+    if (tagName === "STRONG" || tagName === "B") return `${lead}**${text}**${trail}`;
+    if (tagName === "EM" || tagName === "I") return `${lead}*${text}*${trail}`;
     if (tagName === "A") {
       const href = element.getAttribute("href") || "";
-      return href ? `[${text}](${href})` : text;
+      return href ? `${lead}[${text}](${href})${trail}` : `${lead}${text}${trail}`;
     }
 
     return children;
