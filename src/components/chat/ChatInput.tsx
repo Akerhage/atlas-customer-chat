@@ -11,6 +11,7 @@ ALLOWED_ATTACHMENT_MIME_TYPES,
 HTML_IMAGE_PASTE_MESSAGE,
 MAX_ATTACHMENT_FILES,
 MAX_ATTACHMENT_FILE_SIZE_MB,
+MAX_CUSTOMER_MESSAGE_LENGTH,
 appendAttachmentMarkdown,
 clipboardHasFilesOrImages,
 clipboardHasHtmlContent,
@@ -42,7 +43,6 @@ quickQuestions: string[];
 }
 
 const TYPING_THROTTLE_MS = 2000;
-const MAX_MESSAGE_LENGTH = 8000; // Must match routes/customer.js.
 const AI_ATTACHMENT_BLOCKED_TOAST_ID = "atlas-ai-attachment-blocked";
 const HTML_IMAGE_PASTE_TOAST_ID = "atlas-html-image-paste";
 const MESSAGE_TOO_LONG_TOAST_ID = "atlas-msg-too-long";
@@ -113,8 +113,8 @@ if (disabled || isUploading) return;
 const trimmed = message.trim();
 const outboundMessage = appendAttachmentMarkdown(trimmed, validAttachments);
 if (!outboundMessage) return;
-if (outboundMessage.length > MAX_MESSAGE_LENGTH) {
-toast.info(`Meddelandet är för långt (max ${MAX_MESSAGE_LENGTH} tecken). Korta ner och skicka igen.`, {
+if (outboundMessage.length > MAX_CUSTOMER_MESSAGE_LENGTH) {
+toast.info(`Meddelandet är för långt (max ${MAX_CUSTOMER_MESSAGE_LENGTH} tecken). Korta ner och skicka igen.`, {
 id: MESSAGE_TOO_LONG_TOAST_ID,
 });
 return;

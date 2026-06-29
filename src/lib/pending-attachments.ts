@@ -3,6 +3,7 @@ import { toast } from "sonner";
 
 export const MAX_ATTACHMENT_FILES = 5;
 export const MAX_ATTACHMENT_FILE_SIZE_MB = 10;
+export const MAX_CUSTOMER_MESSAGE_LENGTH = 8000; // Must match routes/customer.js.
 
 export const ALLOWED_ATTACHMENT_MIME_TYPES = [
   "image/jpeg", "image/png", "image/gif", "image/webp",
@@ -48,7 +49,7 @@ function createTempId(): string {
 }
 
 function getFileSignature(file: File): string {
-  return `${file.name}:${file.type}:${file.size}:${file.lastModified}`;
+  return `${file.name}:${file.type}:${file.size}`;
 }
 
 function stripPasteControlChars(value: string): string {

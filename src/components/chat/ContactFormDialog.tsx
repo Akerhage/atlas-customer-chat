@@ -30,8 +30,11 @@ TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
 ALLOWED_ATTACHMENT_MIME_TYPES,
+HTML_IMAGE_PASTE_MESSAGE,
 MAX_ATTACHMENT_FILES,
 MAX_ATTACHMENT_FILE_SIZE_MB,
+MAX_CUSTOMER_MESSAGE_LENGTH,
+clipboardHasHtmlImages,
 clipboardHasText,
 getClipboardFiles,
 usePendingAttachments,
@@ -50,6 +53,7 @@ activeVehicles: ActiveVehicle[];
 const DEFAULT_CITY = "Centralsupport";
 const DEFAULT_VEHICLE = "BIL";
 const GENERAL_VEHICLE_VALUE = "OVRIGT";
+const HTML_IMAGE_PASTE_TOAST_ID = "atlas-form-html-image-paste";
 const VEHICLE_OPTIONS: { value: ActiveVehicle | typeof GENERAL_VEHICLE_VALUE; label: string }[] = [
 { value: GENERAL_VEHICLE_VALUE, label: "Övrigt / Allmän fråga" },
 { value: "BIL", label: "Bil (B)" },
@@ -196,7 +200,12 @@ setIsSubmitting(false);
 
 const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
 const pastedFiles = getClipboardFiles(e.clipboardData);
-if (!pastedFiles.length) return;
+if (!pastedFiles.length) {
+if (clipboardHasHtmlImages(e.clipboardData)) {
+toast.info(HTML_IMAGE_PASTE_MESSAGE, { id: HTML_IMAGE_PASTE_TOAST_ID });
+}
+return;
+}
 
 if (!clipboardHasText(e.clipboardData)) {
 e.preventDefault();
@@ -328,7 +337,7 @@ onChange={(e) => setFormData({ ...formData, message: e.target.value })}
 onPaste={handlePaste}
 rows={4}
 className="resize-none"
-maxLength={2000}
+maxLength={MAX_CUSTOMER_MESSAGE_LENGTH}
 />
 
 <div className="space-y-2">
