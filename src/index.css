@@ -12,27 +12,27 @@ Baserat på chrome-light estetik.
 @layer base {
 :root {
 /* === CORE BACKGROUNDS === */
---background: 210 24% 96%;
---foreground: 220 25% 10%;
+--background: 147 36% 95%;
+--foreground: 150 20% 14%;
 
 /* === CARD/SURFACE === */
---card: 210 28% 98%;
---card-foreground: 220 25% 10%;
+--card: 142 42% 97%;
+--card-foreground: 150 20% 14%;
 
---popover: 210 28% 98%;
---popover-foreground: 220 25% 10%;
+--popover: 142 45% 98%;
+--popover-foreground: 150 20% 14%;
 
 /* === PRIMARY - calm teal accent === */
 --primary: 174 64% 32%;
 --primary-foreground: 0 0% 100%;
 
 /* === SECONDARY === */
---secondary: 210 22% 92%;
---secondary-foreground: 220 25% 20%;
+--secondary: 142 35% 90%;
+--secondary-foreground: 150 20% 20%;
 
 /* === MUTED === */
---muted: 210 24% 94%;
---muted-foreground: 215 15% 45%;
+--muted: 144 40% 93%;
+--muted-foreground: 145 27% 33%;
 
 /* === ACCENT - Teal === */
 --accent: 174 48% 40%;
@@ -43,22 +43,22 @@ Baserat på chrome-light estetik.
 --destructive-foreground: 0 0% 100%;
 
 /* === BORDERS & INPUTS === */
---border: 214 24% 86%;
---input: 214 24% 86%;
+--border: 146 25% 82%;
+--input: 146 25% 82%;
 --ring: 174 64% 32%;
 
 --radius: 1rem;
 
 /* === ATLAS CHAT SPECIFIC TOKENS === */
---chat-bg: 210 24% 95%;
---chat-header-bg: 210 28% 97%;
---chat-input-bg: 210 28% 97%;
+--chat-bg: 147 36% 95%;
+--chat-header-bg: 144 34% 93%;
+--chat-input-bg: 144 34% 93%;
 
 /* Bubble tokens - Atlas style */
---bubble-atlas-bg: 210 30% 98%;
---bubble-atlas-border: 214 24% 87%;
---bubble-atlas-text: 220 25% 15%;
---bubble-atlas-shadow: 210 30% 80%;
+--bubble-atlas-bg: 142 42% 97%;
+--bubble-atlas-border: 146 25% 82%;
+--bubble-atlas-text: 150 20% 14%;
+--bubble-atlas-shadow: 144 30% 75%;
 
 --bubble-user-bg: 174 64% 32%;
 --bubble-user-border: 174 64% 28%;
@@ -531,4 +531,41 @@ margin-top: 0;
 
 .atlas-bot-message .atlas-message-content > :last-child {
 margin-bottom: 0;
+}
+
+/* Kampanj-notis från serverns markdown-blockquote. Scopead till bot-bubblan så
+   prisöversiktens vanliga pakettitel-spacing fortsätter fungera oförändrat. */
+.atlas-bot-message .atlas-message-content blockquote {
+margin: 0.75rem 0 0.3rem;
+padding: 0.85rem 1rem;
+border: 1px solid hsl(var(--border) / 0.85);
+border-left: 3px solid hsl(var(--primary) / 0.38);
+border-radius: 0.75rem;
+background: linear-gradient(135deg, hsl(150 18% 97%), hsl(145 20% 93%));
+box-shadow: 0 2px 10px -5px hsl(var(--bubble-atlas-shadow) / 0.18);
+color: hsl(var(--bubble-atlas-text));
+}
+
+.atlas-bot-message .atlas-message-content blockquote p {
+margin: 0.15rem 0;
+}
+
+.atlas-bot-message .atlas-message-content blockquote p:has(> strong:first-child) {
+margin-top: 0.15rem;
+}
+
+.atlas-bot-message .atlas-message-content blockquote strong {
+color: hsl(var(--primary));
+}
+
+.atlas-bot-message .atlas-message-content blockquote a {
+color: hsl(var(--primary));
+font-weight: 700;
+}
+
+.dark .atlas-bot-message .atlas-message-content blockquote {
+border-color: hsl(var(--primary) / 0.2);
+border-left-color: hsl(var(--primary) / 0.48);
+background: linear-gradient(135deg, hsl(var(--primary) / 0.13), hsl(var(--card) / 0.92));
+box-shadow: 0 2px 12px -6px hsl(var(--primary) / 0.22);
 }

@@ -114,6 +114,7 @@ return currentSessionId;
 let socket: Socket | null = null;
 let replyCallback: ((event: CustomerReplyEvent) => void) | null = null;
 let socketConnected = false;
+let hasConnectedBefore = false;
 let agentTypingCallback: ((sessionId: string, agentName: string | null, isTyping: boolean) => void) | null = null;
 
 export function isSocketConnected(): boolean {
@@ -123,6 +124,7 @@ return socketConnected && socket?.connected === true;
 let statusCallback: ((event: SessionStatusEvent) => void) | null = null;
 let warningCallback: ((event: SessionWarningEvent) => void) | null = null;
 let assignmentCallback: ((agentName: string | null) => void) | null = null;
+let reconnectCallback: (() => void) | null = null;
 
 // ============================================================
 // HJÄLP: Registrerar alla socket-lyssnare på ett ställe så
@@ -222,7 +224,8 @@ onReply: (event: CustomerReplyEvent) => void,
 onStatusChange?: (event: SessionStatusEvent) => void,
 onAgentTyping?: (sessionId: string, agentName: string | null, isTyping: boolean) => void,
 onWarning?: (event: SessionWarningEvent) => void,
-onAssigned?: (agentName: string | null) => void
+onAssigned?: (agentName: string | null) => void,
+onReconnect?: () => void
 ): void {
 // Säkerställ att sessionId är initierat innan anslutning
 const sessionId = getSessionId();
@@ -233,6 +236,7 @@ statusCallback = onStatusChange || null;
 agentTypingCallback = onAgentTyping || null;
 warningCallback = onWarning || null;
 assignmentCallback = onAssigned || null;
+reconnectCallback = onReconnect || null;
 
 // Om socketen redan är ansluten, registrera om lyssnarna med nya callbacks
 // istället för att bara returnera — annars pekar lyssnarna på gamla stängda referenser.
@@ -256,6 +260,11 @@ socket?.emit('join', { sessionId, conversationId: sessionId });
 
 // Registrera lyssnare direkt vid anslutning (säkerställer färska callbacks)
 registerSocketListeners();
+
+if (hasConnectedBefore) {
+  reconnectCallback?.();
+}
+hasConnectedBefore = true;
 });
 
 socket.on('disconnect', (reason) => {
@@ -275,11 +284,13 @@ socket.disconnect();
 
 socket = null;
 socketConnected = false;
+hasConnectedBefore = false;
 replyCallback = null;
 statusCallback = null;
 agentTypingCallback = null;
 warningCallback = null;
 assignmentCallback = null;
+reconnectCallback = null;
 }
 
 /**

@@ -609,16 +609,6 @@ break;
 }
 };
 
-// Connect socket on mount, disconnect on unmount
-useEffect(() => {
-connectSocket(handleAgentReply, handleSessionStatus, handleAgentTyping, handleInactivityWarning, handleSessionAssigned);
-
-return () => {
-if (inactivityTimerRef.current) clearInterval(inactivityTimerRef.current);
-disconnectSocket();
-};
-}, [handleAgentReply, handleSessionStatus, handleAgentTyping, handleInactivityWarning, handleSessionAssigned]);
-
 // Polling for human mode - fetch history and sync messages
 const pollHistory = useCallback(async () => {
 try {
@@ -668,6 +658,16 @@ console.error('[AtlasChat] Polling error:', error);
 // Don't show error toast for polling failures - silent retry
 }
 }, []);
+
+// Connect socket on mount, disconnect on unmount
+useEffect(() => {
+connectSocket(handleAgentReply, handleSessionStatus, handleAgentTyping, handleInactivityWarning, handleSessionAssigned, pollHistory);
+
+return () => {
+if (inactivityTimerRef.current) clearInterval(inactivityTimerRef.current);
+disconnectSocket();
+};
+}, [handleAgentReply, handleSessionStatus, handleAgentTyping, handleInactivityWarning, handleSessionAssigned, pollHistory]);
 
 const handleCrossTabSync = useCallback((event: CrossTabSyncEvent | null) => {
 if (!event || event.type !== CROSS_TAB_CUSTOMER_MESSAGE) return;
@@ -956,7 +956,7 @@ lastMessageCountRef.current = 0;
 // Reset the session id AND ensure the socket joins the new session room.
 disconnectSocket();
 resetSession();
-connectSocket(handleAgentReply, handleSessionStatus, handleAgentTyping, handleInactivityWarning, handleSessionAssigned);
+connectSocket(handleAgentReply, handleSessionStatus, handleAgentTyping, handleInactivityWarning, handleSessionAssigned, pollHistory);
 };
 
 const handleQuickAction = (message: string, contextData?: QuickContextPayload) => {
