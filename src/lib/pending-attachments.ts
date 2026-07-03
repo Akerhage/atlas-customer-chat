@@ -36,6 +36,7 @@ export interface PendingAttachment {
 interface UsePendingAttachmentsOptions {
   endpoint: "/api/customer/upload" | "/api/upload";
   getSessionId?: () => string;
+  getSessionToken?: () => string | null;
   maxFiles?: number;
   maxFileSizeMb?: number;
   allowedMimeTypes?: string[];
@@ -274,6 +275,7 @@ export function appendAttachmentMarkdown(message: string, attachments: PendingAt
 export function usePendingAttachments({
   endpoint,
   getSessionId,
+  getSessionToken,
   maxFiles = MAX_ATTACHMENT_FILES,
   maxFileSizeMb = MAX_ATTACHMENT_FILE_SIZE_MB,
   allowedMimeTypes = ALLOWED_ATTACHMENT_MIME_TYPES,
@@ -365,6 +367,9 @@ export function usePendingAttachments({
         if (getSessionId) {
           formPayload.append("session_id", getSessionId() || "");
         }
+        if (endpoint === "/api/upload" && getSessionToken) {
+          formPayload.append("session_token", getSessionToken() || "");
+        }
 
         const response = await fetch(endpoint, {
           method: "POST",
@@ -404,7 +409,7 @@ export function usePendingAttachments({
         toast.error(`Kunde inte ladda upp ${file.name}`);
       }
     }));
-  }, [allowedMimeTypes, endpoint, getSessionId, maxFileSizeMb, maxFiles]);
+  }, [allowedMimeTypes, endpoint, getSessionId, getSessionToken, maxFileSizeMb, maxFiles]);
 
   const isUploading = attachments.some((attachment) => attachment.uploading);
   const validAttachments = attachments.filter((attachment) => !attachment.uploading && !attachment.error && attachment.url);

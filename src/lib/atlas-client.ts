@@ -25,6 +25,7 @@ message: string;
 export interface ChatResponse {
 answer: string;
 sessionId: string;
+ownerToken?: string;
 locked_context?: ChatContext;
 human_mode?: boolean;
 is_archived?: boolean;
@@ -80,12 +81,15 @@ const NGROK_SKIP_VALUE = 'true';
 // === SESSION MANAGEMENT ===
 
 const SESSION_STORAGE_KEY = 'chat_session_id';
+const OWNER_TOKEN_STORAGE_KEY = 'chat_owner_token';
 
 function generateSessionId(): string {
 return `session_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
 }
 
 let currentSessionId: string | null = null;
+let currentOwnerToken: string | null = null;
+let ownerTokenWaiters: Array<(token: string | null) => void> = [];
 
 export function getSessionId(): string {
 if (currentSessionId) {
@@ -97,14 +101,59 @@ if (stored) {
 currentSessionId = stored;
 } else {
 currentSessionId = generateSessionId();
+clearOwnerToken();
 localStorage.setItem(SESSION_STORAGE_KEY, currentSessionId);
 }
 
 return currentSessionId;
 }
 
+export function getOwnerToken(): string | null {
+if (currentOwnerToken !== null) {
+return currentOwnerToken;
+}
+
+const stored = localStorage.getItem(OWNER_TOKEN_STORAGE_KEY);
+currentOwnerToken = stored || "";
+return currentOwnerToken || null;
+}
+
+export function setOwnerToken(ownerToken: unknown): void {
+if (typeof ownerToken !== 'string' || ownerToken.length === 0) return;
+currentOwnerToken = ownerToken;
+localStorage.setItem(OWNER_TOKEN_STORAGE_KEY, ownerToken);
+const waiters = ownerTokenWaiters;
+ownerTokenWaiters = [];
+waiters.forEach((resolve) => resolve(ownerToken));
+}
+
+function clearOwnerToken(): void {
+currentOwnerToken = null;
+localStorage.removeItem(OWNER_TOKEN_STORAGE_KEY);
+const waiters = ownerTokenWaiters;
+ownerTokenWaiters = [];
+waiters.forEach((resolve) => resolve(null));
+}
+
+function waitForOwnerToken(timeoutMs = 750): Promise<string | null> {
+const existing = getOwnerToken();
+if (existing) return Promise.resolve(existing);
+return new Promise((resolve) => {
+const timer = window.setTimeout(() => {
+ownerTokenWaiters = ownerTokenWaiters.filter((waiter) => waiter !== done);
+resolve(null);
+}, timeoutMs);
+const done = (token: string | null) => {
+window.clearTimeout(timer);
+resolve(token);
+};
+ownerTokenWaiters.push(done);
+});
+}
+
 export function resetSession(): string {
 currentSessionId = generateSessionId();
+clearOwnerToken();
 localStorage.setItem(SESSION_STORAGE_KEY, currentSessionId);
 return currentSessionId;
 }
@@ -229,6 +278,7 @@ onReconnect?: () => void
 ): void {
 // Säkerställ att sessionId är initierat innan anslutning
 const sessionId = getSessionId();
+const sessionToken = getOwnerToken() || "";
 
 // Uppdatera alltid callbacks så nya referenser används
 replyCallback = onReply;
@@ -247,9 +297,15 @@ if (socket?.connected) {
 
 socket = io(SOCKET_URL, {
 transports: ['websocket', 'polling'],
-autoConnect: true,
-auth: { sessionId, conversationId: sessionId, ngrokSkipBrowserWarning: NGROK_SKIP_VALUE },
-query: { sessionId, conversationId: sessionId, [NGROK_SKIP_HEADER]: NGROK_SKIP_VALUE },
+autoConnect: false,
+auth: { sessionId, conversationId: sessionId, sessionToken, ngrokSkipBrowserWarning: NGROK_SKIP_VALUE },
+query: { sessionId, conversationId: sessionId, sessionToken, [NGROK_SKIP_HEADER]: NGROK_SKIP_VALUE },
+});
+
+socket.on('session:token_issued', (data: { sessionId?: string; ownerToken?: string }) => {
+if (!data?.ownerToken) return;
+if (data.sessionId && data.sessionId !== getSessionId()) return;
+setOwnerToken(data.ownerToken);
 });
 
 socket.on('connect', () => {
@@ -275,6 +331,8 @@ socket.on('connect_error', (error) => {
 console.error('[Atlas] Socket connection error:', error);
 socketConnected = false;
 });
+
+socket.connect();
 }
 
 export function disconnectSocket(): void {
@@ -333,11 +391,13 @@ export async function sendMessage(
   context?: ChatContext & ContactContext
 ): Promise<ChatResponse> {
   const sessionId = getSessionId();
+  const ownerToken = getOwnerToken() || await waitForOwnerToken();
 
   const body: Record<string, unknown> = {
     sessionId,
     message,
     isFirstMessage,
+    ownerToken: ownerToken || "",
   };
 
   if (context && (context.city || context.area || context.vehicle || context.vehicle_choice || context.clear_vehicle || context.agent_id || context.name || context.email || context.phone)) {
@@ -395,10 +455,14 @@ throw new Error(`API returned non-JSON (${contentType || 'unknown content-type'}
 }
 
 const data = await response.json();
+if (data?.ownerToken) {
+  setOwnerToken(data.ownerToken);
+}
 
 return {
   answer: data.answer || (typeof data === 'string' ? data : ""),
   sessionId: data.sessionId,
+  ownerToken: data.ownerToken,
   locked_context: data.locked_context,
   human_mode: data.human_mode,
   is_archived: data.is_archived || false,
@@ -418,6 +482,7 @@ method: 'GET',
 headers: {
 'Content-Type': 'application/json',
 [NGROK_SKIP_HEADER]: NGROK_SKIP_VALUE,
+'X-Session-Token': getOwnerToken() || "",
 },
 });
 

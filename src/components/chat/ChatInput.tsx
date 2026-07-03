@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Send, Paperclip, Loader2, X, FileText, Image } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { emitTyping, getSessionId } from "@/lib/atlas-client";
+import { emitTyping, getOwnerToken, getSessionId } from "@/lib/atlas-client";
 import type { ActiveVehicle } from "@/lib/atlas-client";
 import { QuickQuestionsButton } from "./QuickQuestionsButton";
 import { toast } from "sonner";
@@ -79,6 +79,7 @@ clearAttachments,
 } = usePendingAttachments({
 endpoint: "/api/upload",
 getSessionId,
+getSessionToken: getOwnerToken,
 });
 
 // Refocus when disabled flips from true to false. When `disabled={isTyping}`
