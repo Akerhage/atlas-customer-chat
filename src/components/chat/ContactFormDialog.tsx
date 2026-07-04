@@ -243,6 +243,15 @@ formData.vehicle !== "" &&
 formData.message.trim() &&
 !isUploading;
 
+const formHasContent = Boolean(
+formData.name.trim() ||
+formData.email.trim() ||
+formData.phone.trim() ||
+formData.subject.trim() ||
+formData.message.trim() ||
+attachments.length > 0
+);
+
 return (
 <Dialog open={open} onOpenChange={setOpen}>
 <Tooltip>
@@ -256,7 +265,11 @@ return (
 <TooltipContent><p>Skicka meddelande</p></TooltipContent>
 </Tooltip>
 
-<DialogContent className="w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] sm:max-w-lg bg-card border-border max-h-[90vh] overflow-y-auto chat-scrollbar p-4 sm:p-6">
+<DialogContent
+onInteractOutside={(e) => { if (formHasContent) e.preventDefault(); }}
+onEscapeKeyDown={(e) => { if (formHasContent) e.preventDefault(); }}
+className="w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] sm:max-w-lg bg-card border-border max-h-[90vh] overflow-y-auto chat-scrollbar p-4 sm:p-6"
+>
 <DialogHeader className="pr-6 text-left">
 <DialogTitle>Skicka meddelande</DialogTitle>
 <DialogDescription>Fyll i formuläret nedan för att skicka ett meddelande till oss.</DialogDescription>
