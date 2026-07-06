@@ -436,6 +436,19 @@ className="hidden"
 />
 </div>
 
+{/* GDPR-information vid insamlingspunkten — relativ länk => boxens egen /privacy */}
+<p className="text-xs text-muted-foreground/70 leading-snug">
+Genom att skicka godkänner du att vi behandlar dina uppgifter enligt vår{" "}
+<a
+href="/privacy"
+target="_blank"
+rel="noopener noreferrer"
+className="underline underline-offset-2 hover:text-foreground transition-colors"
+>
+integritetspolicy
+</a>.
+</p>
+
 <div className="flex flex-col-reverse min-[420px]:flex-row min-[420px]:justify-end gap-2 pt-2">
 <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isSubmitting} className="w-full min-[420px]:w-auto">
 Avbryt

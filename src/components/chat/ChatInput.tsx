@@ -319,11 +319,22 @@ className={cn("flex-shrink-0 w-9 h-9 rounded-xl mb-0.5 flex items-center justify
 <Send className="w-4 h-4" />
 </button>
 </div>
-{aiRepliesEnabled && !humanMode && (
+{/* Integritetspolicy-länken visas ALLTID (GDPR-information nära insamlingspunkten),
+    AI-brasklappen bara i AI-läge. Relativ länk => varje box når sin egen /privacy. */}
 <p className="text-[11px] text-muted-foreground/50 text-center mt-2">
-Atlas AI kan ibland ge felaktiga svar. Kontrollera alltid viktig information med en handläggare.
-</p>
+{aiRepliesEnabled && !humanMode && (
+<>Atlas AI kan ibland ge felaktiga svar. Kontrollera alltid viktig information med en handläggare.{" "}·{" "}</>
 )}
+<a
+href="/privacy"
+target="_blank"
+rel="noopener noreferrer"
+title="Läs hur vi behandlar dina personuppgifter"
+className="underline underline-offset-2 hover:text-muted-foreground transition-colors"
+>
+Integritetspolicy
+</a>
+</p>
 </div>
 );
 }
