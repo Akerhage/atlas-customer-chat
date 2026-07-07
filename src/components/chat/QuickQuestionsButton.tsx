@@ -339,10 +339,11 @@ questions: getOfficeQuestions().questions,
 
 const vehicleCategories = QUESTIONS_BY_VEHICLE[effectiveSelectedVehicle] || [];
 
-// Ordning: Kontorsfrågor -> Fordonsfrågor -> Generella
+// Ordning: Fordonsfrågor ÖVERST (kunden har uttryckligen valt fordon, då vill hen
+// se de frågorna direkt utan att leta) -> tenantens egna -> kontorsfrågor -> generella.
 return canShowTenantQuestions && tenantCategory
-? [tenantCategory, officeCategory, ...vehicleCategories, ...COMMON_QUESTIONS]
-: [officeCategory, ...vehicleCategories, ...COMMON_QUESTIONS];
+? [...vehicleCategories, tenantCategory, officeCategory, ...COMMON_QUESTIONS]
+: [...vehicleCategories, officeCategory, ...COMMON_QUESTIONS];
 };
 
 return (

@@ -138,9 +138,19 @@ if (matches.length === 1) return { city: matches[0].city || null, area: matches[
 return value ? splitCityArea(value) : { city: null, area: null };
 }
 
+// Versaliserar ortsnamn per ord (å/ä/ö-säkert). Motorn returnerar stad/område i
+// gemener i locked_context (t.ex. "stockholm - kungsholmen lindhagsplan"), så både
+// kontext-chippen och toasten ska visa dem snyggt. Redan versaliserade namn
+// ("Göteborg") lämnas oförändrade eftersom bara första bokstaven per ord rörs.
+function titleCasePlace(value: string): string {
+return value.replace(/\S+/g, (word) => word.charAt(0).toUpperCase() + word.slice(1));
+}
+
 function formatCityAreaLabel(city: string | null | undefined, area: string | null | undefined): string | null {
 if (!city) return null;
-return area ? `${city} - ${area}` : city;
+const cityLabel = titleCasePlace(city);
+const areaLabel = area ? titleCasePlace(area) : null;
+return areaLabel ? `${cityLabel} - ${areaLabel}` : cityLabel;
 }
 
 const VEHICLE_CHOICES: { label: string; value: VehicleType }[] = [
