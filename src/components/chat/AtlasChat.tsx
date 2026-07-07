@@ -179,7 +179,7 @@ Jag är företagets smarta AI-assistent!
 
 Du kan fråga mig allt som rör ditt körkort och vårt utbud.
 
-Jag har stenkoll på våra priser, produkter, utbildningar och kontor, men även på allmän information som rör körkort. Ställ gärna en fråga i taget, kort och konkret – då hittar jag snabbast rätt svar.
+Jag har stenkoll på våra priser, produkter, utbildningar och kontor, men även på allmän information som rör körkort. Ställ gärna en fråga i taget, kort och konkret – då hittar jag snabbast rätt svar. Eller testa våra snabbfrågor direkt i chatten.
 
 Vill du hellre prata med en människa?
 
