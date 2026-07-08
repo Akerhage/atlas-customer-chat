@@ -25,6 +25,7 @@ type SessionStatusEvent,
 type SessionWarningEvent,
 type ActiveVehicle,
 } from "@/lib/atlas-client";
+import { formatCityAreaLabel } from "@/lib/place-format";
 import { toast } from "sonner";
 
 declare global {
@@ -136,21 +137,6 @@ function getContextFromOfficeSelection(offices: Office[], value: string | null |
 const matches = findOfficesByLabel(offices, value);
 if (matches.length === 1) return { city: matches[0].city || null, area: matches[0].area || null };
 return value ? splitCityArea(value) : { city: null, area: null };
-}
-
-// Versaliserar ortsnamn per ord (å/ä/ö-säkert). Motorn returnerar stad/område i
-// gemener i locked_context (t.ex. "stockholm - kungsholmen lindhagsplan"), så både
-// kontext-chippen och toasten ska visa dem snyggt. Redan versaliserade namn
-// ("Göteborg") lämnas oförändrade eftersom bara första bokstaven per ord rörs.
-function titleCasePlace(value: string): string {
-return value.replace(/\S+/g, (word) => word.charAt(0).toUpperCase() + word.slice(1));
-}
-
-function formatCityAreaLabel(city: string | null | undefined, area: string | null | undefined): string | null {
-if (!city) return null;
-const cityLabel = titleCasePlace(city);
-const areaLabel = area ? titleCasePlace(area) : null;
-return areaLabel ? `${cityLabel} - ${areaLabel}` : cityLabel;
 }
 
 const VEHICLE_CHOICES: { label: string; value: VehicleType }[] = [
@@ -877,11 +863,12 @@ const newV = getSafeActiveVehicle(response.locked_context.vehicle);
 const vehicleChoice = (response.locked_context as any).vehicle_choice;
 const newCity = response.locked_context.city;
 const newArea = response.locked_context.area;
+const mergedArea = newCity ? (newArea ?? null) : (newArea ?? context.area ?? null);
 
 // A) Uppdatera intern context-state (för nästa sökning)
 setContext({
 city: newCity ?? context.city ?? null,
-area: newArea ?? context.area ?? null,
+area: mergedArea,
 vehicle: newV ?? (vehicleChoice === 'OVRIGT' ? null : getSafeActiveVehicle(context.vehicle) ?? null),
 vehicle_choice: vehicleChoice === 'OVRIGT' ? 'OVRIGT' : null,
 clear_vehicle: vehicleChoice === 'OVRIGT',
@@ -900,7 +887,7 @@ window.selectedVehicle = null;
 
 // C) SYNK TILL UI: Uppdatera stads-knappen
 if (newCity) {
-const uiCityLabel = formatCityAreaLabel(newCity, newArea ?? context.area);
+const uiCityLabel = formatCityAreaLabel(newCity, mergedArea);
 
 if (uiCityLabel && uiCityLabel !== selectedCity) {
 setSelectedCity(uiCityLabel);
@@ -1150,9 +1137,10 @@ const newV = getSafeActiveVehicle(response.locked_context.vehicle);
 const vehicleChoice = (response.locked_context as any).vehicle_choice;
 const newCity = response.locked_context.city;
 const newArea = response.locked_context.area;
+const mergedArea = newCity ? (newArea ?? null) : (newArea ?? context.area ?? null);
 setContext({
 city: newCity ?? context.city ?? null,
-area: newArea ?? context.area ?? null,
+area: mergedArea,
 vehicle: newV ?? (vehicleChoice === 'OVRIGT' ? null : getSafeActiveVehicle(context.vehicle) ?? null),
 vehicle_choice: vehicleChoice === 'OVRIGT' ? 'OVRIGT' : null,
 clear_vehicle: vehicleChoice === 'OVRIGT',
@@ -1167,7 +1155,7 @@ setSelectedVehicle(null);
 window.selectedVehicle = null;
 }
 if (newCity) {
-const uiCityLabel = formatCityAreaLabel(newCity, newArea ?? context.area);
+const uiCityLabel = formatCityAreaLabel(newCity, mergedArea);
 if (uiCityLabel && uiCityLabel !== selectedCity) {
 setSelectedCity(uiCityLabel);
 window.selectedCity = uiCityLabel;

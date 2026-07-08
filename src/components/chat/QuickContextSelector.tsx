@@ -10,6 +10,8 @@ DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { ActiveVehicle } from "@/lib/atlas-client";
+import { COMMON_QUESTIONS, type QuestionCategory } from "@/lib/quick-questions-data";
+import { CANONICAL_VEHICLE_ORDER, VEHICLE_LABELS, officeOffersVehicle } from "@/lib/vehicle-utils";
 
 
 type VehicleType = ActiveVehicle | null;
@@ -25,11 +27,6 @@ onCityChange: (city: string | null) => void;
 offices: any[];
 activeVehicles: ActiveVehicle[];
 quickQuestions: string[];
-}
-
-interface QuestionCategory {
-category: string;
-questions: string[];
 }
 
 // Paket-/utbudsöversikten ligger numera i respektive fordonskategori med
@@ -180,6 +177,10 @@ const tenantQuickQuestions = quickQuestions.map(q => q.trim()).filter(Boolean).s
 // markör i texten. Visa dem bara i konkret fordonsläge, inte i Övrigt/allmänt.
 // Ordning: fordonsspecifika frågor ÖVERST när kunden valt fordon (då vill hen se
 // dem direkt utan att leta) -> tenantens egna -> kontorsfrågor.
+if (!vehicle) {
+return [...COMMON_QUESTIONS, officeCategory];
+}
+
 if (vehicle && tenantQuickQuestions.length > 0) {
 return [
 ...categoriesWithSortedQuestions,
@@ -198,37 +199,6 @@ AM: CircleDot,
 LASTBIL: Truck,
 SLÄP: Car,
 };
-
-const VEHICLE_LABELS = {
-BIL: "Bil (B)",
-MC: "Motorcykel",
-AM: "Moped (AM)",
-LASTBIL: "Lastbil / Buss",
-SLÄP: "Släp (BE/B96)",
-};
-
-// Mappar vår fordonskod till etiketten som används i kontorens services_offered.
-const VEHICLE_TO_SERVICE_LABEL: Record<ActiveVehicle, string> = {
-BIL: "bil",
-MC: "mc",
-AM: "am",
-LASTBIL: "lastbil",
-SLÄP: "släp",
-};
-
-// Erbjuder kontoret fordonet? Tom/utelämnad services_offered tolkas permissivt (visa) —
-// backend-vakten är skyddsnät, så vi döljer aldrig ett legitimt kontor av misstag.
-// Matchar på fordonstoken som exakt sträng ELLER som hela ord i en längre service-sträng,
-// t.ex. "BIL" i ["BIL"] och "bil" i ["B automat bil"] matchar båda "bil"-token.
-function officeOffersVehicle(office: any, vehicle: ActiveVehicle): boolean {
-const so = Array.isArray(office?.services_offered)
-? office.services_offered.map((s: any) => String(s).toLowerCase().trim())
-: [];
-if (so.length === 0) return true;
-const token = VEHICLE_TO_SERVICE_LABEL[vehicle];
-const re = new RegExp(`(^|[\\s\\-/])${token}($|[\\s\\-/])`, 'i');
-return so.some(s => s === token || re.test(s));
-}
 
 export function QuickContextSelector({
 onSendMessage,
@@ -262,7 +232,7 @@ const selectedOffice = effectiveSelectedCity
 ? offices.find((o) => getOfficeDisplayName(o) === effectiveSelectedCity)
 : null;
 
-const availableVehicles = (["AM", "BIL", "MC", "LASTBIL", "SLÄP"] as ActiveVehicle[]).filter(
+const availableVehicles = CANONICAL_VEHICLE_ORDER.filter(
 (type) => activeVehicles.includes(type) && (Boolean(singletonVehicle) || !selectedOffice || officeOffersVehicle(selectedOffice, type))
 );
 

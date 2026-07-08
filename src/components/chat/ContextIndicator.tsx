@@ -8,6 +8,8 @@ DropdownMenuTrigger,
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { ChatContext } from "@/lib/atlas-client";
 import type { ActiveVehicle } from "@/lib/atlas-client";
+import { formatCityAreaLabel } from "@/lib/place-format";
+import { CANONICAL_VEHICLE_ORDER, VEHICLE_LABELS, officeOffersVehicle } from "@/lib/vehicle-utils";
 
 interface ContextIndicatorProps {
 context: ChatContext;
@@ -16,19 +18,15 @@ offices: any[]; // 🔥 TILLAGD
 activeVehicles: ActiveVehicle[];
 }
 
-const VEHICLES = [
-{ value: "AM", label: "Moped (AM)", icon: CircleDot },
-{ value: "BIL", label: "Bil (B)", icon: Car },
-{ value: "MC", label: "Motorcykel", icon: Bike },
-{ value: "LASTBIL", label: "Lastbil / Buss", icon: Truck },
-{ value: "SLÄP", label: "Släp (BE/B96)", icon: Car },
-];
+const VEHICLE_ICONS: Record<ActiveVehicle, any> = { AM: CircleDot, BIL: Car, MC: Bike, LASTBIL: Truck, SLÄP: Car };
 
 const getOfficeDisplayName = (office: any) => {
 const city = String(office?.city || '').trim();
 const area = String(office?.area || '').trim();
 return String(office?.display_name || (city ? (area ? `${city} - ${area}` : city) : '') || office?.name || '').trim();
 };
+
+const normalizeOfficeValue = (value: any) => String(value || '').trim().toLowerCase();
 
 export function ContextIndicator({ context, onUpdateContext, offices, activeVehicles }: ContextIndicatorProps) {
 const isGeneralVehicle = context.vehicle_choice === 'OVRIGT' && !context.vehicle;
@@ -39,15 +37,26 @@ return null;
 const singletonOffice = offices.length === 1;
 const singletonVehicle = activeVehicles.length === 1;
 
-// 🔥 splitCityArea borttagen helt - den behövs inte längre när vi har office-objekt
-const currentVehicle = VEHICLES
-.filter((vehicle) => activeVehicles.includes(vehicle.value as ActiveVehicle))
-.find((v) => v.value === context.vehicle);
+const locationLabel = formatCityAreaLabel(context.city, context.area);
+const selectedOffice = context.city
+? offices.find((office) => {
+const cityMatches = normalizeOfficeValue(office?.city) === normalizeOfficeValue(context.city);
+const areaMatches = normalizeOfficeValue(office?.area) === normalizeOfficeValue(context.area);
+const displayMatches = normalizeOfficeValue(getOfficeDisplayName(office)) === normalizeOfficeValue(locationLabel);
+if (context.area) return cityMatches && areaMatches;
+return displayMatches || (cityMatches && !normalizeOfficeValue(office?.area));
+})
+: null;
 
-const locationLabel = context.city
-? context.area && !context.city.includes(' - ')
-? `${context.city} - ${context.area}`
-: context.city
+const availableVehicles = CANONICAL_VEHICLE_ORDER
+.filter((vehicle) => activeVehicles.includes(vehicle))
+.filter((vehicle) => !selectedOffice || officeOffersVehicle(selectedOffice, vehicle));
+const currentVehicle = context.vehicle && availableVehicles.includes(context.vehicle as ActiveVehicle)
+? {
+value: context.vehicle as ActiveVehicle,
+label: VEHICLE_LABELS[context.vehicle as ActiveVehicle],
+icon: VEHICLE_ICONS[context.vehicle as ActiveVehicle],
+}
 : null;
 
 return (
@@ -85,9 +94,13 @@ title={locationLabel}
 <DropdownMenuItem
 key={office.id}
 onSelect={() => {
+const nextVehicle = context.vehicle && !officeOffersVehicle(office, context.vehicle as ActiveVehicle)
+? null
+: context.vehicle;
 onUpdateContext({ 
 city: office.city || null,
-area: office.area || null
+area: office.area || null,
+vehicle: nextVehicle
 });
 }}
 className="cursor-pointer text-sm"
@@ -154,16 +167,16 @@ title={currentVehicle.label}
 </button>
 </DropdownMenuTrigger>
 <DropdownMenuContent className="bg-popover border border-border shadow-lg z-50">
-{VEHICLES.filter((vehicle) => activeVehicles.includes(vehicle.value as ActiveVehicle)).map((vehicle) => {
-const VehicleIcon = vehicle.icon;
+{availableVehicles.map((vehicleValue) => {
+const VehicleIcon = VEHICLE_ICONS[vehicleValue];
 return (
 <DropdownMenuItem
-key={vehicle.value}
-onSelect={() => onUpdateContext({ vehicle: vehicle.value })}
+key={vehicleValue}
+onSelect={() => onUpdateContext({ vehicle: vehicleValue })}
 className="cursor-pointer flex items-center gap-2"
 >
 <VehicleIcon className="w-4 h-4" />
-{vehicle.label}
+{VEHICLE_LABELS[vehicleValue]}
 </DropdownMenuItem>
 );
 })}

@@ -16,6 +16,8 @@ PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import type { ActiveVehicle } from "@/lib/atlas-client";
+import { COMMON_QUESTIONS, type QuestionCategory } from "@/lib/quick-questions-data";
+import { CANONICAL_VEHICLE_ORDER, VEHICLE_LABELS, officeOffersVehicle } from "@/lib/vehicle-utils";
 
 type VehicleType = ActiveVehicle | null;
 
@@ -33,11 +35,6 @@ activeVehicles: ActiveVehicle[];
 quickQuestions: string[];
 }
 
-interface QuestionCategory {
-category: string;
-questions: string[];
-}
-
 // Kontorsspecifika frågor. Paket-/utbudsöversikten ligger numera i respektive
 // fordonskategori med deterministisk formulering ("Vilka ...paket erbjuder ni i
 // {{stad}}?") — den gamla "Vilka X-utbildningar erbjuder ni"-frågan föll till
@@ -50,35 +47,6 @@ questions: [
 ],
 };
 }
-
-// 🔥 GENERELLE FRÅGOR (Kategorier som ska nollställa fordon i sökningen)
-const COMMON_QUESTIONS: QuestionCategory[] = [
-{
-category: "Populära frågor",
-questions: [
-"Vilka betalningsalternativ finns?",
-"Hur lång tid tar det att ta körkort för bil?",
-],
-},
-{
-category: "Betalning & Avbokning",
-questions: [
-"Erbjuder ni delbetalning eller avbetalning?",
-"Vad gäller om jag blir sjuk och måste avboka?",
-"När måste jag senast avboka en körlektion?",
-"Hur fungerar ångerrätten?",
-],
-},
-{
-category: "Tillstånd & Regler",
-questions: [
-"Hur ansöker jag om körkortstillstånd?",
-"Hur länge gäller ett körkortstillstånd?",
-"Krävs läkarintyg för att ta körkort?",
-"Får man ha passagerare när man övningskör?",
-],
-},
-];
 
 const QUESTIONS_BY_VEHICLE: Record<ActiveVehicle, QuestionCategory[]> = {
 AM: [{
@@ -190,30 +158,6 @@ questions: [
 };
 
 const VEHICLE_ICONS = { BIL: Car, MC: Bike, AM: CircleDot, LASTBIL: Truck, SLÄP: Car };
-const VEHICLE_LABELS = { BIL: "Bil", MC: "MC", AM: "Moped", LASTBIL: "Lastbil", SLÄP: "Släp" };
-
-// Mappar vår fordonskod till etiketten som används i kontorens services_offered.
-const VEHICLE_TO_SERVICE_LABEL: Record<ActiveVehicle, string> = {
-BIL: "bil",
-MC: "mc",
-AM: "am",
-LASTBIL: "lastbil",
-SLÄP: "släp",
-};
-
-// Erbjuder kontoret fordonet? Tom/utelämnad services_offered tolkas permissivt (visa) —
-// backend-vakten är skyddsnät, så vi döljer aldrig ett legitimt kontor av misstag.
-// Matchar på fordonstoken som exakt sträng ELLER som hela ord i en längre service-sträng,
-// t.ex. "BIL" i ["BIL"] och "bil" i ["B automat bil"] matchar båda "bil"-token.
-function officeOffersVehicle(office: any, vehicle: ActiveVehicle): boolean {
-const so = Array.isArray(office?.services_offered)
-? office.services_offered.map((s: any) => String(s).toLowerCase().trim())
-: [];
-if (so.length === 0) return true;
-const token = VEHICLE_TO_SERVICE_LABEL[vehicle];
-const re = new RegExp(`(^|[\\s\\-/])${token}($|[\\s\\-/])`, 'i');
-return so.some(s => s === token || re.test(s));
-}
 
 const TENANT_QUESTION_VEHICLE_PATTERNS: Record<ActiveVehicle, RegExp[]> = {
 BIL: [/\bbil(?:en|ar|körkort|korkort|utbildning|lektion|paket)?\b/i, /\bb[-\s]?körkort\b/i],
@@ -269,7 +213,7 @@ const rawSelectedVehicle = generalMode ? null : (selectedVehicle || singletonVeh
 const effectiveSelectedVehicle = rawSelectedVehicle && (Boolean(singletonVehicle) || !selectedOffice || officeOffersVehicle(selectedOffice, rawSelectedVehicle))
 ? rawSelectedVehicle
 : null;
-const availableVehicles = (["BIL", "MC", "AM", "LASTBIL", "SLÄP"] as ActiveVehicle[])
+const availableVehicles = CANONICAL_VEHICLE_ORDER
 .filter((type) => activeVehicles.includes(type) && (Boolean(singletonVehicle) || !selectedOffice || officeOffersVehicle(selectedOffice, type)));
 
 const availableOffices = effectiveSelectedVehicle && !singletonOffice
@@ -398,7 +342,7 @@ className={cn(selectedCity === getOfficeDisplayName(office) && "bg-primary/10")}
 <DropdownMenu>
 <DropdownMenuTrigger asChild>
 <button className={cn("flex items-center gap-1 px-2 py-1 text-xs rounded-full transition-colors border", effectiveSelectedVehicle || generalMode ? "bg-primary/10 text-primary border-primary/30" : "bg-secondary hover:bg-secondary/80")}>
-{generalMode ? <><HelpCircle className="w-3 h-3" /><span>Övrigt</span></> : effectiveSelectedVehicle ? <><Car className="w-3 h-3" /><span>{VEHICLE_LABELS[effectiveSelectedVehicle]}</span></> : <><span>Fordon</span></>}
+{generalMode ? <><HelpCircle className="w-3 h-3" /><span>Övrigt</span></> : effectiveSelectedVehicle ? <><Car className="w-3 h-3" /><span className="max-w-[6.5rem] truncate">{VEHICLE_LABELS[effectiveSelectedVehicle]}</span></> : <><span>Fordon</span></>}
 <ChevronDown className="w-3 h-3" />
 </button>
 </DropdownMenuTrigger>
