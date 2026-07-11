@@ -71,6 +71,57 @@ describe("normalizeTenantProfile", () => {
     expect(normalizeTenantProfile(JSON.stringify(FALLBACK_PROFILE))).toEqual(FALLBACK_PROFILE);
   });
 
+  it("preserves a minimal tenant profile without optional placeholders", () => {
+    expect(normalizeTenantProfile({ schema_version: 1, edition: "trafikskola" })).toEqual(FALLBACK_PROFILE);
+  });
+
+  it("preserves a complete tenant profile with optional groups", () => {
+    const profile = {
+      schema_version: 1,
+      edition: "standard",
+      labels: { unit: "Avdelning", category: "Produktkategori", offering: "Produkt" },
+      modules: {
+        structured_answers: true,
+        industry_rag: false,
+        booking_links: false,
+        campaigns: false,
+      },
+      intake: { mode: "category_first" },
+    };
+
+    expect(normalizeTenantProfile(profile)).toEqual(profile);
+  });
+
+  it("omits only invalid optional tenant profile subfields", () => {
+    expect(normalizeTenantProfile({
+      schema_version: 1,
+      edition: " standard ",
+      labels: { unit: " Avdelning ", category: " ", offering: 42, future_label: "ignored" },
+      modules: {
+        structured_answers: true,
+        industry_rag: "false",
+        booking_links: false,
+        future_module: true,
+      },
+      intake: { mode: " " },
+    })).toEqual({
+      schema_version: 1,
+      edition: "standard",
+      labels: { unit: "Avdelning" },
+      modules: { structured_answers: true, booking_links: false },
+    });
+  });
+
+  it("omits invalid optional tenant profile groups", () => {
+    expect(normalizeTenantProfile({
+      schema_version: 1,
+      edition: "standard",
+      labels: [],
+      modules: null,
+      intake: "category_first",
+    })).toEqual({ schema_version: 1, edition: "standard" });
+  });
+
   it("falls back exactly for missing input", () => {
     expect(normalizeTenantProfile(undefined)).toEqual(FALLBACK_PROFILE);
   });
