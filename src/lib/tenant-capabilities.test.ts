@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   normalizeCategoryRegistryEntries,
   normalizeTenantProfile,
+  resolveEffectiveCategories,
 } from "./tenant-capabilities";
 
 const FALLBACK_PROFILE = {
@@ -59,6 +60,45 @@ describe("normalizeCategoryRegistryEntries", () => {
     ["object", { id: "MUTTRAR" }],
   ])("returns an empty registry for %s input", (_label, value) => {
     expect(normalizeCategoryRegistryEntries(value)).toEqual([]);
+  });
+});
+
+describe("resolveEffectiveCategories", () => {
+  const standardProfile = normalizeTenantProfile({ schema_version: 1, edition: "standard" });
+  const fallbackProfile = normalizeTenantProfile(undefined);
+  const vehicles = ["BIL", "MC"];
+
+  it("uses a singleton registry for the standard profile and preserves inactive entries", () => {
+    expect(resolveEffectiveCategories(standardProfile, [
+      { id: "MUTTRAR", label: "Muttrar", icon: "NUT", active: false },
+    ], vehicles)).toEqual([
+      { id: "MUTTRAR", label: "Muttrar", icon: "NUT", active: false },
+    ]);
+  });
+
+  it.each([undefined, null, "broken", [], [{ id: "", label: "Fel", icon: "X" }]])(
+    "adapts active vehicles when the standard registry is empty or invalid (%j)",
+    (registry) => {
+      expect(resolveEffectiveCategories(standardProfile, registry, vehicles)).toEqual([
+        { id: "BIL", label: "BIL", icon: "BIL", active: true },
+        { id: "MC", label: "MC", icon: "MC", active: true },
+      ]);
+    }
+  );
+
+  it("uses the vehicle adapter for the fallback profile regardless of registry", () => {
+    expect(resolveEffectiveCategories(fallbackProfile, [
+      { id: "MUTTRAR", label: "Muttrar", icon: "NUT", active: true },
+    ], vehicles)).toEqual([
+      { id: "BIL", label: "BIL", icon: "BIL", active: true },
+      { id: "MC", label: "MC", icon: "MC", active: true },
+    ]);
+  });
+
+  it("never throws for hostile input", () => {
+    const hostile = { toString: () => { throw new Error("hostile"); } };
+    expect(() => resolveEffectiveCategories(standardProfile, null, [hostile as unknown as string])).not.toThrow();
+    expect(resolveEffectiveCategories(standardProfile, null, [hostile as unknown as string])).toEqual([]);
   });
 });
 

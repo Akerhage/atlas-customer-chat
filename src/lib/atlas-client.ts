@@ -5,6 +5,12 @@
 */
 
 import { io, Socket } from 'socket.io-client';
+import {
+  normalizeTenantProfile,
+  resolveEffectiveCategories,
+  type EffectiveCategory,
+  type TenantProfile,
+} from './tenant-capabilities';
 
 // === TYPES ===
 
@@ -554,14 +560,19 @@ export interface TenantConfig {
   companyLogoUrl: string | null;
   activeVehicles: ActiveVehicle[];
   quickQuestions: string[];
+  tenantProfile: TenantProfile;
+  categories: EffectiveCategory[];
 }
 
 const DEFAULT_ACTIVE_VEHICLES: ActiveVehicle[] = ["BIL", "MC", "AM", "LASTBIL", "SLÄP"];
+const DEFAULT_TENANT_PROFILE = normalizeTenantProfile(undefined);
 const DEFAULT_TENANT_CONFIG: TenantConfig = {
   companyName: 'Atlas',
   companyLogoUrl: null,
   activeVehicles: DEFAULT_ACTIVE_VEHICLES,
   quickQuestions: [],
+  tenantProfile: DEFAULT_TENANT_PROFILE,
+  categories: resolveEffectiveCategories(DEFAULT_TENANT_PROFILE, undefined, DEFAULT_ACTIVE_VEHICLES),
 };
 
 function normalizeActiveVehicles(value: unknown): ActiveVehicle[] {
@@ -599,13 +610,17 @@ export async function getTenantConfig(): Promise<TenantConfig> {
     if (!response.ok) return DEFAULT_TENANT_CONFIG;
     const data = await response.json();
     const companyName = (typeof data?.company_name === 'string' && data.company_name.trim()) ? data.company_name.trim() : 'Atlas';
+    const activeVehicles = normalizeActiveVehicles(data?.active_vehicles);
+    const tenantProfile = normalizeTenantProfile(data?.tenant_profile);
     return {
       companyName,
       companyLogoUrl: normalizeTenantLogoUrl(data?.company_logo_url),
-      activeVehicles: normalizeActiveVehicles(data?.active_vehicles),
+      activeVehicles,
       quickQuestions: Array.isArray(data?.quick_questions)
         ? data.quick_questions.map((q: unknown) => String(q || "").trim()).filter(Boolean)
         : [],
+      tenantProfile,
+      categories: resolveEffectiveCategories(tenantProfile, data?.category_registry, activeVehicles),
     };
   } catch {
     return DEFAULT_TENANT_CONFIG;

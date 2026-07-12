@@ -5,6 +5,13 @@ export interface CategoryRegistryEntry {
   active: boolean;
 }
 
+export interface EffectiveCategory {
+  id: string;
+  label: string;
+  icon: string;
+  active: boolean;
+}
+
 export interface TenantProfileLabels {
   unit?: string;
   category?: string;
@@ -68,6 +75,25 @@ export function normalizeCategoryRegistryEntries(value: unknown): CategoryRegist
   }
 
   return normalized;
+}
+
+export function resolveEffectiveCategories(
+  profile: TenantProfile,
+  registryValue: unknown,
+  activeVehicles: readonly string[]
+): EffectiveCategory[] {
+  try {
+    const registry = normalizeCategoryRegistryEntries(registryValue);
+    if (profile?.edition === "standard" && registry.length > 0) return registry;
+    if (!Array.isArray(activeVehicles)) return [];
+
+    return activeVehicles.map((vehicle) => {
+      const id = String(vehicle);
+      return { id, label: id, icon: id, active: true };
+    });
+  } catch {
+    return [];
+  }
 }
 
 function warnOmitted(field: string, reason: string): void {
