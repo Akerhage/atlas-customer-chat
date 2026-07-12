@@ -25,6 +25,11 @@ type SessionStatusEvent,
 type SessionWarningEvent,
 type ActiveVehicle,
 } from "@/lib/atlas-client";
+import {
+buildCategoryChoices,
+resolveIntakeMode,
+type IntakeMode,
+} from "@/lib/intake-machine";
 import { formatCityAreaLabel } from "@/lib/place-format";
 import { toast } from "sonner";
 
@@ -44,7 +49,7 @@ senderName?: string | null; // Agentens namn för mänskliga svar (null = Atlas 
 choices?: { label: string; value: string }[];
 }
 
-type IntakeStep = 'name' | 'email' | 'phone' | 'office' | 'vehicle' | null;
+type IntakeStep = 'name' | 'email' | 'phone' | 'office' | 'vehicle' | 'category' | null;
 type VehicleType = ActiveVehicle;
 type QuickContextPayload = { vehicle: string | null; city: string; vehicle_choice?: string | null; clear_vehicle?: boolean };
 
@@ -253,12 +258,15 @@ vehicle: null,
 });
 // Separate state for selection UI (before first message is sent)
 const [selectedVehicle, setSelectedVehicle] = useState<VehicleType | null>(null);
+const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
 const [selectedCity, setSelectedCity] = useState<string | null>(null);
 const [generalMode, setGeneralMode] = useState(false);
 const [companyName, setCompanyName] = useState<string | null>(null);
 const [companyLogoUrl, setCompanyLogoUrl] = useState<string | null>(null);
 const [activeVehicles, setActiveVehicles] = useState<VehicleType[]>(['BIL', 'MC', 'AM', 'LASTBIL', 'SLÄP']);
 const [quickQuestions, setQuickQuestions] = useState<string[]>([]);
+const [intakeMode, setIntakeMode] = useState<IntakeMode>('legacy');
+const [categoryChoices, setCategoryChoices] = useState<{ label: string; value: string }[]>([]);
 
 const activeVehicleChoices = VEHICLE_CHOICES.filter(choice => activeVehicles.includes(choice.value));
 const getSafeActiveVehicle = (value: string | null | undefined): VehicleType | null => {
@@ -282,6 +290,8 @@ setCompanyName(config.companyName);
 setCompanyLogoUrl(config.companyLogoUrl);
 setActiveVehicles(config.activeVehicles);
 setQuickQuestions(config.quickQuestions);
+setIntakeMode(resolveIntakeMode(config.tenantProfile));
+setCategoryChoices(buildCategoryChoices(config.categories));
 });
 }, []);
 
@@ -512,6 +522,7 @@ const trimmed = input.trim();
 
 if (['avbryt', 'avbryta', 'cancel'].includes(trimmed.toLowerCase())) {
 setIntakeData({});
+setSelectedCategoryId(null);
 if (!aiRepliesEnabled) {
 setIntakeStep('name');
 injectBotMessage('Okej, vi börjar om. Vad heter du?');
@@ -558,7 +569,8 @@ return;
 const safeOffice = findSafeOfficeFromLiveContext(offices, selectedCity, context) || singletonOffice || undefined;
 // "Övrigt / Allmän fråga" ska bäras hela vägen — aldrig falla tillbaka på singleton-fordon.
 const isGeneral = generalMode || context.vehicle_choice === 'OVRIGT';
-const safeVehicle = isGeneral ? null : (getSafeActiveVehicle(selectedVehicle) || getSafeActiveVehicle(context.vehicle) || singletonVehicle);
+const categoryFirst = intakeMode === 'category_first' && categoryChoices.length > 0;
+const safeVehicle = isGeneral || categoryFirst ? null : (getSafeActiveVehicle(selectedVehicle) || getSafeActiveVehicle(context.vehicle) || singletonVehicle);
 const nextIntakeData = {
 ...intakeData,
 phone: isSkip ? undefined : digits,
@@ -575,6 +587,12 @@ city: getOfficeDisplayName(safeOffice),
 vehicle: isGeneral ? null : safeVehicle,
 general: isGeneral,
 });
+return;
+}
+
+if (safeOffice && categoryFirst) {
+setIntakeStep('category');
+injectBotMessage('Vad gäller ärendet?', categoryChoices);
 return;
 }
 
@@ -596,7 +614,8 @@ injectBotMessage('Vilket kontor vill du kontakta?', officeChoices);
 break;
 }
 case 'office':
-case 'vehicle': {
+case 'vehicle':
+case 'category': {
 injectBotMessage('Klicka på ett av alternativen ovan för att välja 👆');
 break;
 }
@@ -1107,8 +1126,25 @@ return;
 }
 
 setIntakeData((prev) => ({ ...prev, city: value }));
+if (intakeMode === 'category_first' && categoryChoices.length > 0) {
+setIntakeStep('category');
+injectBotMessage('Vad gäller ärendet?', categoryChoices);
+return;
+}
 setIntakeStep('vehicle');
 injectBotMessage('Vad gäller ärendet?', activeVehicleChoices);
+
+} else if (intakeStep === 'category') {
+const categoryLabel = categoryChoices.find((choice) => choice.value === value)?.label || value;
+injectUserMessage(categoryLabel);
+setSelectedCategoryId(value);
+setIntakeStep(null);
+// Slice 23 retains the category locally; slice 24 adds it to the payload.
+finishIntakeHandoff({
+...intakeData,
+vehicle: null,
+general: true,
+});
 
 } else if (intakeStep === 'vehicle') {
 injectUserMessage(vehicleLabels[value] || value);
