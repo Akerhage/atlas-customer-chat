@@ -28,7 +28,9 @@ type ActiveVehicle,
 import {
 buildCategoryChoices,
 resolveIntakeMode,
+resolveWidgetTexts,
 type IntakeMode,
+type WidgetTexts,
 } from "@/lib/intake-machine";
 import { formatCityAreaLabel } from "@/lib/place-format";
 import { toast } from "sonner";
@@ -215,10 +217,10 @@ function createCrossTabId(): string {
 return `tab_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 }
 
-const createWelcomeMessage = (aiRepliesEnabled: boolean): ChatMessage => ({
+const createWelcomeMessage = (aiRepliesEnabled: boolean, texts = resolveWidgetTexts(undefined)): ChatMessage => ({
 id: 'welcome-msg',
 role: 'assistant',
-content: getWelcomeMessageContent(aiRepliesEnabled),
+content: aiRepliesEnabled ? texts.welcomeAiOn : texts.welcomeAiOff,
 timestamp: new Date(),
 });
 
@@ -267,6 +269,7 @@ const [activeVehicles, setActiveVehicles] = useState<VehicleType[]>(['BIL', 'MC'
 const [quickQuestions, setQuickQuestions] = useState<string[]>([]);
 const [intakeMode, setIntakeMode] = useState<IntakeMode>('legacy');
 const [categoryChoices, setCategoryChoices] = useState<{ label: string; value: string }[]>([]);
+const [widgetTexts, setWidgetTexts] = useState<WidgetTexts>(() => resolveWidgetTexts(undefined));
 
 const activeVehicleChoices = VEHICLE_CHOICES.filter(choice => activeVehicles.includes(choice.value));
 const getSafeActiveVehicle = (value: string | null | undefined): VehicleType | null => {
@@ -292,8 +295,15 @@ setActiveVehicles(config.activeVehicles);
 setQuickQuestions(config.quickQuestions);
 setIntakeMode(resolveIntakeMode(config.tenantProfile));
 setCategoryChoices(buildCategoryChoices(config.categories));
+setWidgetTexts(resolveWidgetTexts(config.tenantProfile));
 });
 }, []);
+
+useEffect(() => {
+setMessages((current) => current.map((message) => message.id === 'welcome-msg'
+? { ...message, content: aiRepliesEnabled ? widgetTexts.welcomeAiOn : widgetTexts.welcomeAiOff }
+: message));
+}, [widgetTexts, aiRepliesEnabled]);
 
 useEffect(() => {
 if (selectedVehicle && !activeVehicles.includes(selectedVehicle)) {
@@ -610,7 +620,7 @@ const name = getOfficeDisplayName(o);
 return { label: name, value: name };
 }),
 ];
-injectBotMessage('Vilket kontor vill du kontakta?', officeChoices);
+injectBotMessage(widgetTexts.officeQuestion, officeChoices);
 break;
 }
 case 'office':
@@ -767,7 +777,7 @@ cancelled = true;
 useEffect(() => {
 if (!publicConfigLoaded || !initialHistoryLoaded || aiRepliesEnabled || humanMode || isArchived) return;
 
-setMessages([createWelcomeMessage(false)]);
+setMessages([createWelcomeMessage(false, widgetTexts)]);
 setIntakeStep('name');
 setIntakeData({});
 setContext({ city: null, area: null, vehicle: null });
@@ -775,7 +785,7 @@ setSelectedVehicle(null);
 setSelectedCity(null);
 setIsTyping(false);
 lastMessageCountRef.current = 0;
-}, [publicConfigLoaded, initialHistoryLoaded, aiRepliesEnabled, humanMode, isArchived]);
+}, [publicConfigLoaded, initialHistoryLoaded, aiRepliesEnabled, humanMode, isArchived, widgetTexts]);
 
 // Lightweight polling fallback for human mode only.
 // Socket.io is the primary channel, but this catches missed events (network glitches, reconnects).
@@ -953,7 +963,7 @@ setIsTyping(false);
 };
 
 const handleReset = () => {
-setMessages([createWelcomeMessage(aiRepliesEnabled)]);
+setMessages([createWelcomeMessage(aiRepliesEnabled, widgetTexts)]);
 setContext({ city: null, area: null, vehicle: null });
 setSelectedVehicle(null);
 setSelectedCity(null);
@@ -1026,6 +1036,7 @@ phone,
 city,
 vehicle,
 general = false,
+categoryId,
 }: {
 name?: string;
 email?: string;
@@ -1033,6 +1044,7 @@ phone?: string;
 city?: string;
 vehicle?: VehicleType | null;
 general?: boolean;
+categoryId?: string;
 }) => {
 // Kund som valt "Övrigt / Allmän fråga" eskalerar utan fordon (general=true).
 if (!name || !email || !city || (!vehicle && !general)) return;
@@ -1078,6 +1090,8 @@ clear_vehicle: true,
 city: routingCity,
 area: routingArea,
 agent_id: targetAgentId,
+...(categoryId ? { category_id: categoryId } : {}),
+...(categoryId && targetAgentId ? { unit_id: targetAgentId } : {}),
 name,
 email,
 phone,
@@ -1139,11 +1153,11 @@ const categoryLabel = categoryChoices.find((choice) => choice.value === value)?.
 injectUserMessage(categoryLabel);
 setSelectedCategoryId(value);
 setIntakeStep(null);
-// Slice 23 retains the category locally; slice 24 adds it to the payload.
 finishIntakeHandoff({
 ...intakeData,
 vehicle: null,
 general: true,
+categoryId: value,
 });
 
 } else if (intakeStep === 'vehicle') {
@@ -1255,6 +1269,10 @@ onTemplateSelect={handleTemplateSelect}
 companyName={companyName}
 companyLogoUrl={companyLogoUrl}
 activeVehicles={activeVehicles}
+subtitle={widgetTexts.headerSubtitle}
+intakeMode={intakeMode}
+categoryChoices={categoryChoices}
+formLabels={{ unit: widgetTexts.formUnitLabel, category: widgetTexts.formCategoryLabel }}
 />
 
 {/* Human mode indicator */}
@@ -1302,7 +1320,7 @@ Chatten stängs automatiskt pga inaktivitet om{' '}
 {/* Välkomst-widget (logga + snabbknappar) visas bara innan kunden skickat något */}
 {showWelcomeWidget && (
 <WelcomeMessage
-onQuickAction={handleQuickAction}
+onQuickAction={intakeMode === 'legacy' ? handleQuickAction : undefined}
 selectedVehicle={selectedVehicle}
 selectedCity={selectedCity}
 onVehicleChange={handleVehicleChange}
@@ -1342,7 +1360,7 @@ onRequestHuman={handleRequestHuman}
 </div>
 
 {/* Context indicator - interactive */}
-{aiRepliesEnabled && !humanMode && (
+{intakeMode === 'legacy' && aiRepliesEnabled && !humanMode && (
 <ContextIndicator 
 context={context}
 offices={offices} // 🚀 NY: Dynamisk lista tillagd
@@ -1390,7 +1408,7 @@ onSend={handleInputSend}
 
 disabled={isTyping}
 placeholder={!aiRepliesEnabled && !humanMode ? "Skriv ditt svar..." : (humanMode ? "Skriv till support..." : "Skriv ett meddelande...")}
-showQuickQuestions={aiRepliesEnabled && !humanMode && messages.length > 1}
+showQuickQuestions={intakeMode === 'legacy' && aiRepliesEnabled && !humanMode && messages.length > 1}
 selectedVehicle={selectedVehicle}
 onVehicleChange={handleVehicleChange}
 onGeneralVehicleSelect={handleGeneralVehicleSelect}

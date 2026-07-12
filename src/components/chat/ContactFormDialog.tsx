@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Mail, MapPin, Car, Phone, Paperclip, X, Loader2, FileText, Image } from "lucide-react";
+import { Mail, MapPin, Car, Tags, Phone, Paperclip, X, Loader2, FileText, Image } from "lucide-react";
 import {
 Dialog,
 DialogContent,
@@ -42,6 +42,7 @@ sanitizeHtmlPasteForAiMode,
 usePendingAttachments,
 } from "@/lib/pending-attachments";
 import type { ActiveVehicle } from "@/lib/atlas-client";
+import type { IntakeMode } from "@/lib/intake-machine";
 
 interface ContactFormDialogProps {
 onSubmit?: (data: any) => void;
@@ -50,6 +51,9 @@ selectedVehicle?: string | null;
 generalMode?: boolean;
 offices: any[];
 activeVehicles: ActiveVehicle[];
+intakeMode: IntakeMode;
+categoryChoices: { label: string; value: string }[];
+formLabels: { unit: string; category: string };
 }
 
 const DEFAULT_CITY = "Centralsupport";
@@ -99,7 +103,7 @@ normalizeOfficeLabel(office.area) === normalizeOfficeLabel(area)
 return exactMatches.length === 1 ? exactMatches[0] : undefined;
 };
 
-export function ContactFormDialog({ onSubmit, selectedCity, selectedVehicle, generalMode = false, offices, activeVehicles }: ContactFormDialogProps) {
+export function ContactFormDialog({ onSubmit, selectedCity, selectedVehicle, generalMode = false, offices, activeVehicles, intakeMode, categoryChoices, formLabels }: ContactFormDialogProps) {
 const [open, setOpen] = useState(false);
 const [isSubmitting, setIsSubmitting] = useState(false);
 const [wantsCallback, setWantsCallback] = useState(false);
@@ -122,8 +126,10 @@ subject: "",
 message: "",
 city: "",
 vehicle: "",
+category: "",
 });
 const singletonOfficeLabel = offices.length === 1 ? getOfficeDisplayName(offices[0]) : null;
+const categoryFormMode = intakeMode === "category_first" && categoryChoices.length > 0;
 useEffect(() => {
 if (open) {
 const fallbackVehicle = activeVehicles.includes(DEFAULT_VEHICLE) ? DEFAULT_VEHICLE : activeVehicles[0] || DEFAULT_VEHICLE;
@@ -133,10 +139,11 @@ setFormData(prev => ({
 phone: "",
 city: selectedCity || singletonOfficeLabel || DEFAULT_CITY,
 vehicle: nextVehicle,
+category: categoryFormMode ? "OVRIGT" : "",
 }));
 setWantsCallback(false);
 }
-}, [open, selectedCity, selectedVehicle, generalMode, activeVehicles, singletonOfficeLabel]);
+}, [open, selectedCity, selectedVehicle, generalMode, activeVehicles, singletonOfficeLabel, categoryFormMode]);
 
 const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
 const files = e.target.files;
@@ -147,7 +154,7 @@ if (fileInputRef.current) fileInputRef.current.value = "";
 
 const handleSubmit = async (e: React.FormEvent) => {
 e.preventDefault();
-if (!formData.name.trim() || !formData.email.trim() || !formData.city || !formData.vehicle || !formData.message.trim()) {
+if (!formData.name.trim() || !formData.email.trim() || !formData.city || (categoryFormMode ? !formData.category : !formData.vehicle) || !formData.message.trim()) {
 toast.error("Vänligen fyll i alla obligatoriska fält (*)");
 return;
 }
@@ -165,15 +172,21 @@ const routingCity = selectedOffice ? selectedOffice.city : (formData.city === DE
 const routingArea = selectedOffice ? selectedOffice.area : split.area;
 const phoneDigits = wantsCallback ? formData.phone.trim() : "";
 const isGeneralVehicle = formData.vehicle === GENERAL_VEHICLE_VALUE;
-const { phone: _phone, vehicle: _vehicle, ...formDataWithoutPhone } = formData;
+const { phone: _phone, vehicle: _vehicle, category: _category, ...formDataWithoutPhone } = formData;
 
 const response = await fetch("/api/customer/message-form", {
 method: "POST",
 headers: { "Content-Type": "application/json" },
 body: JSON.stringify({
 ...formDataWithoutPhone,
+...(categoryFormMode
+? (formData.category === "OVRIGT"
+? { vehicle: "", vehicle_choice: GENERAL_VEHICLE_VALUE }
+: { category_id: formData.category, unit_id: targetAgentId || undefined })
+: {
 vehicle: isGeneralVehicle ? "" : formData.vehicle,
 ...(isGeneralVehicle ? { vehicle_choice: GENERAL_VEHICLE_VALUE } : {}),
+}),
 ...(phoneDigits ? { phone: phoneDigits } : {}),
 agent_id: targetAgentId,
 city: routingCity,
@@ -190,7 +203,7 @@ isImage: a.isImage,
 if (!response.ok) throw new Error("Failed to send");
 toast.success("Tack! Ditt meddelande har skickats.");
 setOpen(false);
-setFormData({ name: "", email: "", phone: "", subject: "", message: "", city: "", vehicle: "" });
+setFormData({ name: "", email: "", phone: "", subject: "", message: "", city: "", vehicle: "", category: "" });
 setWantsCallback(false);
 clearAttachments();
 } catch (error) {
@@ -239,7 +252,7 @@ const isFormValid =
 formData.name.trim() &&
 formData.email.trim() &&
 formData.city !== "" &&
-formData.vehicle !== "" &&
+(categoryFormMode ? formData.category !== "" : formData.vehicle !== "") &&
 formData.message.trim() &&
 !isUploading;
 
@@ -330,7 +343,7 @@ aria-label="Telefonnummer"
 </div>
 
 <div className="space-y-2">
-<Label className="flex items-center gap-2 font-bold text-primary"><MapPin className="h-4 w-4" /> Kontor *</Label>
+<Label className="flex items-center gap-2 font-bold text-primary"><MapPin className="h-4 w-4" /> {formLabels.unit} *</Label>
 {singletonOfficeLabel ? (
 <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm">{singletonOfficeLabel}</div>
 ) : (
@@ -352,6 +365,20 @@ aria-label="Telefonnummer"
 )}
 </div>
 
+{categoryFormMode ? (
+<div className="space-y-2">
+<Label className="flex items-center gap-2 font-bold text-primary"><Tags className="h-4 w-4" /> {formLabels.category} *</Label>
+<Select value={formData.category} onValueChange={(v) => setFormData({ ...formData, category: v })}>
+<SelectTrigger><SelectValue placeholder={`Välj ${formLabels.category.toLowerCase()}`} /></SelectTrigger>
+<SelectContent className="max-w-[calc(100vw-1rem)]">
+<SelectItem value="OVRIGT">Övrigt / Allmän fråga</SelectItem>
+{categoryChoices.map((option) => (
+<SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+))}
+</SelectContent>
+</Select>
+</div>
+) : (
 <div className="space-y-2">
 <Label className="flex items-center gap-2 font-bold text-primary"><Car className="h-4 w-4" /> Fordon *</Label>
 <Select value={formData.vehicle} onValueChange={(v) => setFormData({ ...formData, vehicle: v })}>
@@ -363,6 +390,7 @@ aria-label="Telefonnummer"
 </SelectContent>
 </Select>
 </div>
+)}
 
 <Textarea
 placeholder="Meddelande *"

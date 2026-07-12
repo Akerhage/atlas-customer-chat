@@ -1,13 +1,21 @@
 import { AtlasChat } from "@/components/chat/AtlasChat";
 import { Helmet } from "react-helmet";
+import { useEffect, useState } from "react";
+import { getTenantConfig } from "@/lib/atlas-client";
+import { resolveWidgetTexts } from "@/lib/intake-machine";
 
 const Index = () => {
+  const [texts, setTexts] = useState(() => resolveWidgetTexts(undefined));
+
+  useEffect(() => {
+    getTenantConfig().then((config) => setTexts(resolveWidgetTexts(config.tenantProfile)));
+  }, []);
 
   return (
     <>
       <Helmet>
-        <title>Atlas - Din Körkortsguide</title>
-        <meta name="description" content="Atlas är din personliga körkortsguide. Få svar på frågor om körkort, priser och hitta rätt trafikskola." />
+        <title>{texts.seoTitle}</title>
+        <meta name="description" content={texts.seoDescription} />
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
       </Helmet>
       

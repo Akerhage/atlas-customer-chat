@@ -8,6 +8,7 @@ import { ContactFormDialog } from "./ContactFormDialog";
 import { TemplatesButton } from "./TemplatesButton";
 import atlasLogo from "@/assets/atlas-logo.png";
 import { resolveTenantAssetUrl, type ActiveVehicle } from "@/lib/atlas-client";
+import type { IntakeMode } from "@/lib/intake-machine";
 
 interface ChatHeaderProps {
 onEndSession?: () => void;
@@ -22,6 +23,10 @@ onTemplateSelect: (content: string) => void;
 companyName?: string | null;
 companyLogoUrl?: string | null;
 activeVehicles: ActiveVehicle[];
+subtitle?: string;
+intakeMode: IntakeMode;
+categoryChoices: { label: string; value: string }[];
+formLabels: { unit: string; category: string };
 }
 
 export function ChatHeader({
@@ -37,6 +42,10 @@ onTemplateSelect,
 companyName,
 companyLogoUrl,
 activeVehicles,
+subtitle = "Din körkortsguide",
+intakeMode,
+categoryChoices,
+formLabels,
 }: ChatHeaderProps) {
 const displayName = companyName || "Atlas";
 const logoSrc = resolveTenantAssetUrl(companyLogoUrl) || atlasLogo;
@@ -58,7 +67,7 @@ className="max-h-6 w-full object-contain sm:max-h-7"
 
 <div className="hidden min-[440px]:block min-w-0">
 <h1 className="font-semibold leading-tight text-foreground">Atlas</h1>
-<p className="hidden min-[360px]:block text-xs text-muted-foreground">Din körkortsguide</p>
+<p className="hidden min-[360px]:block text-xs text-muted-foreground">{subtitle}</p>
 </div>
 </div>
 
@@ -74,6 +83,9 @@ selectedVehicle={selectedVehicle}
 generalMode={generalMode}
 offices={offices}
 activeVehicles={activeVehicles}
+intakeMode={intakeMode}
+categoryChoices={categoryChoices}
+formLabels={formLabels}
 />
 
 {/* Prata med människa */}

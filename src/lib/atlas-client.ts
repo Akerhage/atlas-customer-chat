@@ -21,6 +21,8 @@ vehicle?: string | null;
 vehicle_choice?: string | null;
 clear_vehicle?: boolean;
 agent_id?: string | null;
+category_id?: string | null;
+unit_id?: string | null;
 }
 
 export interface ChatRequest {
@@ -406,7 +408,7 @@ export async function sendMessage(
     ownerToken: ownerToken || "",
   };
 
-  if (context && (context.city || context.area || context.vehicle || context.vehicle_choice || context.clear_vehicle || context.agent_id || context.name || context.email || context.phone)) {
+  if (context && (context.city || context.area || context.vehicle || context.vehicle_choice || context.clear_vehicle || context.agent_id || context.category_id || context.unit_id || context.name || context.email || context.phone)) {
     const locked_context: any = {
       city: context.city ?? null,
       area: context.area ?? null,
@@ -415,6 +417,8 @@ export async function sendMessage(
     };
 
     if (context.vehicle_choice) locked_context.vehicle_choice = context.vehicle_choice;
+    if (context.category_id) locked_context.category_id = context.category_id;
+    if (context.unit_id) locked_context.unit_id = context.unit_id;
     if (context.name) locked_context.name = context.name;
     if (context.email) locked_context.email = context.email;
     if (context.phone) locked_context.phone = context.phone;
