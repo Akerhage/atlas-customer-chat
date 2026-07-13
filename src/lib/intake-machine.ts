@@ -94,10 +94,10 @@ export function resolveIntakeMode(profile: TenantProfile | null | undefined): In
 
 export function buildCategoryChoices(
   categories: readonly EffectiveCategory[] | null | undefined,
-): { label: string; value: string }[] {
+): { label: string; value: string; icon?: string }[] {
   if (!Array.isArray(categories)) return [];
 
   return categories
     .filter((category) => category.active !== false)
-    .map((category) => ({ label: category.label, value: category.id }));
+    .map((category) => ({ label: category.label, value: category.id, icon: category.icon }));
 }

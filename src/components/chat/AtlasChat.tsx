@@ -48,7 +48,7 @@ role: 'user' | 'assistant';
 content: string;
 timestamp: Date;
 senderName?: string | null; // Agentens namn för mänskliga svar (null = Atlas AI)
-choices?: { label: string; value: string }[];
+choices?: { label: string; value: string; icon?: string }[];
 }
 
 type IntakeStep = 'name' | 'email' | 'phone' | 'office' | 'vehicle' | 'category' | null;

@@ -3,6 +3,7 @@ import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import { Car, User } from "lucide-react";
+import { resolveCategoryIcon } from "@/lib/category-icons";
 
 // Tillåt markdown-formattering och bilder men blockera script, on*-attribut
 // och fri inline-styling/classer som kan spräcka chatlayouten.
@@ -25,7 +26,7 @@ isUser: boolean;
 timestamp?: Date;
 isLatest?: boolean;
 senderName?: string | null;
-choices?: { label: string; value: string }[];
+choices?: { label: string; value: string; icon?: string }[];
 onChoiceSelect?: (value: string) => void;
 onRequestHuman?: () => void;
 }
@@ -111,15 +112,19 @@ return <a {...props} target="_blank" rel="noopener noreferrer" />;
 "flex flex-wrap gap-2 mt-3",
 hasLargeChoiceSet && "max-h-56 overflow-y-auto overscroll-contain pr-1 chat-choice-scrollbar"
 )}>
-{choices.map((choice) => (
+{choices.map((choice) => {
+const ChoiceIcon = choice.icon ? resolveCategoryIcon(choice.icon) : null;
+return (
 <button
 key={choice.value}
 onClick={() => onChoiceSelect(choice.value)}
-className="px-3 py-1.5 text-xs rounded-full bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 active:scale-95 transition-all duration-150"
+className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-full bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 active:scale-95 transition-all duration-150"
 >
+{ChoiceIcon && <ChoiceIcon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />}
 {choice.label}
 </button>
-))}
+);
+})}
 </div>
 )}
 

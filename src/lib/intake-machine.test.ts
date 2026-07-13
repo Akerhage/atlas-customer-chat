@@ -70,8 +70,8 @@ describe("buildCategoryChoices", () => {
     ];
 
     expect(buildCategoryChoices(categories)).toEqual([
-      { label: "Muttrar", value: "MUTTRAR" },
-      { label: "Skruvar", value: "SKRUVAR" },
+      { label: "Muttrar", value: "MUTTRAR", icon: "NUT" },
+      { label: "Skruvar", value: "SKRUVAR", icon: "SCREW" },
     ]);
   });
 

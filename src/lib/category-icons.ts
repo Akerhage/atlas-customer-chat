@@ -1,0 +1,93 @@
+import {
+  Bike,
+  Bolt,
+  Box,
+  Briefcase,
+  Car,
+  Caravan,
+  CircleDot,
+  CircleHelp,
+  Cog,
+  Drill,
+  GraduationCap,
+  Hammer,
+  HeartPulse,
+  Layers,
+  Leaf,
+  Nut,
+  Package,
+  Scissors,
+  Shirt,
+  ShoppingCart,
+  Sparkles,
+  Tag,
+  Truck,
+  Utensils,
+  Wrench,
+  type LucideIcon,
+} from "lucide-react";
+
+export const CATEGORY_ICON_KEYS = Object.freeze([
+  "CAR",
+  "BIKE",
+  "MOPED",
+  "TRUCK",
+  "TRAILER",
+  "NUT",
+  "BOLT",
+  "WRENCH",
+  "HAMMER",
+  "DRILL",
+  "PACKAGE",
+  "BOX",
+  "CART",
+  "TAG",
+  "BRIEFCASE",
+  "COG",
+  "LAYERS",
+  "GRADUATION",
+  "HEART",
+  "SCISSORS",
+  "UTENSILS",
+  "LEAF",
+  "SHIRT",
+  "SPARKLES",
+  "HELP",
+] as const);
+
+export type CategoryIconKey = (typeof CATEGORY_ICON_KEYS)[number];
+
+const CATEGORY_ICONS: Readonly<Record<CategoryIconKey, LucideIcon>> = Object.freeze({
+  CAR: Car,
+  BIKE: Bike,
+  MOPED: CircleDot,
+  TRUCK: Truck,
+  TRAILER: Caravan,
+  NUT: Nut,
+  BOLT: Bolt,
+  WRENCH: Wrench,
+  HAMMER: Hammer,
+  DRILL: Drill,
+  PACKAGE: Package,
+  BOX: Box,
+  CART: ShoppingCart,
+  TAG: Tag,
+  BRIEFCASE: Briefcase,
+  COG: Cog,
+  LAYERS: Layers,
+  GRADUATION: GraduationCap,
+  HEART: HeartPulse,
+  SCISSORS: Scissors,
+  UTENSILS: Utensils,
+  LEAF: Leaf,
+  SHIRT: Shirt,
+  SPARKLES: Sparkles,
+  HELP: CircleHelp,
+});
+
+export const CATEGORY_ICON_FALLBACK = Tag;
+
+export function resolveCategoryIcon(key: unknown): LucideIcon {
+  if (typeof key !== "string") return CATEGORY_ICON_FALLBACK;
+  return CATEGORY_ICONS[key.trim().toUpperCase() as CategoryIconKey] ?? CATEGORY_ICON_FALLBACK;
+}
