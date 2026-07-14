@@ -12,7 +12,7 @@ import {
 describe("category icons", () => {
   it("keeps the canonical key catalog frozen and complete", () => {
     expect(Object.isFrozen(CATEGORY_ICON_KEYS)).toBe(true);
-    expect(CATEGORY_ICON_KEYS).toHaveLength(25);
+    expect(CATEGORY_ICON_KEYS).toHaveLength(75);
     expect(new Set(CATEGORY_ICON_KEYS).size).toBe(CATEGORY_ICON_KEYS.length);
   });
 
