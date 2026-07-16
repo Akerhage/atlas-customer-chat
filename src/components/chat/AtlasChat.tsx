@@ -27,7 +27,10 @@ type ActiveVehicle,
 } from "@/lib/atlas-client";
 import {
 buildCategoryChoices,
+buildIntakeOrder,
+isCategoryFirstIntake,
 resolveIntakeMode,
+resolveOptionalPhone,
 resolveWidgetTexts,
 type IntakeMode,
 type WidgetTexts,
@@ -279,6 +282,7 @@ return vehicle && activeVehicles.includes(vehicle) ? vehicle : null;
 const singletonOffice = offices.length === 1 ? offices[0] : null;
 const singletonOfficeLabel = singletonOffice ? getOfficeDisplayName(singletonOffice) : null;
 const singletonVehicle = activeVehicles.length === 1 ? activeVehicles[0] : null;
+const categoryFirstEnabled = isCategoryFirstIntake(intakeMode, categoryChoices.length);
 
 // Hämta kontorslistan från API när chatten bootar
 useEffect(() => {
@@ -426,6 +430,25 @@ timestamp: new Date(),
 ]);
 };
 
+const getOfficeChoices = (): { label: string; value: string }[] => [
+{ label: 'Centralsupport', value: 'Centralsupport' },
+...offices.map((office) => {
+const name = getOfficeDisplayName(office);
+return { label: name, value: name };
+}),
+];
+
+const startIntake = (legacyMessage: string, categoryMessage = 'Vad gäller ärendet?') => {
+const firstStep = buildIntakeOrder(intakeMode, categoryChoices.length)[0];
+if (firstStep === 'category') {
+setIntakeStep('category');
+injectBotMessage(categoryMessage, categoryChoices);
+return;
+}
+setIntakeStep('name');
+injectBotMessage(legacyMessage);
+};
+
 const scrollToBottom = useCallback(() => {
 messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
 }, []);
@@ -534,8 +557,7 @@ if (['avbryt', 'avbryta', 'cancel'].includes(trimmed.toLowerCase())) {
 setIntakeData({});
 setSelectedCategoryId(null);
 if (!aiRepliesEnabled) {
-setIntakeStep('name');
-injectBotMessage('Okej, vi börjar om. Vad heter du?');
+startIntake('Okej, vi börjar om. Vad heter du?', 'Okej, vi börjar om. Vad gäller ärendet?');
 return;
 }
 setIntakeStep(null);
@@ -568,26 +590,49 @@ injectBotMessage('Tack! Vill du lägga till ett mobilnummer? Skriv numret, **"ne
 break;
 }
 case 'phone': {
-const normalizedPhoneSkip = trimmed.toLowerCase().replace(/[.!?]+$/g, '').trim();
-const skipWords = ['hoppa över', 'hoppa over', 'skip', '-', 'nej', 'nej tack', 'no', 'n', 'ingen', 'inget', 'inte nu'];
-const isSkip = skipWords.includes(normalizedPhoneSkip);
-const digits = trimmed.replace(/\D/g, '').slice(0, 10);
-if (!isSkip && digits.length < 8) {
+const phoneResult = resolveOptionalPhone(trimmed);
+if (!phoneResult.valid) {
 injectBotMessage('Ange ett giltigt mobilnummer (minst 8 siffror), **"nej"** eller **"hoppa över"**.');
 return;
 }
-const safeOffice = findSafeOfficeFromLiveContext(offices, selectedCity, context) || singletonOffice || undefined;
+const safeOffice = findSafeOfficeFromLiveContext(
+offices,
+categoryFirstEnabled ? (intakeData.city || selectedCity) : selectedCity,
+context,
+) || singletonOffice || undefined;
+const isCentralSupport = categoryFirstEnabled && intakeData.city === 'Centralsupport';
 // "Övrigt / Allmän fråga" ska bäras hela vägen — aldrig falla tillbaka på singleton-fordon.
 const isGeneral = generalMode || context.vehicle_choice === 'OVRIGT';
-const categoryFirst = intakeMode === 'category_first' && categoryChoices.length > 0;
-const safeVehicle = isGeneral || categoryFirst ? null : (getSafeActiveVehicle(selectedVehicle) || getSafeActiveVehicle(context.vehicle) || singletonVehicle);
+const safeVehicle = isGeneral || categoryFirstEnabled ? null : (getSafeActiveVehicle(selectedVehicle) || getSafeActiveVehicle(context.vehicle) || singletonVehicle);
 const nextIntakeData = {
 ...intakeData,
-phone: isSkip ? undefined : digits,
+phone: phoneResult.phone,
 city: safeOffice ? getOfficeDisplayName(safeOffice) : intakeData.city,
 vehicle: isGeneral ? null : (safeVehicle || intakeData.vehicle),
 };
 setIntakeData(nextIntakeData);
+
+if (categoryFirstEnabled) {
+if (!selectedCategoryId) {
+setIntakeStep('category');
+injectBotMessage('Vad gäller ärendet?', categoryChoices);
+return;
+}
+if (!safeOffice && !isCentralSupport) {
+setIntakeStep('office');
+injectBotMessage(widgetTexts.officeQuestion, getOfficeChoices());
+return;
+}
+setIntakeStep(null);
+finishIntakeHandoff({
+...nextIntakeData,
+city: isCentralSupport ? 'Centralsupport' : getOfficeDisplayName(safeOffice!),
+vehicle: null,
+general: true,
+categoryId: selectedCategoryId,
+});
+return;
+}
 
 if (safeOffice && (safeVehicle || isGeneral)) {
 setIntakeStep(null);
@@ -600,12 +645,6 @@ general: isGeneral,
 return;
 }
 
-if (safeOffice && categoryFirst) {
-setIntakeStep('category');
-injectBotMessage('Vad gäller ärendet?', categoryChoices);
-return;
-}
-
 if (safeOffice && !isGeneral) {
 setIntakeStep('vehicle');
 injectBotMessage('Vad gäller ärendet?', activeVehicleChoices);
@@ -613,14 +652,7 @@ return;
 }
 
 setIntakeStep('office');
-const officeChoices: { label: string; value: string }[] = [
-{ label: 'Centralsupport', value: 'Centralsupport' },
-...offices.map((o) => {
-const name = getOfficeDisplayName(o);
-return { label: name, value: name };
-}),
-];
-injectBotMessage(widgetTexts.officeQuestion, officeChoices);
+injectBotMessage(widgetTexts.officeQuestion, getOfficeChoices());
 break;
 }
 case 'office':
@@ -778,14 +810,15 @@ useEffect(() => {
 if (!publicConfigLoaded || !initialHistoryLoaded || aiRepliesEnabled || humanMode || isArchived) return;
 
 setMessages([createWelcomeMessage(false, widgetTexts)]);
-setIntakeStep('name');
+setSelectedCategoryId(null);
+startIntake('Vad heter du?');
 setIntakeData({});
 setContext({ city: null, area: null, vehicle: null });
 setSelectedVehicle(null);
 setSelectedCity(null);
 setIsTyping(false);
 lastMessageCountRef.current = 0;
-}, [publicConfigLoaded, initialHistoryLoaded, aiRepliesEnabled, humanMode, isArchived, widgetTexts]);
+}, [publicConfigLoaded, initialHistoryLoaded, aiRepliesEnabled, humanMode, isArchived, widgetTexts, intakeMode, categoryChoices]); // eslint-disable-line react-hooks/exhaustive-deps
 
 // Lightweight polling fallback for human mode only.
 // Socket.io is the primary channel, but this catches missed events (network glitches, reconnects).
@@ -803,8 +836,7 @@ return () => clearInterval(pollInterval);
 const handleSendMessage = async (content: string, contextData?: QuickContextPayload) => {
 if (!aiRepliesEnabled && !humanMode) {
 if (!intakeStep) {
-setIntakeStep('name');
-injectBotMessage('Då sätter vi igång — vad heter du?');
+startIntake('Då sätter vi igång — vad heter du?');
 return;
 }
 handleIntakeInput(content);
@@ -817,8 +849,7 @@ const HUMAN_TRIGGERS = ["jag vill prata med en människa"];
 const isHumanTrigger = HUMAN_TRIGGERS.some(phrase => content.toLowerCase().trim() === phrase);
 if (isHumanTrigger && !humanMode) {
 // ✅ Starta det interaktiva chattflödet istället
-setIntakeStep('name');
-injectBotMessage('För att kunna koppla dig till rätt person behöver jag några uppgifter. Vad heter du?');
+startIntake('För att kunna koppla dig till rätt person behöver jag några uppgifter. Vad heter du?');
 return;
 }
 
@@ -969,7 +1000,12 @@ setSelectedVehicle(null);
 setSelectedCity(null);
 setGeneralMode(false);
 setHumanMode(false);
-setIntakeStep(aiRepliesEnabled ? null : 'name');
+setSelectedCategoryId(null);
+if (aiRepliesEnabled) {
+setIntakeStep(null);
+} else {
+startIntake('Vad heter du?');
+}
 setIntakeData({});
 setAgentNames([]);
 setTypingAgentName(null);
@@ -1019,14 +1055,12 @@ const handleRequestHuman = () => {
 if (humanMode) return;
 if (!aiRepliesEnabled) {
 if (!intakeStep) {
-setIntakeStep('name');
-injectBotMessage('Då sätter vi igång — vad heter du?');
+startIntake('Då sätter vi igång — vad heter du?');
 }
 return;
 }
 // ✅ Starta det interaktiva chattflödet istället
-setIntakeStep('name');
-injectBotMessage('För att kunna koppla dig till rätt person behöver jag några uppgifter. Vad heter du?');
+startIntake('För att kunna koppla dig till rätt person behöver jag några uppgifter. Vad heter du?');
 };
 
 const finishIntakeHandoff = ({
@@ -1125,6 +1159,12 @@ return;
 
 if (intakeStep === 'office') {
 injectUserMessage(value);
+if (categoryFirstEnabled) {
+setIntakeData((prev) => ({ ...prev, city: value }));
+setIntakeStep('name');
+injectBotMessage('Vad heter du?');
+return;
+}
 // Övrigt-kund tvingas aldrig välja fordon efter kontorsvalet — avsluta direkt som Övrigt.
 const isGeneral = generalMode || context.vehicle_choice === 'OVRIGT';
 const safeVehicle = isGeneral ? null : getSafeActiveVehicle(intakeData.vehicle);
@@ -1152,13 +1192,15 @@ injectBotMessage('Vad gäller ärendet?', activeVehicleChoices);
 const categoryLabel = categoryChoices.find((choice) => choice.value === value)?.label || value;
 injectUserMessage(categoryLabel);
 setSelectedCategoryId(value);
-setIntakeStep(null);
-finishIntakeHandoff({
-...intakeData,
-vehicle: null,
-general: true,
-categoryId: value,
-});
+const safeOffice = findSafeOfficeFromLiveContext(offices, selectedCity, context) || singletonOffice || undefined;
+if (safeOffice) {
+setIntakeData((prev) => ({ ...prev, city: getOfficeDisplayName(safeOffice) }));
+setIntakeStep('name');
+injectBotMessage('Vad heter du?');
+return;
+}
+setIntakeStep('office');
+injectBotMessage(widgetTexts.officeQuestion, getOfficeChoices());
 
 } else if (intakeStep === 'vehicle') {
 injectUserMessage(vehicleLabels[value] || value);

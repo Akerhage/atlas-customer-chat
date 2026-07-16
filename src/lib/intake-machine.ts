@@ -1,6 +1,7 @@
 import type { EffectiveCategory, TenantProfile } from "@/lib/tenant-capabilities";
 
 export type IntakeMode = "category_first" | "legacy";
+export type IntakeOrderStep = "category" | "office" | "name" | "email" | "phone" | "vehicle" | "handoff";
 
 export interface WidgetTexts {
   headerSubtitle: string;
@@ -63,9 +64,7 @@ Har du frågor eller vill du skicka ett ärende till oss är du varmt välkommen
 
 Jag guidar dig genom några korta steg och skickar ditt ärende till rätt mottagare hos oss.
 
-Vi börjar med ditt namn.
-
-Vad heter du?`,
+Vi börjar med vad ärendet gäller.`,
     welcomeAiOn: `Hej och välkommen till oss! 👋
 
 Jag är företagets smarta AI-assistent!
@@ -100,4 +99,30 @@ export function buildCategoryChoices(
   return categories
     .filter((category) => category.active !== false)
     .map((category) => ({ label: category.label, value: category.id, icon: category.icon }));
+}
+
+export function isCategoryFirstIntake(mode: IntakeMode, categoryChoiceCount: number): boolean {
+  return mode === "category_first" && categoryChoiceCount > 0;
+}
+
+export function buildIntakeOrder(
+  mode: IntakeMode,
+  categoryChoiceCount: number,
+  hasKnownOffice = false,
+): readonly IntakeOrderStep[] {
+  if (isCategoryFirstIntake(mode, categoryChoiceCount)) {
+    return ["category", ...(hasKnownOffice ? [] : ["office"] as const), "name", "email", "phone", "handoff"];
+  }
+
+  return ["name", "email", "phone", "office", "vehicle", "handoff"];
+}
+
+export function resolveOptionalPhone(input: string): { valid: boolean; phone?: string } {
+  const trimmed = input.trim();
+  const normalizedPhoneSkip = trimmed.toLowerCase().replace(/[.!?]+$/g, "").trim();
+  const skipWords = ["hoppa över", "hoppa over", "skip", "-", "nej", "nej tack", "no", "n", "ingen", "inget", "inte nu"];
+  if (skipWords.includes(normalizedPhoneSkip)) return { valid: true };
+
+  const digits = trimmed.replace(/\D/g, "").slice(0, 10);
+  return digits.length >= 8 ? { valid: true, phone: digits } : { valid: false };
 }

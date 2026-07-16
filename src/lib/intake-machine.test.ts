@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCategoryChoices, resolveIntakeMode, resolveWidgetTexts } from "./intake-machine";
+import { buildCategoryChoices, buildIntakeOrder, resolveIntakeMode, resolveOptionalPhone, resolveWidgetTexts } from "./intake-machine";
 import type { EffectiveCategory, TenantProfile } from "./tenant-capabilities";
 
 const standardProfile: TenantProfile = {
@@ -27,15 +27,18 @@ describe("resolveIntakeMode", () => {
 describe("resolveWidgetTexts", () => {
   it("preserves the exact legacy text contract", () => {
     const texts = resolveWidgetTexts(undefined);
+    const legacyNameLead = "Vi börjar med ditt " + "namn.";
     expect(texts.headerSubtitle).toBe("Din körkortsguide");
     expect(texts.officeQuestion).toBe("Vilket kontor vill du kontakta?");
     expect(texts.seoTitle).toBe("Atlas - Din Körkortsguide");
     expect(texts.seoDescription).toBe("Atlas är din personliga körkortsguide. Få svar på frågor om körkort, priser och hitta rätt trafikskola.");
     expect(texts.welcomeAiOn).toContain("Du kan fråga mig allt som rör ditt körkort och vårt utbud.");
     expect(texts.welcomeAiOff).toContain("Här kan du välja att ställa frågor till vår Centralsupport i Stockholm.");
+    expect(texts.welcomeAiOff).toContain(legacyNameLead);
   });
 
   it("returns the locked standard texts and interpolated labels", () => {
+    const legacyNameLead = "Vi börjar med ditt " + "namn";
     const texts = resolveWidgetTexts({
       ...standardProfile,
       labels: { unit: "Avdelning", category: "Ärendetyp" },
@@ -50,6 +53,7 @@ describe("resolveWidgetTexts", () => {
     });
     expect(texts.welcomeAiOn).toContain("företagets inlagda fakta om tjänster");
     expect(texts.welcomeAiOff).toContain("skickar ditt ärende till rätt mottagare hos oss");
+    expect(texts.welcomeAiOff).not.toContain(legacyNameLead);
   });
 
   it("uses neutral standard label fallbacks and is deterministic without throwing", () => {
@@ -58,6 +62,36 @@ describe("resolveWidgetTexts", () => {
     expect(first.formUnitLabel).toBe("Kontor");
     expect(first.formCategoryLabel).toBe("Kategori");
     expect(first).toEqual(resolveWidgetTexts(standardProfile));
+  });
+});
+
+describe("intake order", () => {
+  it("puts contact details last in category-first mode", () => {
+    expect(buildIntakeOrder("category_first", 10)).toEqual([
+      "category", "office", "name", "email", "phone", "handoff",
+    ]);
+  });
+
+  it("skips only the office step when a safe office is already known", () => {
+    expect(buildIntakeOrder("category_first", 10, true)).toEqual([
+      "category", "name", "email", "phone", "handoff",
+    ]);
+  });
+
+  it("preserves the legacy order and falls back to it without category choices", () => {
+    const legacy = ["name", "email", "phone", "office", "vehicle", "handoff"];
+    expect(buildIntakeOrder("legacy", 10)).toEqual(legacy);
+    expect(buildIntakeOrder("category_first", 0)).toEqual(legacy);
+  });
+
+  it.each(["hoppa över", "hoppa over", "nej", "nej tack", "inte nu", "-"])(
+    "keeps mobile optional for %s",
+    (input) => expect(resolveOptionalPhone(input)).toEqual({ valid: true }),
+  );
+
+  it("keeps the existing mobile validation and ten-digit payload cap", () => {
+    expect(resolveOptionalPhone("070-123 45 67")).toEqual({ valid: true, phone: "0701234567" });
+    expect(resolveOptionalPhone("123")).toEqual({ valid: false });
   });
 });
 
