@@ -5,6 +5,8 @@ export type IntakeOrderStep = "category" | "office" | "name" | "email" | "phone"
 
 export interface WidgetTexts {
   headerSubtitle: string;
+  templatesTitle: string;
+  templatesSubtitle: string;
   welcomeAiOn: string;
   welcomeAiOff: string;
   officeQuestion: string;
@@ -16,6 +18,8 @@ export interface WidgetTexts {
 
 const LEGACY_TEXTS: WidgetTexts = {
   headerSubtitle: "Din körkortsguide",
+  templatesTitle: "Vårt utbud",
+  templatesSubtitle: "Här kan du läsa mer om våra paket, vår policy, våra kurser, utbildningar och erbjudanden — klicka för att visa i chatten",
   welcomeAiOn: `Hej och välkommen till oss! 👋
 
 Jag är företagets smarta AI-assistent!
@@ -57,6 +61,8 @@ export function resolveWidgetTexts(profile: TenantProfile | null | undefined): W
   if (resolveIntakeMode(profile) !== "category_first") return { ...LEGACY_TEXTS };
   return {
     headerSubtitle: "Kundservice",
+    templatesTitle: "Kundinformation",
+    templatesSubtitle: "Här kan du läsa mer om våra tjänster, villkor och annat bra att veta — klicka för att visa i chatten",
     officeQuestion: "Vart vill du skicka ditt ärende?",
     welcomeAiOff: `Hej och välkommen till oss! 👋
 

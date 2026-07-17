@@ -16,6 +16,8 @@ import { getCustomerTemplates, type CustomerTemplate } from "@/lib/atlas-client"
 
 interface TemplatesButtonProps {
   onSelect: (content: string) => void;
+  title?: string;
+  subtitle?: string;
 }
 
 const FALLBACK_GROUP = "Övrigt";
@@ -25,7 +27,11 @@ interface TemplateGroup {
   items: CustomerTemplate[];
 }
 
-export function TemplatesButton({ onSelect }: TemplatesButtonProps) {
+export function TemplatesButton({
+  onSelect,
+  title = "Vårt utbud",
+  subtitle = "Här kan du läsa mer om våra paket, vår policy, våra kurser, utbildningar och erbjudanden — klicka för att visa i chatten",
+}: TemplatesButtonProps) {
   const [templates, setTemplates] = useState<CustomerTemplate[]>([]);
   const [open, setOpen] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -89,14 +95,14 @@ export function TemplatesButton({ onSelect }: TemplatesButtonProps) {
           <PopoverTrigger asChild>
             <button
               className="p-1.5 sm:p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-              aria-label="Vårt utbud"
+              aria-label={title}
             >
               <Info className="w-5 h-5" />
             </button>
           </PopoverTrigger>
         </TooltipTrigger>
         <TooltipContent>
-          <p>Vårt utbud</p>
+          <p>{title}</p>
         </TooltipContent>
       </Tooltip>
 
@@ -107,9 +113,9 @@ export function TemplatesButton({ onSelect }: TemplatesButtonProps) {
         sideOffset={8}
       >
         <div className="p-3 border-b border-border">
-          <p className="text-sm font-medium">Vårt utbud</p>
+          <p className="text-sm font-medium">{title}</p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Här kan du läsa mer om våra paket, vår policy, våra kurser, utbildningar och erbjudanden — klicka för att visa i chatten
+            {subtitle}
           </p>
         </div>
         <ScrollArea className="max-h-96 [&>[data-radix-scroll-area-viewport]]:max-h-96">

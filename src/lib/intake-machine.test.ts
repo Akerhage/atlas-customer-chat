@@ -29,6 +29,8 @@ describe("resolveWidgetTexts", () => {
     const texts = resolveWidgetTexts(undefined);
     const legacyNameLead = "Vi börjar med ditt " + "namn.";
     expect(texts.headerSubtitle).toBe("Din körkortsguide");
+    expect(texts.templatesTitle).toBe("Vårt utbud");
+    expect(texts.templatesSubtitle).toBe("Här kan du läsa mer om våra paket, vår policy, våra kurser, utbildningar och erbjudanden — klicka för att visa i chatten");
     expect(texts.officeQuestion).toBe("Vilket kontor vill du kontakta?");
     expect(texts.seoTitle).toBe("Atlas - Din Körkortsguide");
     expect(texts.seoDescription).toBe("Atlas är din personliga körkortsguide. Få svar på frågor om körkort, priser och hitta rätt trafikskola.");
@@ -45,6 +47,8 @@ describe("resolveWidgetTexts", () => {
     });
     expect(texts).toMatchObject({
       headerSubtitle: "Kundservice",
+      templatesTitle: "Kundinformation",
+      templatesSubtitle: "Här kan du läsa mer om våra tjänster, villkor och annat bra att veta — klicka för att visa i chatten",
       officeQuestion: "Vart vill du skicka ditt ärende?",
       formUnitLabel: "Avdelning",
       formCategoryLabel: "Ärendetyp",
@@ -62,6 +66,16 @@ describe("resolveWidgetTexts", () => {
     expect(first.formUnitLabel).toBe("Kontor");
     expect(first.formCategoryLabel).toBe("Kategori");
     expect(first).toEqual(resolveWidgetTexts(standardProfile));
+  });
+
+  it("forks the templates title and subtitle without changing the legacy defaults", () => {
+    const legacy = resolveWidgetTexts(undefined);
+    const standard = resolveWidgetTexts(standardProfile);
+    expect(legacy.templatesTitle).toBe("Vårt utbud");
+    expect(legacy.templatesSubtitle).toContain("paket");
+    expect(standard.templatesTitle).toBe("Kundinformation");
+    expect(standard.templatesSubtitle).toBe("Här kan du läsa mer om våra tjänster, villkor och annat bra att veta — klicka för att visa i chatten");
+    expect(standard.templatesSubtitle).not.toContain("paket");
   });
 });
 

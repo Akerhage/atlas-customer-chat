@@ -24,6 +24,8 @@ companyName?: string | null;
 companyLogoUrl?: string | null;
 activeVehicles: ActiveVehicle[];
 subtitle?: string;
+templatesTitle?: string;
+templatesSubtitle?: string;
 intakeMode: IntakeMode;
 categoryChoices: { label: string; value: string }[];
 formLabels: { unit: string; category: string };
@@ -43,6 +45,8 @@ companyName,
 companyLogoUrl,
 activeVehicles,
 subtitle = "Din körkortsguide",
+templatesTitle = "Vårt utbud",
+templatesSubtitle = "Här kan du läsa mer om våra paket, vår policy, våra kurser, utbildningar och erbjudanden — klicka för att visa i chatten",
 intakeMode,
 categoryChoices,
 formLabels,
@@ -74,7 +78,7 @@ className="max-h-6 w-full object-contain sm:max-h-7"
 {/* Actions */}
 <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
 {/* Snabbsvar (KUNDCHATT-mallar) — döljer sig själv om listan är tom */}
-<TemplatesButton onSelect={onTemplateSelect} />
+<TemplatesButton onSelect={onTemplateSelect} title={templatesTitle} subtitle={templatesSubtitle} />
 
 {/* Skicka meddelande (mail) */}
 <ContactFormDialog
