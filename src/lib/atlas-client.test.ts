@@ -106,3 +106,66 @@ describe("sendMessage locked context", () => {
     expect(body.locked_context).not.toHaveProperty("unit_id");
   });
 });
+
+describe("standard selfservice client", () => {
+  it("fetches a customer-safe menu with encoded unit and category ids", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        items: [{
+          id: "opaque",
+          label: "Vad kostar produkten?",
+          action: {
+            type: "offering",
+            unit_id: "bosses_kundtjanst",
+            category_id: "MUTTRAR",
+            offering_id: "mutter-bas",
+          },
+        }],
+        empty_message: null,
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const { getStandardSelfserviceMenu } = await import("./atlas-client");
+
+    const result = await getStandardSelfserviceMenu("bosses kundtjänst", "MUTTRAR");
+
+    expect(fetchMock.mock.calls[0][0]).toContain(
+      "unit_id=bosses+kundtj%C3%A4nst&category_id=MUTTRAR"
+    );
+    expect(result.items[0].id).toBe("opaque");
+  });
+
+  it("posts the exact action with the existing ownership token", async () => {
+    installStorage();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        answer: "125 SEK",
+        presentation: "125 SEK",
+        source_ids: { offering_id: "mutter-bas" },
+        values: { price: 125 },
+        ownerToken: "owner_test",
+        sessionId: "session_test",
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const { answerStandardSelfservice } = await import("./atlas-client");
+    const action = {
+      type: "offering" as const,
+      unit_id: "bosses_kundtjanst",
+      category_id: "MUTTRAR",
+      offering_id: "mutter-bas",
+    };
+
+    const result = await answerStandardSelfservice(action);
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+
+    expect(body).toEqual({
+      sessionId: "session_test",
+      ownerToken: "owner_test",
+      action,
+    });
+    expect(result.values).toEqual({ price: 125 });
+  });
+});

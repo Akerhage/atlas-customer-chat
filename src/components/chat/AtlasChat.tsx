@@ -9,6 +9,8 @@ import { ContextIndicator } from "./ContextIndicator";
 import { HumanModeIndicator } from "./HumanModeIndicator";
 import {
 sendMessage,
+getStandardSelfserviceMenu,
+answerStandardSelfservice,
 resetSession,
 getHistory,
 connectSocket,
@@ -25,6 +27,7 @@ type SessionStatusEvent,
 type SessionWarningEvent,
 type ActiveVehicle,
 } from "@/lib/atlas-client";
+import type { TenantProfile } from "@/lib/tenant-capabilities";
 import {
 buildCategoryChoices,
 buildIntakeOrder,
@@ -35,6 +38,21 @@ resolveWidgetTexts,
 type IntakeMode,
 type WidgetTexts,
 } from "@/lib/intake-machine";
+import {
+STANDARD_CATEGORY_PREFIX,
+STANDARD_CENTRAL_SUPPORT,
+STANDARD_EMPTY_MESSAGE,
+STANDARD_ESCALATE_VALUE,
+STANDARD_MENU_PREFIX,
+STANDARD_UNIT_PREFIX,
+categoryChoiceValue,
+isStandardSelfserviceEnabled,
+unitChoiceValue,
+valueAfterPrefix,
+withEscalationChoice,
+type StandardSelfserviceMenuItem,
+type StandardSelfserviceStage,
+} from "@/lib/standard-selfservice-machine";
 import { formatCityAreaLabel } from "@/lib/place-format";
 import { toast } from "sonner";
 
@@ -232,6 +250,7 @@ const [messages, setMessages] = useState<ChatMessage[]>([
 createWelcomeMessage(true)
 ]);
 const [offices, setOffices] = useState<Office[]>([]); // 🔥 Håller kontorslistan
+const [officesLoaded, setOfficesLoaded] = useState(false);
 const [aiRepliesEnabled, setAiRepliesEnabled] = useState(true);
 const [publicConfigLoaded, setPublicConfigLoaded] = useState(false);
 const [initialHistoryLoaded, setInitialHistoryLoaded] = useState(false);
@@ -271,8 +290,15 @@ const [companyLogoUrl, setCompanyLogoUrl] = useState<string | null>(null);
 const [activeVehicles, setActiveVehicles] = useState<VehicleType[]>(['BIL', 'MC', 'AM', 'LASTBIL', 'SLÄP']);
 const [quickQuestions, setQuickQuestions] = useState<string[]>([]);
 const [intakeMode, setIntakeMode] = useState<IntakeMode>('legacy');
+const [tenantProfile, setTenantProfile] = useState<TenantProfile | null>(null);
+const [tenantConfigLoaded, setTenantConfigLoaded] = useState(false);
 const [categoryChoices, setCategoryChoices] = useState<{ label: string; value: string }[]>([]);
 const [widgetTexts, setWidgetTexts] = useState<WidgetTexts>(() => resolveWidgetTexts(undefined));
+const [selfserviceStage, setSelfserviceStage] = useState<StandardSelfserviceStage>(null);
+const [selfserviceUnitId, setSelfserviceUnitId] = useState<string | null>(null);
+const [selfserviceUnitLabel, setSelfserviceUnitLabel] = useState<string | null>(null);
+const [selfserviceMenu, setSelfserviceMenu] = useState<StandardSelfserviceMenuItem[]>([]);
+const standardSelfserviceStartedRef = useRef(false);
 
 const activeVehicleChoices = VEHICLE_CHOICES.filter(choice => activeVehicles.includes(choice.value));
 const getSafeActiveVehicle = (value: string | null | undefined): VehicleType | null => {
@@ -283,12 +309,14 @@ const singletonOffice = offices.length === 1 ? offices[0] : null;
 const singletonOfficeLabel = singletonOffice ? getOfficeDisplayName(singletonOffice) : null;
 const singletonVehicle = activeVehicles.length === 1 ? activeVehicles[0] : null;
 const categoryFirstEnabled = isCategoryFirstIntake(intakeMode, categoryChoices.length);
+const standardSelfserviceEnabled = isStandardSelfserviceEnabled(tenantProfile, intakeMode);
 
 // Hämta kontorslistan från API när chatten bootar
 useEffect(() => {
 getPublicOffices()
 .then(data => setOffices(data))
-.catch(err => console.error("Kunde inte ladda kontor:", err));
+.catch(err => console.error("Kunde inte ladda kontor:", err))
+.finally(() => setOfficesLoaded(true));
 }, []);
 
 useEffect(() => {
@@ -297,10 +325,11 @@ setCompanyName(config.companyName);
 setCompanyLogoUrl(config.companyLogoUrl);
 setActiveVehicles(config.activeVehicles);
 setQuickQuestions(config.quickQuestions);
+setTenantProfile(config.tenantProfile);
 setIntakeMode(resolveIntakeMode(config.tenantProfile));
 setCategoryChoices(buildCategoryChoices(config.categories));
 setWidgetTexts(resolveWidgetTexts(config.tenantProfile));
-});
+}).finally(() => setTenantConfigLoaded(true));
 }, []);
 
 useEffect(() => {
@@ -438,6 +467,146 @@ return { label: name, value: name };
 }),
 ];
 
+const getStandardUnitChoices = (): { label: string; value: string }[] => [
+{ label: 'Centralsupport', value: unitChoiceValue(STANDARD_CENTRAL_SUPPORT) },
+...offices.map((office) => ({
+label: getOfficeDisplayName(office),
+value: unitChoiceValue(office.routing_tag),
+})),
+];
+
+const getStandardCategoryChoices = (): { label: string; value: string }[] =>
+categoryChoices.map(choice => ({
+label: choice.label,
+value: categoryChoiceValue(choice.value),
+}));
+
+const showStandardMenu = (
+items: StandardSelfserviceMenuItem[],
+message = 'Välj en snabbfråga eller skapa ett ärende så hjälper vi dig.'
+) => {
+setSelfserviceMenu(items);
+setSelfserviceStage('menu');
+injectBotMessage(
+items.length ? message : STANDARD_EMPTY_MESSAGE,
+withEscalationChoice(items)
+);
+};
+
+const loadAndShowStandardMenu = async (unitId: string, categoryId: string) => {
+if (unitId === STANDARD_CENTRAL_SUPPORT) {
+showStandardMenu([]);
+return;
+}
+setIsTyping(true);
+try {
+const response = await getStandardSelfserviceMenu(unitId, categoryId);
+showStandardMenu(response.items);
+} catch (error) {
+console.error('[AtlasChat] Selfservice menu error:', error);
+showStandardMenu([]);
+} finally {
+setIsTyping(false);
+}
+};
+
+const beginStandardSelfservice = () => {
+standardSelfserviceStartedRef.current = true;
+setIntakeStep(null);
+setIntakeData({});
+setSelectedCategoryId(null);
+setSelfserviceUnitId(null);
+setSelfserviceUnitLabel(null);
+setSelfserviceMenu([]);
+setSelfserviceStage('unit');
+injectBotMessage('Välj den avdelning du vill ha hjälp av.', getStandardUnitChoices());
+};
+
+const startStandardEscalation = () => {
+const city = selfserviceUnitId === STANDARD_CENTRAL_SUPPORT
+? 'Centralsupport'
+: selfserviceUnitLabel;
+if (!city || !selectedCategoryId) return;
+setSelfserviceStage(null);
+setIntakeData({ city, vehicle: null });
+setIntakeStep('name');
+setGeneralMode(true);
+setSelectedVehicle(null);
+injectBotMessage('För att skapa ett ärende behöver vi några uppgifter. Vad heter du?');
+};
+
+const handleStandardChoice = async (value: string): Promise<boolean> => {
+if (!standardSelfserviceEnabled || humanMode || intakeStep) return false;
+if (value === STANDARD_ESCALATE_VALUE) {
+startStandardEscalation();
+return true;
+}
+
+if (selfserviceStage === 'unit') {
+const unitId = valueAfterPrefix(value, STANDARD_UNIT_PREFIX);
+if (!unitId) return false;
+const office = unitId === STANDARD_CENTRAL_SUPPORT
+? null
+: offices.find(candidate => candidate.routing_tag === unitId);
+if (unitId !== STANDARD_CENTRAL_SUPPORT && !office) return true;
+const label = office ? getOfficeDisplayName(office) : 'Centralsupport';
+injectUserMessage(label);
+setSelfserviceUnitId(unitId);
+setSelfserviceUnitLabel(label);
+setSelectedCity(label);
+window.selectedCity = label;
+setContext(prev => ({
+...prev,
+city: office?.city || null,
+area: office?.area || null,
+unit_id: office?.routing_tag || null,
+vehicle: null,
+vehicle_choice: 'OVRIGT',
+clear_vehicle: true,
+}));
+setSelfserviceStage('category');
+injectBotMessage('Välj kategori.', getStandardCategoryChoices());
+return true;
+}
+
+if (selfserviceStage === 'category') {
+const categoryId = valueAfterPrefix(value, STANDARD_CATEGORY_PREFIX);
+if (!categoryId || !selfserviceUnitId) return false;
+const category = categoryChoices.find(choice => choice.value === categoryId);
+if (!category) return true;
+injectUserMessage(category.label);
+setSelectedCategoryId(categoryId);
+setContext(prev => ({ ...prev, category_id: categoryId }));
+await loadAndShowStandardMenu(selfserviceUnitId, categoryId);
+return true;
+}
+
+if (selfserviceStage === 'menu') {
+const itemId = valueAfterPrefix(value, STANDARD_MENU_PREFIX);
+if (!itemId) return false;
+const item = selfserviceMenu.find(candidate => candidate.id === itemId);
+if (!item) {
+showStandardMenu(selfserviceMenu);
+return true;
+}
+injectUserMessage(item.label);
+setIsTyping(true);
+try {
+const response = await answerStandardSelfservice(item.action);
+injectBotMessage(response.presentation || response.answer || STANDARD_EMPTY_MESSAGE);
+showStandardMenu(selfserviceMenu, 'Du kan välja en till snabbfråga eller skapa ett ärende.');
+} catch (error) {
+console.error('[AtlasChat] Selfservice answer error:', error);
+showStandardMenu(selfserviceMenu, 'Svaret kunde inte hämtas just nu. Välj igen eller skapa ett ärende.');
+} finally {
+setIsTyping(false);
+}
+return true;
+}
+
+return false;
+};
+
 const startIntake = (legacyMessage: string, categoryMessage = 'Vad gäller ärendet?') => {
 const firstStep = buildIntakeOrder(intakeMode, categoryChoices.length)[0];
 if (firstStep === 'category') {
@@ -555,6 +724,11 @@ const trimmed = input.trim();
 
 if (['avbryt', 'avbryta', 'cancel'].includes(trimmed.toLowerCase())) {
 setIntakeData({});
+if (standardSelfserviceEnabled && selfserviceUnitId && selectedCategoryId) {
+setIntakeStep(null);
+showStandardMenu(selfserviceMenu, 'Okej, ärendet avbröts. Välj en snabbfråga eller skapa ett nytt ärende.');
+return;
+}
 setSelectedCategoryId(null);
 if (!aiRepliesEnabled) {
 startIntake('Okej, vi börjar om. Vad heter du?', 'Okej, vi börjar om. Vad gäller ärendet?');
@@ -807,7 +981,22 @@ cancelled = true;
 }, [pollHistory]);
 
 useEffect(() => {
-if (!publicConfigLoaded || !initialHistoryLoaded || aiRepliesEnabled || humanMode || isArchived) return;
+if (!publicConfigLoaded || !initialHistoryLoaded || !tenantConfigLoaded || !officesLoaded || humanMode || isArchived) return;
+
+if (standardSelfserviceEnabled) {
+if (standardSelfserviceStartedRef.current) return;
+setMessages([createWelcomeMessage(false, widgetTexts)]);
+setContext({ city: null, area: null, vehicle: null });
+setSelectedVehicle(null);
+setSelectedCity(null);
+setGeneralMode(false);
+setIsTyping(false);
+lastMessageCountRef.current = 0;
+beginStandardSelfservice();
+return;
+}
+
+if (aiRepliesEnabled) return;
 
 setMessages([createWelcomeMessage(false, widgetTexts)]);
 setSelectedCategoryId(null);
@@ -818,7 +1007,7 @@ setSelectedVehicle(null);
 setSelectedCity(null);
 setIsTyping(false);
 lastMessageCountRef.current = 0;
-}, [publicConfigLoaded, initialHistoryLoaded, aiRepliesEnabled, humanMode, isArchived, widgetTexts, intakeMode, categoryChoices]); // eslint-disable-line react-hooks/exhaustive-deps
+}, [publicConfigLoaded, initialHistoryLoaded, tenantConfigLoaded, officesLoaded, standardSelfserviceEnabled, aiRepliesEnabled, humanMode, isArchived, widgetTexts, intakeMode, categoryChoices]); // eslint-disable-line react-hooks/exhaustive-deps
 
 // Lightweight polling fallback for human mode only.
 // Socket.io is the primary channel, but this catches missed events (network glitches, reconnects).
@@ -1001,7 +1190,15 @@ setSelectedCity(null);
 setGeneralMode(false);
 setHumanMode(false);
 setSelectedCategoryId(null);
-if (aiRepliesEnabled) {
+setSelfserviceStage(null);
+setSelfserviceUnitId(null);
+setSelfserviceUnitLabel(null);
+setSelfserviceMenu([]);
+standardSelfserviceStartedRef.current = false;
+if (standardSelfserviceEnabled) {
+setIntakeStep(null);
+beginStandardSelfservice();
+} else if (aiRepliesEnabled) {
 setIntakeStep(null);
 } else {
 startIntake('Vad heter du?');
@@ -1053,6 +1250,16 @@ handleReset();
 
 const handleRequestHuman = () => {
 if (humanMode) return;
+if (standardSelfserviceEnabled) {
+if (selfserviceUnitId && selectedCategoryId) {
+startStandardEscalation();
+} else if (selfserviceStage === 'unit') {
+injectBotMessage('Välj först den avdelning du vill skapa ärendet hos.', getStandardUnitChoices());
+} else {
+injectBotMessage('Välj först kategori.', getStandardCategoryChoices());
+}
+return;
+}
 if (!aiRepliesEnabled) {
 if (!intakeStep) {
 startIntake('Då sätter vi igång — vad heter du?');
@@ -1151,6 +1358,11 @@ AM: 'Moped (AM)',
 LASTBIL: 'Lastbil / Buss',
 SLÄP: 'Släp (BE/B96)',
 };
+
+if (standardSelfserviceEnabled && !humanMode && !intakeStep) {
+void handleStandardChoice(value);
+return;
+}
 
 if (!intakeStep) {
 handleSendMessage(value);
@@ -1282,7 +1494,11 @@ setMessages((prev) => [...prev, templateMessage]);
 
 const showWelcomeWidget = aiRepliesEnabled && messages.length === 1 && messages[0].id === 'welcome-msg' && !isTyping;
 const hasCustomerMessage = messages.some((message) => message.role === 'user');
+const selfserviceFreeTextBlocked = standardSelfserviceEnabled && !humanMode && !intakeStep;
 const handleInputSend = (message: string, contextData?: QuickContextPayload) => {
+if (standardSelfserviceEnabled && !humanMode && !intakeStep) {
+return;
+}
 if (!aiRepliesEnabled && !humanMode) {
 handleIntakeInput(message);
 return;
@@ -1450,8 +1666,10 @@ activeVehicles={activeVehicles}
 <ChatInput
 onSend={handleInputSend}
 
-disabled={isTyping}
-placeholder={!aiRepliesEnabled && !humanMode ? "Skriv ditt svar..." : (humanMode ? "Skriv till support..." : "Skriv ett meddelande...")}
+disabled={isTyping || selfserviceFreeTextBlocked}
+placeholder={selfserviceFreeTextBlocked
+? "Välj ett alternativ ovan eller skapa ett ärende"
+: (!aiRepliesEnabled && !humanMode ? "Skriv ditt svar..." : (humanMode ? "Skriv till support..." : "Skriv ett meddelande..."))}
 showQuickQuestions={intakeMode === 'legacy' && aiRepliesEnabled && !humanMode && messages.length > 1}
 selectedVehicle={selectedVehicle}
 onVehicleChange={handleVehicleChange}

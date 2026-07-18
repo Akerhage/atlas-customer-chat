@@ -1,0 +1,59 @@
+import { describe, expect, it } from 'vitest';
+import {
+  STANDARD_ESCALATE_VALUE,
+  STANDARD_MENU_PREFIX,
+  categoryChoiceValue,
+  isStandardSelfserviceEnabled,
+  unitChoiceValue,
+  valueAfterPrefix,
+  withEscalationChoice,
+} from './standard-selfservice-machine';
+
+describe('standard selfservice machine', () => {
+  it('gates only Standard category_first with structured answers', () => {
+    expect(isStandardSelfserviceEnabled({
+      schema_version: 1,
+      edition: 'standard',
+      modules: { structured_answers: true },
+      intake: { mode: 'category_first' },
+    }, 'category_first')).toBe(true);
+    expect(isStandardSelfserviceEnabled({
+      schema_version: 1,
+      edition: 'trafikskola',
+      modules: { structured_answers: true },
+    }, 'category_first')).toBe(false);
+    expect(isStandardSelfserviceEnabled({
+      schema_version: 1,
+      edition: 'standard',
+      modules: { structured_answers: false },
+    }, 'category_first')).toBe(false);
+    expect(isStandardSelfserviceEnabled({
+      schema_version: 1,
+      edition: 'standard',
+      modules: { structured_answers: true },
+    }, 'legacy')).toBe(false);
+  });
+
+  it('uses opaque prefixed values and keeps escalation last', () => {
+    const choices = withEscalationChoice([{
+      id: 'opaque-1',
+      label: 'Vad kostar produkten?',
+      action: {
+        type: 'offering',
+        unit_id: 'unit',
+        category_id: 'category',
+        offering_id: 'offering',
+      },
+    }]);
+    expect(choices).toEqual([
+      { label: 'Vad kostar produkten?', value: `${STANDARD_MENU_PREFIX}opaque-1` },
+      { label: 'Jag behöver mer hjälp – skapa ärende', value: STANDARD_ESCALATE_VALUE },
+    ]);
+  });
+
+  it('round-trips unit and category choice ids without label guessing', () => {
+    expect(valueAfterPrefix(unitChoiceValue('unit_1'), 'standard:unit-choice:')).toBe('unit_1');
+    expect(valueAfterPrefix(categoryChoiceValue('MUTTRAR'), 'standard:category-choice:')).toBe('MUTTRAR');
+    expect(valueAfterPrefix('wrong', 'standard:category-choice:')).toBeNull();
+  });
+});

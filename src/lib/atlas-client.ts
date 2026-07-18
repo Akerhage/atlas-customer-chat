@@ -11,6 +11,10 @@ import {
   type EffectiveCategory,
   type TenantProfile,
 } from './tenant-capabilities';
+import type {
+  StandardSelfserviceAction,
+  StandardSelfserviceMenuItem,
+} from './standard-selfservice-machine';
 
 // === TYPES ===
 
@@ -73,7 +77,22 @@ minutesLeft: number;
 }
 
 export interface PublicConfig {
-ai_replies_enabled: boolean;
+  ai_replies_enabled: boolean;
+}
+
+export interface StandardSelfserviceMenuResponse {
+  items: StandardSelfserviceMenuItem[];
+  empty_message: string | null;
+}
+
+export interface StandardSelfserviceAnswerResponse {
+  answer: string;
+  presentation: string;
+  source_ids: Record<string, unknown> | null;
+  values: Record<string, unknown> | null;
+  ownerToken?: string;
+  sessionId?: string;
+  miss?: boolean;
 }
 
 // === CONFIGURATION ===
@@ -479,6 +498,58 @@ return {
   close_reason: data.close_reason || null,
   choices: data.choices,
 };
+}
+
+export async function getStandardSelfserviceMenu(
+  unitId: string,
+  categoryId: string
+): Promise<StandardSelfserviceMenuResponse> {
+  const params = new URLSearchParams({ unit_id: unitId, category_id: categoryId });
+  const response = await fetch(`${BASE_URL}/standard-selfservice/menu?${params.toString()}`, {
+    headers: { [NGROK_SKIP_HEADER]: NGROK_SKIP_VALUE }
+  });
+  if (!response.ok) {
+    throw new Error(`Selfservice menu error ${response.status}`);
+  }
+  const data = await response.json();
+  return {
+    items: Array.isArray(data?.items) ? data.items : [],
+    empty_message: typeof data?.empty_message === 'string' ? data.empty_message : null
+  };
+}
+
+export async function answerStandardSelfservice(
+  action: StandardSelfserviceAction
+): Promise<StandardSelfserviceAnswerResponse> {
+  const sessionId = getSessionId();
+  const ownerToken = getOwnerToken() || await waitForOwnerToken();
+  const response = await fetch(`${BASE_URL}/standard-selfservice/answer`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      [NGROK_SKIP_HEADER]: NGROK_SKIP_VALUE
+    },
+    body: JSON.stringify({
+      sessionId,
+      ownerToken: ownerToken || '',
+      action
+    })
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Selfservice answer error ${response.status}: ${errorText}`);
+  }
+  const data = await response.json();
+  if (data?.ownerToken) setOwnerToken(data.ownerToken);
+  return {
+    answer: typeof data?.answer === 'string' ? data.answer : '',
+    presentation: typeof data?.presentation === 'string' ? data.presentation : '',
+    source_ids: data?.source_ids && typeof data.source_ids === 'object' ? data.source_ids : null,
+    values: data?.values && typeof data.values === 'object' ? data.values : null,
+    ownerToken: data?.ownerToken,
+    sessionId: data?.sessionId,
+    miss: data?.miss === true
+  };
 }
 
 /**
