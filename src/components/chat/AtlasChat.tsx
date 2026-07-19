@@ -601,7 +601,6 @@ setIsTyping(true);
 try {
 const response = await answerStandardSelfservice(item.action);
 injectBotMessage(response.presentation || response.answer || STANDARD_EMPTY_MESSAGE);
-showCompactStandardMenuFollowup('Fler snabbfrågor finns i menyn nere vid skrivfältet.');
 } catch (error) {
 console.error('[AtlasChat] Selfservice answer error:', error);
 showCompactStandardMenuFollowup('Svaret kunde inte hämtas just nu. Försök igen via menyn nere vid skrivfältet eller skapa ett ärende.');
