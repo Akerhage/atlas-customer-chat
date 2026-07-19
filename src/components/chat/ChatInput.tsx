@@ -4,6 +4,8 @@ import { cn } from "@/lib/utils";
 import { emitTyping, getOwnerToken, getSessionId } from "@/lib/atlas-client";
 import type { ActiveVehicle } from "@/lib/atlas-client";
 import { QuickQuestionsButton } from "./QuickQuestionsButton";
+import { StandardSelfserviceMenuButton } from "./StandardSelfserviceMenuButton";
+import type { StandardSelfserviceMenuItem } from "@/lib/standard-selfservice-machine";
 import { toast } from "sonner";
 import {
 AI_ATTACHMENT_BLOCKED_MESSAGE,
@@ -29,6 +31,11 @@ onSend: (message: string, context?: { vehicle: string | null; city: string; vehi
 disabled?: boolean;
 placeholder?: string;
 showQuickQuestions?: boolean;
+showStandardSelfserviceMenu?: boolean;
+standardSelfserviceMenu?: StandardSelfserviceMenuItem[];
+standardUnitLabel?: string | null;
+standardCategoryLabel?: string | null;
+onStandardMenuChoice?: (value: string) => void;
 selectedVehicle?: VehicleType;
 selectedCity?: string | null;
 onVehicleChange: (vehicle: VehicleType) => void;
@@ -52,6 +59,11 @@ onSend,
 disabled = false,
 placeholder = "Skriv ett meddelande...",
 showQuickQuestions = false,
+showStandardSelfserviceMenu = false,
+standardSelfserviceMenu = [],
+standardUnitLabel = null,
+standardCategoryLabel = null,
+onStandardMenuChoice,
 selectedVehicle = null,
 selectedCity = null,
 onVehicleChange,
@@ -294,7 +306,16 @@ rows={1}
 className="flex-1 resize-none bg-transparent text-sm py-2 text-foreground focus:outline-none min-h-[24px] max-h-[120px] chat-input-scrollbar"
 />
 
-{showQuickQuestions && !isUploading && (
+{showStandardSelfserviceMenu && onStandardMenuChoice && !isUploading && (
+<StandardSelfserviceMenuButton
+items={standardSelfserviceMenu}
+unitLabel={standardUnitLabel}
+categoryLabel={standardCategoryLabel}
+onChoice={onStandardMenuChoice}
+/>
+)}
+
+{!showStandardSelfserviceMenu && showQuickQuestions && !isUploading && (
 <QuickQuestionsButton
 onSendMessage={onSend}
 selectedVehicle={selectedVehicle}

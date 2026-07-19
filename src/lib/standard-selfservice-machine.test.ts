@@ -4,6 +4,8 @@ import {
   STANDARD_MENU_PREFIX,
   categoryChoiceValue,
   isStandardSelfserviceEnabled,
+  menuChoiceValue,
+  shouldShowStandardSelfserviceMenu,
   unitChoiceValue,
   valueAfterPrefix,
   withEscalationChoice,
@@ -55,5 +57,27 @@ describe('standard selfservice machine', () => {
     expect(valueAfterPrefix(unitChoiceValue('unit_1'), 'standard:unit-choice:')).toBe('unit_1');
     expect(valueAfterPrefix(categoryChoiceValue('MUTTRAR'), 'standard:category-choice:')).toBe('MUTTRAR');
     expect(valueAfterPrefix('wrong', 'standard:category-choice:')).toBeNull();
+  });
+
+  it('builds opaque menu choices through the shared prefix helper', () => {
+    expect(menuChoiceValue('opaque-1')).toBe(`${STANDARD_MENU_PREFIX}opaque-1`);
+  });
+
+  it('shows the input menu only in the active non-human menu stage', () => {
+    expect(shouldShowStandardSelfserviceMenu({
+      stage: 'menu', humanMode: false, intakeActive: false, isArchived: false,
+    })).toBe(true);
+    expect(shouldShowStandardSelfserviceMenu({
+      stage: 'category', humanMode: false, intakeActive: false, isArchived: false,
+    })).toBe(false);
+    expect(shouldShowStandardSelfserviceMenu({
+      stage: 'menu', humanMode: true, intakeActive: false, isArchived: false,
+    })).toBe(false);
+    expect(shouldShowStandardSelfserviceMenu({
+      stage: 'menu', humanMode: false, intakeActive: true, isArchived: false,
+    })).toBe(false);
+    expect(shouldShowStandardSelfserviceMenu({
+      stage: 'menu', humanMode: false, intakeActive: false, isArchived: true,
+    })).toBe(false);
   });
 });

@@ -37,9 +37,27 @@ export function withEscalationChoice(
   items: StandardSelfserviceMenuItem[]
 ): { label: string; value: string }[] {
   return [
-    ...items.map(item => ({ label: item.label, value: `${STANDARD_MENU_PREFIX}${item.id}` })),
+    ...items.map(item => ({ label: item.label, value: menuChoiceValue(item.id) })),
     { label: 'Jag behöver mer hjälp – skapa ärende', value: STANDARD_ESCALATE_VALUE }
   ];
+}
+
+export function menuChoiceValue(itemId: string): string {
+  return `${STANDARD_MENU_PREFIX}${itemId}`;
+}
+
+export function shouldShowStandardSelfserviceMenu({
+  stage,
+  humanMode,
+  intakeActive,
+  isArchived,
+}: {
+  stage: StandardSelfserviceStage;
+  humanMode: boolean;
+  intakeActive: boolean;
+  isArchived: boolean;
+}): boolean {
+  return stage === 'menu' && !humanMode && !intakeActive && !isArchived;
 }
 
 export function unitChoiceValue(unitId: string): string {

@@ -47,6 +47,7 @@ STANDARD_MENU_PREFIX,
 STANDARD_UNIT_PREFIX,
 categoryChoiceValue,
 isStandardSelfserviceEnabled,
+shouldShowStandardSelfserviceMenu,
 unitChoiceValue,
 valueAfterPrefix,
 withEscalationChoice,
@@ -310,6 +311,7 @@ const singletonOfficeLabel = singletonOffice ? getOfficeDisplayName(singletonOff
 const singletonVehicle = activeVehicles.length === 1 ? activeVehicles[0] : null;
 const categoryFirstEnabled = isCategoryFirstIntake(intakeMode, categoryChoices.length);
 const standardSelfserviceEnabled = isStandardSelfserviceEnabled(tenantProfile, intakeMode);
+const selfserviceCategoryLabel = categoryChoices.find(choice => choice.value === selectedCategoryId)?.label || null;
 
 // Hämta kontorslistan från API när chatten bootar
 useEffect(() => {
@@ -483,7 +485,7 @@ value: categoryChoiceValue(choice.value),
 
 const showStandardMenu = (
 items: StandardSelfserviceMenuItem[],
-message = 'Välj en snabbfråga eller skapa ett ärende så hjälper vi dig.'
+  message = 'Välj en snabbfråga eller skapa ett ärende så hjälper vi dig. Du hittar också frågorna i menyn nere vid skrivfältet.'
 ) => {
 setSelfserviceMenu(items);
 setSelfserviceStage('menu');
@@ -491,6 +493,11 @@ injectBotMessage(
 items.length ? message : STANDARD_EMPTY_MESSAGE,
 withEscalationChoice(items)
 );
+};
+
+const showCompactStandardMenuFollowup = (message: string) => {
+setSelfserviceStage('menu');
+injectBotMessage(message, withEscalationChoice([]));
 };
 
 const loadAndShowStandardMenu = async (unitId: string, categoryId: string) => {
@@ -594,10 +601,10 @@ setIsTyping(true);
 try {
 const response = await answerStandardSelfservice(item.action);
 injectBotMessage(response.presentation || response.answer || STANDARD_EMPTY_MESSAGE);
-showStandardMenu(selfserviceMenu, 'Du kan välja en till snabbfråga eller skapa ett ärende.');
+showCompactStandardMenuFollowup('Fler snabbfrågor finns i menyn nere vid skrivfältet.');
 } catch (error) {
 console.error('[AtlasChat] Selfservice answer error:', error);
-showStandardMenu(selfserviceMenu, 'Svaret kunde inte hämtas just nu. Välj igen eller skapa ett ärende.');
+showCompactStandardMenuFollowup('Svaret kunde inte hämtas just nu. Försök igen via menyn nere vid skrivfältet eller skapa ett ärende.');
 } finally {
 setIsTyping(false);
 }
@@ -726,7 +733,7 @@ if (['avbryt', 'avbryta', 'cancel'].includes(trimmed.toLowerCase())) {
 setIntakeData({});
 if (standardSelfserviceEnabled && selfserviceUnitId && selectedCategoryId) {
 setIntakeStep(null);
-showStandardMenu(selfserviceMenu, 'Okej, ärendet avbröts. Välj en snabbfråga eller skapa ett nytt ärende.');
+showCompactStandardMenuFollowup('Okej, ärendet avbröts. Fler snabbfrågor finns i menyn nere vid skrivfältet.');
 return;
 }
 setSelectedCategoryId(null);
@@ -1495,6 +1502,12 @@ setMessages((prev) => [...prev, templateMessage]);
 const showWelcomeWidget = aiRepliesEnabled && messages.length === 1 && messages[0].id === 'welcome-msg' && !isTyping;
 const hasCustomerMessage = messages.some((message) => message.role === 'user');
 const selfserviceFreeTextBlocked = standardSelfserviceEnabled && !humanMode && !intakeStep;
+const showStandardSelfserviceMenuButton = shouldShowStandardSelfserviceMenu({
+stage: selfserviceStage,
+humanMode,
+intakeActive: Boolean(intakeStep),
+isArchived,
+});
 const handleInputSend = (message: string, contextData?: QuickContextPayload) => {
 if (standardSelfserviceEnabled && !humanMode && !intakeStep) {
 return;
@@ -1671,6 +1684,11 @@ placeholder={selfserviceFreeTextBlocked
 ? "Välj ett alternativ ovan eller skapa ett ärende"
 : (!aiRepliesEnabled && !humanMode ? "Skriv ditt svar..." : (humanMode ? "Skriv till support..." : "Skriv ett meddelande..."))}
 showQuickQuestions={intakeMode === 'legacy' && aiRepliesEnabled && !humanMode && messages.length > 1}
+showStandardSelfserviceMenu={showStandardSelfserviceMenuButton}
+standardSelfserviceMenu={selfserviceMenu}
+standardUnitLabel={selfserviceUnitLabel}
+standardCategoryLabel={selfserviceCategoryLabel}
+onStandardMenuChoice={(value) => { void handleStandardChoice(value); }}
 selectedVehicle={selectedVehicle}
 onVehicleChange={handleVehicleChange}
 onGeneralVehicleSelect={handleGeneralVehicleSelect}
