@@ -9,6 +9,7 @@ import {
   unitChoiceValue,
   valueAfterPrefix,
   withEscalationChoice,
+  withEscalationValue,
 } from './standard-selfservice-machine';
 
 describe('standard selfservice machine', () => {
@@ -49,6 +50,13 @@ describe('standard selfservice machine', () => {
     }]);
     expect(choices).toEqual([
       { label: 'Vad kostar produkten?', value: `${STANDARD_MENU_PREFIX}opaque-1` },
+      { label: 'Jag behöver mer hjälp – skapa ärende', value: STANDARD_ESCALATE_VALUE },
+    ]);
+  });
+
+  it('can append the same escalation choice to arbitrary label/value choices', () => {
+    expect(withEscalationValue([{ label: 'Kategori 7', value: 'standard:category-choice:KAT7' }])).toEqual([
+      { label: 'Kategori 7', value: 'standard:category-choice:KAT7' },
       { label: 'Jag behöver mer hjälp – skapa ärende', value: STANDARD_ESCALATE_VALUE },
     ]);
   });

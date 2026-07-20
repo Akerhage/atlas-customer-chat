@@ -52,6 +52,7 @@ shouldShowStandardSelfserviceMenu,
 unitChoiceValue,
 valueAfterPrefix,
 withEscalationChoice,
+withEscalationValue,
 type StandardSelfserviceMenuItem,
 type StandardSelfserviceStage,
 } from "@/lib/standard-selfservice-machine";
@@ -302,6 +303,8 @@ const [selfserviceUnitId, setSelfserviceUnitId] = useState<string | null>(null);
 const [selfserviceUnitLabel, setSelfserviceUnitLabel] = useState<string | null>(null);
 const [selfserviceMenu, setSelfserviceMenu] = useState<StandardSelfserviceMenuItem[]>([]);
 const standardSelfserviceStartedRef = useRef(false);
+const selfserviceUnitMessageIdRef = useRef<string | null>(null);
+const selfserviceCategoryMessageIdRef = useRef<string | null>(null);
 
 const activeVehicleChoices = VEHICLE_CHOICES.filter(choice => activeVehicles.includes(choice.value));
 const getSafeActiveVehicle = (value: string | null | undefined): VehicleType | null => {
@@ -314,6 +317,8 @@ const singletonVehicle = activeVehicles.length === 1 ? activeVehicles[0] : null;
 const categoryFirstEnabled = isCategoryFirstIntake(intakeMode, categoryChoices.length);
 const standardSelfserviceEnabled = isStandardSelfserviceEnabled(tenantProfile, intakeMode);
 const selfserviceCategoryLabel = categoryChoices.find(choice => choice.value === selectedCategoryId)?.label || null;
+const STANDARD_EMPTY_CATEGORY_MESSAGE =
+'Den här avdelningen har inga kategorier ännu. Skapa ett ärende så hjälper vi dig vidare.';
 
 // Hämta kontorslistan från API när chatten bootar
 useEffect(() => {
@@ -437,30 +442,34 @@ const generateMessageId = () => `msg_${Date.now()}_${Math.random().toString(36).
 // Intake-meddelanden är efemära – när humanMode startar och
 // polling aktiveras ersätts de automatiskt av serverns historik.
 const injectBotMessage = (content: string, choices?: { label: string; value: string }[]) => {
+const id = generateMessageId();
 setMessages((prev) => [
 ...prev,
 {
-id: generateMessageId(),
+id,
 role: 'assistant' as const,
 content,
 timestamp: new Date(),
 choices,
 },
 ]);
+return id;
 };
 
 // Injicerar ett användarmeddelande lokalt utan att skicka till backend.
 // lastMessageCountRef inkrementeras inte av samma anledning som ovan.
 const injectUserMessage = (content: string) => {
+const id = generateMessageId();
 setMessages((prev) => [
 ...prev,
 {
-id: generateMessageId(),
+id,
 role: 'user' as const,
 content,
 timestamp: new Date(),
 },
 ]);
+return id;
 };
 
 const getOfficeChoices = (): { label: string; value: string }[] => [
@@ -511,6 +520,13 @@ value: categoryChoiceValue(choice.value),
 }));
 };
 
+const getStandardCategoryStep = (unitId?: string | null): { content: string; choices: { label: string; value: string }[] } => {
+const choices = getStandardCategoryChoices(unitId);
+return choices.length
+? { content: 'Välj kategori.', choices }
+: { content: STANDARD_EMPTY_CATEGORY_MESSAGE, choices: withEscalationValue([]) };
+};
+
 const showStandardMenu = (
 items: StandardSelfserviceMenuItem[],
   message = 'Välj en snabbfråga eller skapa ett ärende så hjälper vi dig. Du hittar också frågorna i menyn nere vid skrivfältet.'
@@ -547,6 +563,8 @@ setIsTyping(false);
 
 const beginStandardSelfservice = () => {
 standardSelfserviceStartedRef.current = true;
+selfserviceUnitMessageIdRef.current = null;
+selfserviceCategoryMessageIdRef.current = null;
 setIntakeStep(null);
 setIntakeData({});
 setSelectedCategoryId(null);
@@ -561,7 +579,7 @@ const startStandardEscalation = () => {
 const city = selfserviceUnitId === STANDARD_CENTRAL_SUPPORT
 ? 'Centralsupport'
 : selfserviceUnitLabel;
-if (!city || !selectedCategoryId) return;
+if (!city) return;
 setSelfserviceStage(null);
 setIntakeData({ city, vehicle: null });
 setIntakeStep('name');
@@ -571,21 +589,20 @@ injectBotMessage('För att skapa ett ärende behöver vi några uppgifter. Vad h
 };
 
 const handleStandardChoice = async (value: string): Promise<boolean> => {
-if (!standardSelfserviceEnabled || humanMode || intakeStep) return false;
+const requestedUnitId = valueAfterPrefix(value, STANDARD_UNIT_PREFIX);
+if (!standardSelfserviceEnabled || humanMode) return false;
+if (intakeStep && !requestedUnitId) return false;
 if (value === STANDARD_ESCALATE_VALUE) {
 startStandardEscalation();
 return true;
 }
 
-if (selfserviceStage === 'unit') {
-const unitId = valueAfterPrefix(value, STANDARD_UNIT_PREFIX);
-if (!unitId) return false;
+const applyStandardUnitSelection = (unitId: string) => {
 const office = unitId === STANDARD_CENTRAL_SUPPORT
 ? null
 : offices.find(candidate => candidate.routing_tag === unitId);
-if (unitId !== STANDARD_CENTRAL_SUPPORT && !office) return true;
+if (unitId !== STANDARD_CENTRAL_SUPPORT && !office) return null;
 const label = office ? getOfficeDisplayName(office) : 'Centralsupport';
-injectUserMessage(label);
 setSelfserviceUnitId(unitId);
 setSelfserviceUnitLabel(label);
 setSelectedCity(label);
@@ -598,9 +615,54 @@ unit_id: office?.routing_tag || null,
 vehicle: null,
 vehicle_choice: 'OVRIGT',
 clear_vehicle: true,
+category_id: null,
 }));
+return { label };
+};
+
+if (requestedUnitId && selfserviceStage === 'category' && !selectedCategoryId && !intakeStep) {
+const selection = applyStandardUnitSelection(requestedUnitId);
+if (!selection) return true;
+const categoryStep = getStandardCategoryStep(requestedUnitId);
+setMessages((current) => current.map((message) => {
+if (message.id === selfserviceUnitMessageIdRef.current) {
+return { ...message, content: selection.label };
+}
+if (message.id === selfserviceCategoryMessageIdRef.current) {
+return { ...message, content: categoryStep.content, choices: categoryStep.choices };
+}
+return message;
+}));
+return true;
+}
+
+if (requestedUnitId && selfserviceStage !== 'unit') {
+const selection = applyStandardUnitSelection(requestedUnitId);
+if (!selection) return true;
+setIntakeStep(null);
+setIntakeData({});
+setGeneralMode(false);
+setSelectedCategoryId(null);
+setSelectedVehicle(null);
+window.selectedVehicle = null;
+setSelfserviceMenu([]);
 setSelfserviceStage('category');
-injectBotMessage('Välj kategori.', getStandardCategoryChoices(unitId));
+const unitMessageId = injectUserMessage(selection.label);
+const categoryStep = getStandardCategoryStep(requestedUnitId);
+const categoryMessageId = injectBotMessage(categoryStep.content, categoryStep.choices);
+selfserviceUnitMessageIdRef.current = unitMessageId;
+selfserviceCategoryMessageIdRef.current = categoryMessageId;
+return true;
+}
+
+if (selfserviceStage === 'unit') {
+if (!requestedUnitId) return false;
+const selection = applyStandardUnitSelection(requestedUnitId);
+if (!selection) return true;
+selfserviceUnitMessageIdRef.current = injectUserMessage(selection.label);
+setSelfserviceStage('category');
+const categoryStep = getStandardCategoryStep(requestedUnitId);
+selfserviceCategoryMessageIdRef.current = injectBotMessage(categoryStep.content, categoryStep.choices);
 return true;
 }
 
@@ -644,8 +706,14 @@ return false;
 const startIntake = (legacyMessage: string, categoryMessage = 'Vad gäller ärendet?') => {
 const firstStep = buildIntakeOrder(intakeMode, categoryChoices.length, hasKnownOfficeForIntake())[0];
 if (firstStep === 'category') {
+const choices = getCategoryChoicesForIntake();
+if (choices.length === 0) {
+setIntakeStep('name');
+injectBotMessage(legacyMessage);
+return;
+}
 setIntakeStep('category');
-injectBotMessage(categoryMessage, getCategoryChoicesForIntake());
+injectBotMessage(categoryMessage, choices);
 return;
 }
 if (firstStep === 'office') {
@@ -827,8 +895,24 @@ setIntakeData(nextIntakeData);
 
 if (categoryFirstEnabled) {
 if (!selectedCategoryId) {
+const choices = getCategoryChoicesForIntake();
+if (choices.length > 0) {
 setIntakeStep('category');
-injectBotMessage('Vad gäller ärendet?', getCategoryChoicesForIntake());
+injectBotMessage('Vad gäller ärendet?', choices);
+return;
+}
+if (!safeOffice && !isCentralSupport) {
+setIntakeStep('office');
+injectBotMessage(widgetTexts.officeQuestion, getOfficeChoices());
+return;
+}
+setIntakeStep(null);
+finishIntakeHandoff({
+...nextIntakeData,
+city: isCentralSupport ? 'Centralsupport' : getOfficeDisplayName(safeOffice!),
+vehicle: null,
+general: true,
+});
 return;
 }
 if (!safeOffice && !isCentralSupport) {
@@ -1402,6 +1486,10 @@ if (standardSelfserviceEnabled && !humanMode && !intakeStep) {
 void handleStandardChoice(value);
 return;
 }
+if (standardSelfserviceEnabled && !humanMode && intakeStep && valueAfterPrefix(value, STANDARD_UNIT_PREFIX)) {
+void handleStandardChoice(value);
+return;
+}
 
 if (!intakeStep) {
 handleSendMessage(value);
@@ -1427,7 +1515,13 @@ vehicle_choice: 'OVRIGT',
 clear_vehicle: true,
 }));
 setIntakeStep('category');
-injectBotMessage('Vad gäller ärendet?', getCategoryChoicesForOfficeLabel(value));
+const categoryChoicesForOffice = getCategoryChoicesForOfficeLabel(value);
+if (categoryChoicesForOffice.length === 0) {
+setIntakeStep('name');
+injectBotMessage('Vad heter du?');
+return;
+}
+injectBotMessage('Vad gäller ärendet?', categoryChoicesForOffice);
 return;
 }
 // Övrigt-kund tvingas aldrig välja fordon efter kontorsvalet — avsluta direkt som Övrigt.
@@ -1446,8 +1540,14 @@ return;
 
 setIntakeData((prev) => ({ ...prev, city: value }));
 if (intakeMode === 'category_first' && categoryChoices.length > 0) {
+const categoryChoicesForOffice = getCategoryChoicesForOfficeLabel(value);
+if (categoryChoicesForOffice.length === 0) {
+setIntakeStep('name');
+injectBotMessage('Vad heter du?');
+return;
+}
 setIntakeStep('category');
-injectBotMessage('Vad gäller ärendet?', getCategoryChoicesForOfficeLabel(value));
+injectBotMessage('Vad gäller ärendet?', categoryChoicesForOffice);
 return;
 }
 setIntakeStep('vehicle');

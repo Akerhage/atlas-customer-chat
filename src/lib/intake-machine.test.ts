@@ -153,8 +153,12 @@ describe("filterCategoryChoicesForOffice", () => {
     ]);
   });
 
-  it.each([undefined, null, []])("fails open when categories_offered is %j", (offered) => {
+  it.each([undefined, null])("fails open when categories_offered is %j", (offered) => {
     expect(filterCategoryChoicesForOffice(choices, offered)).toEqual(choices);
+  });
+
+  it("returns no choices when categories_offered is a known empty array", () => {
+    expect(filterCategoryChoicesForOffice(choices, [])).toEqual([]);
   });
 
   it("ignores blank offered category ids without mutating the original list", () => {

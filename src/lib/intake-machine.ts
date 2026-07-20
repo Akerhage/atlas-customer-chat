@@ -111,9 +111,11 @@ export function filterCategoryChoicesForOffice<T extends { value: string }>(
   categoryChoices: readonly T[],
   officeCategoriesOffered: readonly unknown[] | null | undefined,
 ): T[] {
-  if (!Array.isArray(officeCategoriesOffered) || officeCategoriesOffered.length === 0) {
+  if (!Array.isArray(officeCategoriesOffered)) {
     return [...categoryChoices];
   }
+  // Patrik-beslut 2026-07-20: saknat fält är okänt utbud, [] är känt tomt utbud.
+  if (officeCategoriesOffered.length === 0) return [];
 
   const allowedCategories = new Set(
     officeCategoriesOffered

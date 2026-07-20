@@ -32,8 +32,27 @@ describe("AtlasChat intake-order contract", () => {
 
   it("uses office-filtered category choices for standard intake paths", () => {
     expect(source).toContain("filterCategoryChoicesForOffice(categoryChoices, office?.categories_offered)");
-    expect(source).toContain("injectBotMessage('Vad gäller ärendet?', getCategoryChoicesForOfficeLabel(value));");
-    expect(source).toContain("injectBotMessage('Vad gäller ärendet?', getCategoryChoicesForIntake());");
+    expect(source).toContain("const categoryChoicesForOffice = getCategoryChoicesForOfficeLabel(value);");
+    expect(source).toContain("injectBotMessage('Vad gäller ärendet?', categoryChoicesForOffice);");
+    expect(source).toContain("const choices = getCategoryChoicesForIntake();");
+    expect(source).toContain("if (choices.length === 0) {");
+  });
+
+  it("keeps empty selfservice category choices escapable instead of buttonless", () => {
+    expect(source).toContain("const STANDARD_EMPTY_CATEGORY_MESSAGE =");
+    expect(source).toContain("choices: withEscalationValue([])");
+    expect(source).toContain("const categoryStep = getStandardCategoryStep(requestedUnitId);");
+    expect(source).toContain("if (choices.length > 0) {");
+    expect(source).toContain("finishIntakeHandoff({\n...nextIntakeData,\ncity: isCentralSupport ? 'Centralsupport' : getOfficeDisplayName(safeOffice!),\nvehicle: null,\ngeneral: true,");
+  });
+
+  it("allows standard unit reselection with in-place update before category and reset after", () => {
+    expect(source).toContain("const selfserviceUnitMessageIdRef = useRef<string | null>(null);");
+    expect(source).toContain("selfserviceStage === 'category' && !selectedCategoryId && !intakeStep");
+    expect(source).toContain("message.id === selfserviceUnitMessageIdRef.current");
+    expect(source).toContain("requestedUnitId && selfserviceStage !== 'unit'");
+    expect(source).toContain("setSelectedCategoryId(null);");
+    expect(source).toContain("setIntakeStep(null);");
   });
 
   it("keeps the step set unchanged and does not hydrate response category ids", () => {
