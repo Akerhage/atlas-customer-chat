@@ -72,7 +72,7 @@ role: 'user' | 'assistant';
 content: string;
 timestamp: Date;
 senderName?: string | null; // Agentens namn för mänskliga svar (null = Atlas AI)
-choices?: { label: string; value: string; icon?: string }[];
+choices?: { label: string; value: string; icon?: string; fullWidth?: boolean }[];
 }
 
 type IntakeStep = 'name' | 'email' | 'phone' | 'office' | 'vehicle' | 'category' | null;
@@ -441,7 +441,7 @@ const generateMessageId = () => `msg_${Date.now()}_${Math.random().toString(36).
 // VIKTIGT: lastMessageCountRef inkrementeras INTE avsiktligt.
 // Intake-meddelanden är efemära – när humanMode startar och
 // polling aktiveras ersätts de automatiskt av serverns historik.
-const injectBotMessage = (content: string, choices?: { label: string; value: string }[]) => {
+const injectBotMessage = (content: string, choices?: { label: string; value: string; fullWidth?: boolean }[]) => {
 const id = generateMessageId();
 setMessages((prev) => [
 ...prev,

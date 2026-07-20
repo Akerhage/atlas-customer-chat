@@ -26,7 +26,7 @@ isUser: boolean;
 timestamp?: Date;
 isLatest?: boolean;
 senderName?: string | null;
-choices?: { label: string; value: string; icon?: string }[];
+choices?: { label: string; value: string; icon?: string; fullWidth?: boolean }[];
 onChoiceSelect?: (value: string) => void;
 onRequestHuman?: () => void;
 }
@@ -118,7 +118,10 @@ return (
 <button
 key={choice.value}
 onClick={() => onChoiceSelect(choice.value)}
-className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-full bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 active:scale-95 transition-all duration-150"
+className={cn(
+"inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-full bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 active:scale-95 transition-all duration-150",
+choice.fullWidth && "w-full justify-center text-center whitespace-normal"
+)}
 >
 {ChoiceIcon && <ChoiceIcon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />}
 {choice.label}

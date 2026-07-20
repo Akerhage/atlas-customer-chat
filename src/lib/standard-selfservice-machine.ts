@@ -35,16 +35,16 @@ export function isStandardSelfserviceEnabled(
 
 export function withEscalationChoice(
   items: StandardSelfserviceMenuItem[]
-): { label: string; value: string }[] {
+): { label: string; value: string; fullWidth?: boolean }[] {
   return withEscalationValue(items.map(item => ({ label: item.label, value: menuChoiceValue(item.id) })));
 }
 
 export function withEscalationValue<T extends { label: string; value: string }>(
   choices: readonly T[]
-): { label: string; value: string }[] {
+): { label: string; value: string; fullWidth?: boolean }[] {
   return [
-    ...choices.map(choice => ({ label: choice.label, value: choice.value })),
-    { label: 'Jag behöver mer hjälp – skapa ärende', value: STANDARD_ESCALATE_VALUE }
+    ...choices.map(choice => ({ label: choice.label, value: choice.value, fullWidth: true })),
+    { label: 'Jag behöver mer hjälp – skapa ärende', value: STANDARD_ESCALATE_VALUE, fullWidth: true }
   ];
 }
 
