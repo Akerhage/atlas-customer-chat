@@ -70,7 +70,7 @@ Har du frågor eller vill du skicka ett ärende till oss är du varmt välkommen
 
 Jag guidar dig genom några korta steg och skickar ditt ärende till rätt mottagare hos oss.
 
-Vi börjar med vad ärendet gäller.`,
+Vi börjar med vart du vill skicka ärendet.`,
     welcomeAiOn: `Hej och välkommen till oss! 👋
 
 Jag är företagets smarta AI-assistent!
@@ -107,6 +107,24 @@ export function buildCategoryChoices(
     .map((category) => ({ label: category.label, value: category.id, icon: category.icon }));
 }
 
+export function filterCategoryChoicesForOffice<T extends { value: string }>(
+  categoryChoices: readonly T[],
+  officeCategoriesOffered: readonly unknown[] | null | undefined,
+): T[] {
+  if (!Array.isArray(officeCategoriesOffered) || officeCategoriesOffered.length === 0) {
+    return [...categoryChoices];
+  }
+
+  const allowedCategories = new Set(
+    officeCategoriesOffered
+      .map((category) => String(category || "").trim())
+      .filter(Boolean),
+  );
+  if (allowedCategories.size === 0) return [...categoryChoices];
+
+  return categoryChoices.filter((choice) => allowedCategories.has(choice.value));
+}
+
 export function isCategoryFirstIntake(mode: IntakeMode, categoryChoiceCount: number): boolean {
   return mode === "category_first" && categoryChoiceCount > 0;
 }
@@ -117,7 +135,7 @@ export function buildIntakeOrder(
   hasKnownOffice = false,
 ): readonly IntakeOrderStep[] {
   if (isCategoryFirstIntake(mode, categoryChoiceCount)) {
-    return ["category", ...(hasKnownOffice ? [] : ["office"] as const), "name", "email", "phone", "handoff"];
+    return [...(hasKnownOffice ? [] : ["office"] as const), "category", "name", "email", "phone", "handoff"];
   }
 
   return ["name", "email", "phone", "office", "vehicle", "handoff"];

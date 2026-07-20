@@ -31,6 +31,7 @@ import type { TenantProfile } from "@/lib/tenant-capabilities";
 import {
 buildCategoryChoices,
 buildIntakeOrder,
+filterCategoryChoicesForOffice,
 isCategoryFirstIntake,
 resolveIntakeMode,
 resolveOptionalPhone,
@@ -84,6 +85,7 @@ display_name?: string;
 city: string;
 area: string | null;
 routing_tag: string;
+categories_offered?: string[];
 }
 
 // Convert history role to our internal role
@@ -477,11 +479,37 @@ value: unitChoiceValue(office.routing_tag),
 })),
 ];
 
-const getStandardCategoryChoices = (): { label: string; value: string }[] =>
-categoryChoices.map(choice => ({
+const getCategoryChoicesForOffice = (office: Office | null | undefined) =>
+filterCategoryChoicesForOffice(categoryChoices, office?.categories_offered);
+
+const getCategoryChoicesForOfficeLabel = (value: string | null | undefined) => {
+if (normalizeOfficeLabel(value) === normalizeOfficeLabel('Centralsupport')) return categoryChoices;
+const office = findSafeOfficeFromLiveContext(offices, value, context) || undefined;
+return getCategoryChoicesForOffice(office);
+};
+
+const getCategoryChoicesForIntake = () => {
+const label = intakeData.city || selectedCity || context.city || null;
+if (normalizeOfficeLabel(label) === normalizeOfficeLabel('Centralsupport')) return categoryChoices;
+const office = findSafeOfficeFromLiveContext(offices, label, context) || singletonOffice || undefined;
+return getCategoryChoicesForOffice(office);
+};
+
+const hasKnownOfficeForIntake = () => {
+const label = selectedCity || context.city || null;
+return normalizeOfficeLabel(label) === normalizeOfficeLabel('Centralsupport') ||
+Boolean(findSafeOfficeFromLiveContext(offices, label, context) || singletonOffice);
+};
+
+const getStandardCategoryChoices = (unitId?: string | null): { label: string; value: string }[] => {
+const office = unitId && unitId !== STANDARD_CENTRAL_SUPPORT
+? offices.find(candidate => candidate.routing_tag === unitId)
+: null;
+return getCategoryChoicesForOffice(office).map(choice => ({
 label: choice.label,
 value: categoryChoiceValue(choice.value),
 }));
+};
 
 const showStandardMenu = (
 items: StandardSelfserviceMenuItem[],
@@ -572,7 +600,7 @@ vehicle_choice: 'OVRIGT',
 clear_vehicle: true,
 }));
 setSelfserviceStage('category');
-injectBotMessage('Välj kategori.', getStandardCategoryChoices());
+injectBotMessage('Välj kategori.', getStandardCategoryChoices(unitId));
 return true;
 }
 
@@ -614,10 +642,15 @@ return false;
 };
 
 const startIntake = (legacyMessage: string, categoryMessage = 'Vad gäller ärendet?') => {
-const firstStep = buildIntakeOrder(intakeMode, categoryChoices.length)[0];
+const firstStep = buildIntakeOrder(intakeMode, categoryChoices.length, hasKnownOfficeForIntake())[0];
 if (firstStep === 'category') {
 setIntakeStep('category');
-injectBotMessage(categoryMessage, categoryChoices);
+injectBotMessage(categoryMessage, getCategoryChoicesForIntake());
+return;
+}
+if (firstStep === 'office') {
+setIntakeStep('office');
+injectBotMessage(widgetTexts.officeQuestion, getOfficeChoices());
 return;
 }
 setIntakeStep('name');
@@ -795,7 +828,7 @@ setIntakeData(nextIntakeData);
 if (categoryFirstEnabled) {
 if (!selectedCategoryId) {
 setIntakeStep('category');
-injectBotMessage('Vad gäller ärendet?', categoryChoices);
+injectBotMessage('Vad gäller ärendet?', getCategoryChoicesForIntake());
 return;
 }
 if (!safeOffice && !isCentralSupport) {
@@ -1262,7 +1295,7 @@ startStandardEscalation();
 } else if (selfserviceStage === 'unit') {
 injectBotMessage('Välj först den avdelning du vill skapa ärendet hos.', getStandardUnitChoices());
 } else {
-injectBotMessage('Välj först kategori.', getStandardCategoryChoices());
+injectBotMessage('Välj först kategori.', getStandardCategoryChoices(selfserviceUnitId));
 }
 return;
 }
@@ -1378,9 +1411,23 @@ return;
 if (intakeStep === 'office') {
 injectUserMessage(value);
 if (categoryFirstEnabled) {
+const selectedOffice = value === 'Centralsupport'
+? undefined
+: findSafeOfficeFromLiveContext(offices, value, context);
 setIntakeData((prev) => ({ ...prev, city: value }));
-setIntakeStep('name');
-injectBotMessage('Vad heter du?');
+setSelectedCity(value);
+window.selectedCity = value;
+setContext(prev => ({
+...prev,
+city: selectedOffice?.city || (value === 'Centralsupport' ? 'Centralsupport' : prev.city),
+area: selectedOffice?.area || null,
+unit_id: selectedOffice?.routing_tag || null,
+vehicle: null,
+vehicle_choice: 'OVRIGT',
+clear_vehicle: true,
+}));
+setIntakeStep('category');
+injectBotMessage('Vad gäller ärendet?', getCategoryChoicesForOfficeLabel(value));
 return;
 }
 // Övrigt-kund tvingas aldrig välja fordon efter kontorsvalet — avsluta direkt som Övrigt.
@@ -1400,7 +1447,7 @@ return;
 setIntakeData((prev) => ({ ...prev, city: value }));
 if (intakeMode === 'category_first' && categoryChoices.length > 0) {
 setIntakeStep('category');
-injectBotMessage('Vad gäller ärendet?', categoryChoices);
+injectBotMessage('Vad gäller ärendet?', getCategoryChoicesForOfficeLabel(value));
 return;
 }
 setIntakeStep('vehicle');
@@ -1410,7 +1457,15 @@ injectBotMessage('Vad gäller ärendet?', activeVehicleChoices);
 const categoryLabel = categoryChoices.find((choice) => choice.value === value)?.label || value;
 injectUserMessage(categoryLabel);
 setSelectedCategoryId(value);
-const safeOffice = findSafeOfficeFromLiveContext(offices, selectedCity, context) || singletonOffice || undefined;
+const selectedIntakeCity = intakeData.city || selectedCity;
+const isCentralSupport = normalizeOfficeLabel(selectedIntakeCity) === normalizeOfficeLabel('Centralsupport');
+if (isCentralSupport) {
+setIntakeData((prev) => ({ ...prev, city: 'Centralsupport' }));
+setIntakeStep('name');
+injectBotMessage('Vad heter du?');
+return;
+}
+const safeOffice = findSafeOfficeFromLiveContext(offices, selectedIntakeCity, context) || singletonOffice || undefined;
 if (safeOffice) {
 setIntakeData((prev) => ({ ...prev, city: getOfficeDisplayName(safeOffice) }));
 setIntakeStep('name');

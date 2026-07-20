@@ -26,7 +26,14 @@ describe("AtlasChat intake-order contract", () => {
 
   it("routes all seven intake starts through the mode-gated starter", () => {
     expect(source.match(/startIntake\('/g)).toHaveLength(7);
-    expect(source).toContain("const firstStep = buildIntakeOrder(intakeMode, categoryChoices.length)[0];");
+    expect(source).toContain("const firstStep = buildIntakeOrder(intakeMode, categoryChoices.length, hasKnownOfficeForIntake())[0];");
+    expect(source).toContain("if (firstStep === 'office') {");
+  });
+
+  it("uses office-filtered category choices for standard intake paths", () => {
+    expect(source).toContain("filterCategoryChoicesForOffice(categoryChoices, office?.categories_offered)");
+    expect(source).toContain("injectBotMessage('Vad gäller ärendet?', getCategoryChoicesForOfficeLabel(value));");
+    expect(source).toContain("injectBotMessage('Vad gäller ärendet?', getCategoryChoicesForIntake());");
   });
 
   it("keeps the step set unchanged and does not hydrate response category ids", () => {

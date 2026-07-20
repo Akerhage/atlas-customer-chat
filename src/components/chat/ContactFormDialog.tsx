@@ -42,7 +42,7 @@ sanitizeHtmlPasteForAiMode,
 usePendingAttachments,
 } from "@/lib/pending-attachments";
 import type { ActiveVehicle } from "@/lib/atlas-client";
-import type { IntakeMode } from "@/lib/intake-machine";
+import { filterCategoryChoicesForOffice, type IntakeMode } from "@/lib/intake-machine";
 
 interface ContactFormDialogProps {
 onSubmit?: (data: any) => void;
@@ -130,6 +130,10 @@ category: "",
 });
 const singletonOfficeLabel = offices.length === 1 ? getOfficeDisplayName(offices[0]) : null;
 const categoryFormMode = intakeMode === "category_first" && categoryChoices.length > 0;
+const selectedFormOffice = findSafeOfficeByLabel(offices, formData.city);
+const filteredCategoryChoices = categoryFormMode
+? filterCategoryChoicesForOffice(categoryChoices, selectedFormOffice?.categories_offered)
+: categoryChoices;
 useEffect(() => {
 if (open) {
 const fallbackVehicle = activeVehicles.includes(DEFAULT_VEHICLE) ? DEFAULT_VEHICLE : activeVehicles[0] || DEFAULT_VEHICLE;
@@ -144,6 +148,12 @@ category: categoryFormMode ? "OVRIGT" : "",
 setWantsCallback(false);
 }
 }, [open, selectedCity, selectedVehicle, generalMode, activeVehicles, singletonOfficeLabel, categoryFormMode]);
+
+useEffect(() => {
+if (!categoryFormMode || !formData.category || formData.category === "OVRIGT") return;
+if (filteredCategoryChoices.some((option) => option.value === formData.category)) return;
+setFormData((prev) => ({ ...prev, category: "" }));
+}, [categoryFormMode, formData.category, filteredCategoryChoices]);
 
 const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
 const files = e.target.files;
@@ -372,7 +382,7 @@ aria-label="Telefonnummer"
 <SelectTrigger><SelectValue placeholder={`Välj ${formLabels.category.toLowerCase()}`} /></SelectTrigger>
 <SelectContent className="max-w-[calc(100vw-1rem)]">
 <SelectItem value="OVRIGT">Övrigt / Allmän fråga</SelectItem>
-{categoryChoices.map((option) => (
+{filteredCategoryChoices.map((option) => (
 <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
 ))}
 </SelectContent>

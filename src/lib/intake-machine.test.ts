@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCategoryChoices, buildIntakeOrder, resolveIntakeMode, resolveOptionalPhone, resolveWidgetTexts } from "./intake-machine";
+import { buildCategoryChoices, buildIntakeOrder, filterCategoryChoicesForOffice, resolveIntakeMode, resolveOptionalPhone, resolveWidgetTexts } from "./intake-machine";
 import type { EffectiveCategory, TenantProfile } from "./tenant-capabilities";
 
 const standardProfile: TenantProfile = {
@@ -57,6 +57,7 @@ describe("resolveWidgetTexts", () => {
     });
     expect(texts.welcomeAiOn).toContain("företagets inlagda fakta om tjänster");
     expect(texts.welcomeAiOff).toContain("skickar ditt ärende till rätt mottagare hos oss");
+    expect(texts.welcomeAiOff).toContain("Vi börjar med vart du vill skicka ärendet.");
     expect(texts.welcomeAiOff).not.toContain(legacyNameLead);
   });
 
@@ -82,7 +83,7 @@ describe("resolveWidgetTexts", () => {
 describe("intake order", () => {
   it("puts contact details last in category-first mode", () => {
     expect(buildIntakeOrder("category_first", 10)).toEqual([
-      "category", "office", "name", "email", "phone", "handoff",
+      "office", "category", "name", "email", "phone", "handoff",
     ]);
   });
 
@@ -135,5 +136,32 @@ describe("buildCategoryChoices", () => {
 
     expect(buildCategoryChoices(categories)).toEqual(buildCategoryChoices(categories));
     expect(categories).toEqual(snapshot);
+  });
+});
+
+describe("filterCategoryChoicesForOffice", () => {
+  const choices = [
+    { label: "Muttrar", value: "MUTTRAR" },
+    { label: "Skruvar", value: "SKRUVAR" },
+    { label: "Brickor", value: "BRICKOR" },
+  ];
+
+  it("limits choices to the selected office's offered categories", () => {
+    expect(filterCategoryChoicesForOffice(choices, ["SKRUVAR", "BRICKOR"])).toEqual([
+      { label: "Skruvar", value: "SKRUVAR" },
+      { label: "Brickor", value: "BRICKOR" },
+    ]);
+  });
+
+  it.each([undefined, null, []])("fails open when categories_offered is %j", (offered) => {
+    expect(filterCategoryChoicesForOffice(choices, offered)).toEqual(choices);
+  });
+
+  it("ignores blank offered category ids without mutating the original list", () => {
+    const snapshot = structuredClone(choices);
+    expect(filterCategoryChoicesForOffice(choices, ["", " MUTTRAR "])).toEqual([
+      { label: "Muttrar", value: "MUTTRAR" },
+    ]);
+    expect(choices).toEqual(snapshot);
   });
 });
