@@ -78,6 +78,12 @@ minutesLeft: number;
 
 export interface PublicConfig {
   ai_replies_enabled: boolean;
+  // Chattöppettider (Standard-utgåvan). Servern räknar ut bemanningsstatusen i
+  // svensk tid och skickar bara resultatet — widgeten har ingen egen klocka.
+  // Saknas fälten (trafik-editionen eller funktionen avstängd) gäller legacy:
+  // chatten anses bemannad och ingen notis visas.
+  chat_staffed: boolean;
+  chat_reopens_label: string | null;
 }
 
 export interface StandardSelfserviceMenuResponse {
@@ -614,10 +620,14 @@ export async function getPublicConfig(): Promise<PublicConfig> {
     });
     if (!response.ok) throw new Error('Failed to fetch public config');
     const data = await response.json();
-    return { ai_replies_enabled: data?.ai_replies_enabled !== false };
+    return {
+      ai_replies_enabled: data?.ai_replies_enabled !== false,
+      chat_staffed: data?.chat_staffed !== false,
+      chat_reopens_label: typeof data?.chat_reopens_label === 'string' ? data.chat_reopens_label : null
+    };
   } catch (err) {
     console.warn('[Atlas] Kunde inte hamta publik konfiguration:', err);
-    return { ai_replies_enabled: true };
+    return { ai_replies_enabled: true, chat_staffed: true, chat_reopens_label: null };
   }
 }
 

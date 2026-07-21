@@ -29,6 +29,9 @@ templatesSubtitle?: string;
 intakeMode: IntakeMode;
 categoryChoices: { label: string; value: string }[];
 formLabels: { unit: string; category: string };
+// Styrd öppning av mailformuläret (chattens "skicka ett ärende"-länk).
+contactFormOpen?: boolean;
+onContactFormOpenChange?: (open: boolean) => void;
 }
 
 export function ChatHeader({
@@ -50,6 +53,8 @@ templatesSubtitle = "Här kan du läsa mer om våra paket, vår policy, våra ku
 intakeMode,
 categoryChoices,
 formLabels,
+contactFormOpen,
+onContactFormOpenChange,
 }: ChatHeaderProps) {
 const displayName = companyName || "Atlas";
 const logoSrc = resolveTenantAssetUrl(companyLogoUrl) || atlasLogo;
@@ -90,6 +95,8 @@ activeVehicles={activeVehicles}
 intakeMode={intakeMode}
 categoryChoices={categoryChoices}
 formLabels={formLabels}
+open={contactFormOpen}
+onOpenChange={onContactFormOpenChange}
 />
 
 {/* Prata med människa */}

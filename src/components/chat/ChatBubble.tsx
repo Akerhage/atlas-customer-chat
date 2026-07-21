@@ -29,9 +29,10 @@ senderName?: string | null;
 choices?: { label: string; value: string; icon?: string; fullWidth?: boolean }[];
 onChoiceSelect?: (value: string) => void;
 onRequestHuman?: () => void;
+onOpenContactForm?: () => void;
 }
 
-export function ChatBubble({ content, isUser, timestamp, isLatest, senderName, choices, onChoiceSelect, onRequestHuman }: ChatBubbleProps) {
+export function ChatBubble({ content, isUser, timestamp, isLatest, senderName, choices, onChoiceSelect, onRequestHuman, onOpenContactForm }: ChatBubbleProps) {
 // Visa agentens namn om angivet, annars "Atlas" för AI-svar
 const displayName = isUser ? 'Du' : (senderName || 'Atlas');
 const hasLargeChoiceSet = (choices?.length ?? 0) > 12;
@@ -93,6 +94,18 @@ href={href}
 onClick={(event) => {
 event.preventDefault();
 onRequestHuman?.();
+}}
+/>
+);
+}
+if (href === '#atlas-contact') {
+return (
+<a
+{...props}
+href={href}
+onClick={(event) => {
+event.preventDefault();
+onOpenContactForm?.();
 }}
 />
 );

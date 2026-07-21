@@ -242,6 +242,8 @@ function createCrossTabId(): string {
 return `tab_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 }
 
+const OFFICE_HOURS_NOTICE_ID = 'office-hours-notice';
+
 const createWelcomeMessage = (aiRepliesEnabled: boolean, texts = resolveWidgetTexts(undefined)): ChatMessage => ({
 id: 'welcome-msg',
 role: 'assistant',
@@ -257,6 +259,11 @@ const [offices, setOffices] = useState<Office[]>([]); // 🔥 Håller kontorslis
 const [officesLoaded, setOfficesLoaded] = useState(false);
 const [aiRepliesEnabled, setAiRepliesEnabled] = useState(true);
 const [publicConfigLoaded, setPublicConfigLoaded] = useState(false);
+// 🕒 Chattöppettider (Standard): servern skickar färdig bemanningsstatus.
+// Default = bemannad, så trafik-/legacyboxar aldrig får någon notis.
+const [chatStaffed, setChatStaffed] = useState(true);
+const [chatReopensLabel, setChatReopensLabel] = useState<string | null>(null);
+const [contactFormOpen, setContactFormOpen] = useState(false);
 const [initialHistoryLoaded, setInitialHistoryLoaded] = useState(false);
 const [isTyping, setIsTyping] = useState(false);
 const [isDark, setIsDark] = useState(true);
@@ -380,11 +387,15 @@ getPublicConfig()
 .then((config) => {
 if (cancelled) return;
 setAiRepliesEnabled(config.ai_replies_enabled);
+setChatStaffed(config.chat_staffed);
+setChatReopensLabel(config.chat_reopens_label);
 })
 .catch((err) => {
 if (cancelled) return;
 console.error("Kunde inte ladda publik konfiguration:", err);
 setAiRepliesEnabled(true);
+setChatStaffed(true);
+setChatReopensLabel(null);
 })
 .finally(() => {
 if (!cancelled) setPublicConfigLoaded(true);
@@ -470,6 +481,29 @@ timestamp: new Date(),
 },
 ]);
 return id;
+};
+
+// 🕒 Notis när chatten är obemannad. Informerar bara — inget flöde blockeras.
+const buildOfficeHoursNotice = () => {
+const reopens = chatReopensLabel ? ` — chatten är bemannad igen ${chatReopensLabel}` : '';
+return `👋 Just nu är personalen inte på plats${reopens}. Vill du inte vänta? [Skicka ett ärende via mailformuläret](#atlas-contact) så tar vi det så snart vi är tillbaka. Snabbfrågorna och AI-assistenten hjälper dig gärna under tiden.`;
+};
+
+// Lägger notisen DIREKT efter välkomstbubblan oavsett vad intake-/selfservice-
+// flödet hunnit injicera, och bara en gång per meddelandelista.
+const insertOfficeHoursNotice = (content: string) => {
+setMessages((prev) => {
+if (prev.some((message) => message.id === OFFICE_HOURS_NOTICE_ID)) return prev;
+const notice = {
+id: OFFICE_HOURS_NOTICE_ID,
+role: 'assistant' as const,
+content,
+timestamp: new Date(),
+};
+const welcomeIndex = prev.findIndex((message) => message.id === 'welcome-msg');
+if (welcomeIndex === -1) return [...prev, notice];
+return [...prev.slice(0, welcomeIndex + 1), notice, ...prev.slice(welcomeIndex + 1)];
+});
 };
 
 const getOfficeChoices = (): { label: string; value: string }[] => [
@@ -1132,6 +1166,16 @@ setIsTyping(false);
 lastMessageCountRef.current = 0;
 }, [publicConfigLoaded, initialHistoryLoaded, tenantConfigLoaded, officesLoaded, standardSelfserviceEnabled, aiRepliesEnabled, humanMode, isArchived, widgetTexts, intakeMode, categoryChoices]); // eslint-disable-line react-hooks/exhaustive-deps
 
+// 🕒 Chattöppettider: visa notisen när chatten öppnas utanför bemannad tid.
+// Körs EFTER bootstrap-effekten ovan (som nollställer meddelandelistan) så att
+// notisen överlever starten av intake-/selfservice-flödet. I human mode och
+// arkiverat läge äger serverhistoriken tråden — då injiceras ingenting.
+useEffect(() => {
+if (!publicConfigLoaded || !initialHistoryLoaded || !tenantConfigLoaded || !officesLoaded) return;
+if (chatStaffed || humanMode || isArchived) return;
+insertOfficeHoursNotice(buildOfficeHoursNotice());
+}, [publicConfigLoaded, initialHistoryLoaded, tenantConfigLoaded, officesLoaded, chatStaffed, chatReopensLabel, humanMode, isArchived]); // eslint-disable-line react-hooks/exhaustive-deps
+
 // Lightweight polling fallback for human mode only.
 // Socket.io is the primary channel, but this catches missed events (network glitches, reconnects).
 useEffect(() => {
@@ -1373,6 +1417,8 @@ handleReset();
 
 const handleRequestHuman = () => {
 if (humanMode) return;
+// 🕒 Påminnelse utanför öppettid — informerar men blockerar inte eskaleringen.
+if (!chatStaffed) injectBotMessage(buildOfficeHoursNotice());
 if (standardSelfserviceEnabled) {
 if (selfserviceUnitId && selectedCategoryId) {
 startStandardEscalation();
@@ -1700,6 +1746,8 @@ templatesSubtitle={widgetTexts.templatesSubtitle}
 intakeMode={intakeMode}
 categoryChoices={categoryChoices}
 formLabels={{ unit: widgetTexts.formUnitLabel, category: widgetTexts.formCategoryLabel }}
+contactFormOpen={contactFormOpen}
+onContactFormOpenChange={setContactFormOpen}
 />
 
 {/* Human mode indicator */}
@@ -1774,6 +1822,7 @@ senderName={message.senderName}
 choices={message.choices}
 onChoiceSelect={handleChoiceSelected}
 onRequestHuman={handleRequestHuman}
+onOpenContactForm={() => setContactFormOpen(true)}
 />
 ))}
 

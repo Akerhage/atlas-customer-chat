@@ -54,6 +54,11 @@ activeVehicles: ActiveVehicle[];
 intakeMode: IntakeMode;
 categoryChoices: { label: string; value: string }[];
 formLabels: { unit: string; category: string };
+// Valfri styrd öppning: när `open` skickas in äger föräldern läget (används av
+// chattens "skicka ett ärende"-länk). Utan proppen sköter dialogen sig själv
+// precis som förut via brevikonen.
+open?: boolean;
+onOpenChange?: (open: boolean) => void;
 }
 
 const DEFAULT_CITY = "Centralsupport";
@@ -103,8 +108,14 @@ normalizeOfficeLabel(office.area) === normalizeOfficeLabel(area)
 return exactMatches.length === 1 ? exactMatches[0] : undefined;
 };
 
-export function ContactFormDialog({ onSubmit, selectedCity, selectedVehicle, generalMode = false, offices, activeVehicles, intakeMode, categoryChoices, formLabels }: ContactFormDialogProps) {
-const [open, setOpen] = useState(false);
+export function ContactFormDialog({ onSubmit, selectedCity, selectedVehicle, generalMode = false, offices, activeVehicles, intakeMode, categoryChoices, formLabels, open: controlledOpen, onOpenChange }: ContactFormDialogProps) {
+const [internalOpen, setInternalOpen] = useState(false);
+const isControlled = controlledOpen !== undefined;
+const open = isControlled ? controlledOpen : internalOpen;
+const setOpen = (next: boolean) => {
+if (!isControlled) setInternalOpen(next);
+onOpenChange?.(next);
+};
 const [isSubmitting, setIsSubmitting] = useState(false);
 const [wantsCallback, setWantsCallback] = useState(false);
 const fileInputRef = useRef<HTMLInputElement>(null);
