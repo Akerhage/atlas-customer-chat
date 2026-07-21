@@ -243,6 +243,7 @@ return `tab_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 }
 
 const OFFICE_HOURS_NOTICE_ID = 'office-hours-notice';
+const OFFICE_HOURS_REMINDER_PREFIX = 'office-hours-reminder_';
 
 const createWelcomeMessage = (aiRepliesEnabled: boolean, texts = resolveWidgetTexts(undefined)): ChatMessage => ({
 id: 'welcome-msg',
@@ -503,6 +504,37 @@ timestamp: new Date(),
 const welcomeIndex = prev.findIndex((message) => message.id === 'welcome-msg');
 if (welcomeIndex === -1) return [...prev, notice];
 return [...prev.slice(0, welcomeIndex + 1), notice, ...prev.slice(welcomeIndex + 1)];
+});
+};
+
+// Kortare påminnelse vid eskalering — full notis här skulle upprepa hela texten.
+const buildOfficeHoursReminder = () => {
+const reopens = chatReopensLabel ? ` och besvaras ${chatReopensLabel}` : '';
+return `👋 Kom ihåg att personalen inte är på plats just nu — ditt ärende hamnar i kön${reopens}.`;
+};
+
+// Påminnelsen ska finnas när kunden eskalerar långt in i en session, men inte
+// upprepas när öppningsnotisen (eller en färsk påminnelse) redan står där —
+// kunden trycker headset direkt, eller flera gånger i rad. Regeln: visa bara igen
+// om kunden hunnit säga något sedan förra öppettidsmeddelandet. Blockerar aldrig
+// eskaleringen.
+const injectOfficeHoursReminder = () => {
+setMessages((prev) => {
+let lastOfficeHours = -1;
+for (let i = prev.length - 1; i >= 0; i -= 1) {
+const id = prev[i].id;
+if (id === OFFICE_HOURS_NOTICE_ID || id.startsWith(OFFICE_HOURS_REMINDER_PREFIX)) { lastOfficeHours = i; break; }
+}
+if (lastOfficeHours !== -1 && !prev.slice(lastOfficeHours + 1).some((m) => m.role === 'user')) return prev;
+return [
+...prev,
+{
+id: `${OFFICE_HOURS_REMINDER_PREFIX}${generateMessageId()}`,
+role: 'assistant' as const,
+content: buildOfficeHoursReminder(),
+timestamp: new Date(),
+},
+];
 });
 };
 
@@ -1418,7 +1450,7 @@ handleReset();
 const handleRequestHuman = () => {
 if (humanMode) return;
 // 🕒 Påminnelse utanför öppettid — informerar men blockerar inte eskaleringen.
-if (!chatStaffed) injectBotMessage(buildOfficeHoursNotice());
+if (!chatStaffed) injectOfficeHoursReminder();
 if (standardSelfserviceEnabled) {
 if (selfserviceUnitId && selectedCategoryId) {
 startStandardEscalation();
