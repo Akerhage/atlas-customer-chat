@@ -93,10 +93,12 @@ describe("intake order", () => {
     ]);
   });
 
-  it("preserves the legacy order and falls back to it without category choices", () => {
+  it("preserves legacy mode but keeps category-first order without category choices", () => {
     const legacy = ["name", "email", "phone", "office", "vehicle", "handoff"];
     expect(buildIntakeOrder("legacy", 10)).toEqual(legacy);
-    expect(buildIntakeOrder("category_first", 0)).toEqual(legacy);
+    expect(buildIntakeOrder("category_first", 0)).toEqual([
+      "office", "category", "name", "email", "phone", "handoff",
+    ]);
   });
 
   it.each(["hoppa över", "hoppa over", "nej", "nej tack", "inte nu", "-"])(

@@ -127,8 +127,8 @@ export function filterCategoryChoicesForOffice<T extends { value: string }>(
   return categoryChoices.filter((choice) => allowedCategories.has(choice.value));
 }
 
-export function isCategoryFirstIntake(mode: IntakeMode, categoryChoiceCount: number): boolean {
-  return mode === "category_first" && categoryChoiceCount > 0;
+export function isCategoryFirstIntake(mode: IntakeMode, _categoryChoiceCount: number): boolean {
+  return mode === "category_first";
 }
 
 export function buildIntakeOrder(

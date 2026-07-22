@@ -76,8 +76,12 @@ describe("resolveEffectiveCategories", () => {
     ]);
   });
 
-  it.each([undefined, null, "broken", [], [{ id: "", label: "Fel", icon: "X" }]])(
-    "adapts active vehicles when the standard registry is empty or invalid (%j)",
+  it("preserves an explicitly empty Standard registry", () => {
+    expect(resolveEffectiveCategories(standardProfile, [], vehicles)).toEqual([]);
+  });
+
+  it.each([undefined, null, "broken", [{ id: "", label: "Fel", icon: "X" }]])(
+    "adapts active vehicles when the standard registry is missing or invalid (%j)",
     (registry) => {
       expect(resolveEffectiveCategories(standardProfile, registry, vehicles)).toEqual([
         { id: "BIL", label: "BIL", icon: "BIL", active: true },

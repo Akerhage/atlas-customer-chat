@@ -84,7 +84,10 @@ export function resolveEffectiveCategories(
 ): EffectiveCategory[] {
   try {
     const registry = normalizeCategoryRegistryEntries(registryValue);
-    if (profile?.edition === "standard" && registry.length > 0) return registry;
+    if (profile?.edition === "standard") {
+      if (registry.length > 0) return registry;
+      if (Array.isArray(registryValue) && registryValue.length === 0) return [];
+    }
     if (!Array.isArray(activeVehicles)) return [];
 
     return activeVehicles.map((vehicle) => {
