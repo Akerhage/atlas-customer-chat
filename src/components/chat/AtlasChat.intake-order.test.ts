@@ -55,6 +55,46 @@ describe("AtlasChat intake-order contract", () => {
     expect(source).toContain("setIntakeStep(null);");
   });
 
+  it("reselects a different category from menu without rewriting the preserved category bubble", () => {
+    const start = source.indexOf("const isMidIntakeCategoryReselection");
+    const end = source.indexOf("if (selfserviceStage === 'unit')", start);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    const block = source.slice(start, end);
+
+    expect(block).toContain("selfserviceStage === 'menu' && !intakeStep");
+    expect(block).toContain("if (requestedCategoryId === selectedCategoryId) return true;");
+    expect(block.indexOf("requestedCategoryId === selectedCategoryId"))
+      .toBeLessThan(block.indexOf("loadAndShowStandardMenu"));
+    expect(block).toContain("getStandardCategoryChoices(selfserviceUnitId)");
+    expect(block).toContain("setSelfserviceMenu([]);");
+    expect(block).toContain("setSelectedCategoryId(requestedCategoryId);");
+    expect(block).toContain("category_id: requestedCategoryId");
+    expect(block).toContain("injectUserMessage(category.label);");
+    expect(block).toContain("await loadAndShowStandardMenu(selfserviceUnitId, requestedCategoryId);");
+    expect(block).not.toContain("setMessages(");
+    expect(block).not.toContain("selfserviceCategoryMessageIdRef");
+  });
+
+  it("routes category reselection during intake and resets intake before loading the new menu", () => {
+    const start = source.indexOf("const isMidIntakeCategoryReselection");
+    const end = source.indexOf("if (selfserviceStage === 'unit')", start);
+    const block = source.slice(start, end);
+    const routeStart = source.indexOf("if (\nstandardSelfserviceEnabled &&\n!humanMode &&\nintakeStep");
+    const routeEnd = source.indexOf("if (!intakeStep)", routeStart);
+    const routeBlock = source.slice(routeStart, routeEnd);
+
+    expect(source).toContain("if (intakeStep && !requestedUnitId && !requestedCategoryId) return false;");
+    expect(block).toContain("const isMidIntakeCategoryReselection = Boolean(intakeStep && selectedCategoryId);");
+    expect(block).toContain("setIntakeStep(null);");
+    expect(block).toContain("setIntakeData({});");
+    expect(block).toContain("setGeneralMode(false);");
+    expect(routeStart).toBeGreaterThanOrEqual(0);
+    expect(routeEnd).toBeGreaterThan(routeStart);
+    expect(routeBlock).toContain("valueAfterPrefix(value, STANDARD_UNIT_PREFIX)");
+    expect(routeBlock).toContain("valueAfterPrefix(value, STANDARD_CATEGORY_PREFIX)");
+  });
+
   it("keeps the step set unchanged and does not hydrate response category ids", () => {
     expect(source).toContain("type IntakeStep = 'name' | 'email' | 'phone' | 'office' | 'vehicle' | 'category' | null;");
     expect(source).not.toContain(["response", "locked_context", "category_id"].join("."));

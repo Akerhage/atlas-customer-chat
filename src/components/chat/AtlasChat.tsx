@@ -656,8 +656,9 @@ injectBotMessage('För att skapa ett ärende behöver vi några uppgifter. Vad h
 
 const handleStandardChoice = async (value: string): Promise<boolean> => {
 const requestedUnitId = valueAfterPrefix(value, STANDARD_UNIT_PREFIX);
+const requestedCategoryId = valueAfterPrefix(value, STANDARD_CATEGORY_PREFIX);
 if (!standardSelfserviceEnabled || humanMode) return false;
-if (intakeStep && !requestedUnitId) return false;
+if (intakeStep && !requestedUnitId && !requestedCategoryId) return false;
 if (value === STANDARD_ESCALATE_VALUE) {
 startStandardEscalation();
 return true;
@@ -718,6 +719,29 @@ const categoryStep = getStandardCategoryStep(requestedUnitId);
 const categoryMessageId = injectBotMessage(categoryStep.content, categoryStep.choices);
 selfserviceUnitMessageIdRef.current = unitMessageId;
 selfserviceCategoryMessageIdRef.current = categoryMessageId;
+return true;
+}
+
+const isMidIntakeCategoryReselection = Boolean(intakeStep && selectedCategoryId);
+if (
+requestedCategoryId &&
+selfserviceUnitId &&
+((selfserviceStage === 'menu' && !intakeStep) || isMidIntakeCategoryReselection)
+) {
+if (requestedCategoryId === selectedCategoryId) return true;
+const category = getStandardCategoryChoices(selfserviceUnitId)
+.find(choice => choice.value === value);
+if (!category) return true;
+setSelfserviceMenu([]);
+if (intakeStep) {
+setIntakeStep(null);
+setIntakeData({});
+setGeneralMode(false);
+}
+setSelectedCategoryId(requestedCategoryId);
+setContext(prev => ({ ...prev, category_id: requestedCategoryId }));
+injectUserMessage(category.label);
+await loadAndShowStandardMenu(selfserviceUnitId, requestedCategoryId);
 return true;
 }
 
@@ -1564,7 +1588,12 @@ if (standardSelfserviceEnabled && !humanMode && !intakeStep) {
 void handleStandardChoice(value);
 return;
 }
-if (standardSelfserviceEnabled && !humanMode && intakeStep && valueAfterPrefix(value, STANDARD_UNIT_PREFIX)) {
+if (
+standardSelfserviceEnabled &&
+!humanMode &&
+intakeStep &&
+(valueAfterPrefix(value, STANDARD_UNIT_PREFIX) || valueAfterPrefix(value, STANDARD_CATEGORY_PREFIX))
+) {
 void handleStandardChoice(value);
 return;
 }
