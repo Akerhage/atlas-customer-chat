@@ -26,12 +26,12 @@ status ?? (assignedAgentName ? 'active' : agentNames.length > 0 ? 'active' : 'wa
 if (resolvedStatus === 'assigned') {
 return (
 <div className="px-4 py-2 bg-primary/10 border-b border-primary/20">
-<div className="flex items-center gap-2 text-sm text-primary">
+<div className="flex items-center gap-2 text-sm text-primary-ink">
 <CheckCircle className="w-4 h-4" />
 <span className="font-medium">
 {`Tilldelad: ${assignedAgentName || 'handläggare'}`}
 </span>
-<span className="ml-auto text-xs text-primary/70 animate-pulse">
+<span className="ml-auto text-xs text-primary-ink animate-pulse">
 Inväntar svar...
 </span>
 </div>
@@ -42,10 +42,10 @@ Inväntar svar...
 if (resolvedStatus === 'waiting') {
 return (
 <div className="px-4 py-2 bg-primary/10 border-b border-primary/20">
-<div className="flex items-center gap-2 text-sm text-primary">
+<div className="flex items-center gap-2 text-sm text-primary-ink">
 <Clock className="w-4 h-4" />
 <span className="font-medium">Inväntar handläggare</span>
-<span className="ml-auto text-xs text-primary/70 animate-pulse">
+<span className="ml-auto text-xs text-primary-ink animate-pulse">
 Köar...
 </span>
 </div>
@@ -56,7 +56,7 @@ Köar...
 const formattedNames = assignedAgentName || formatAgentNames(agentNames);
 return (
 <div className="px-4 py-2 bg-primary/10 border-b border-primary/20">
-<div className="flex items-center gap-2 text-sm text-primary">
+<div className="flex items-center gap-2 text-sm text-primary-ink">
 <User className="w-4 h-4" />
 <span className="font-medium">
 {formattedNames

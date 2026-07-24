@@ -58,7 +58,8 @@ isUser
 <div className={cn("flex items-center gap-2 mb-1.5", isUser && "justify-end")}>
 {isUser ? (
 <>
-<span className="text-xs font-medium text-primary-foreground/70">{displayName}</span>
+{/* Å-W: /70 mätte 3,00:1 ljust / 3,76:1 mörkt - avsändarnamnet är text. */}
+<span className="text-xs font-medium text-primary-foreground/85">{displayName}</span>
 <div className="w-5 h-5 rounded-full bg-primary-foreground/20 flex items-center justify-center">
 <User className="w-3 h-3 text-primary-foreground/80" />
 </div>
@@ -132,7 +133,7 @@ return (
 key={choice.value}
 onClick={() => onChoiceSelect(choice.value)}
 className={cn(
-"inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-full bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 active:scale-95 transition-all duration-150",
+"inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-full bg-primary/10 text-primary-ink border border-primary/20 hover:bg-primary/20 active:scale-95 transition-all duration-150",
 choice.fullWidth && "w-full justify-center text-center whitespace-normal"
 )}
 >
@@ -148,7 +149,10 @@ choice.fullWidth && "w-full justify-center text-center whitespace-normal"
 {timestamp && (
 <p
 className={cn(
-"text-[10px] mt-1.5 opacity-60",
+// Å-W (§I.5-F): ETT grepp för alla fyra utfall (kund/AI x mörkt/ljust).
+// opacity-60 gav 2,60-4,00:1 i tre av fyra; 0,85 + sänkt --bubble-user-bg
+// lyfter samtliga över AA utan att stämpeln slutar läsas som sekundär.
+"text-[10px] mt-1.5 opacity-85",
 isUser ? "text-right" : "text-left"
 )}
 >

@@ -127,7 +127,10 @@ export function TemplatesButton({
           >
             {groups.map((group) => (
               <div key={group.name} className="mb-2 last:mb-0">
-                <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-500 dark:text-emerald-400 border-b border-emerald-500/20 mb-1">
+                {/* Å-W (§I.5-E): emerald-500 var temablind och mätte 2,45:1 mot
+                    panelens nästan vita botten. emerald-600 räcker inte heller
+                    (3,64:1) - 700 ger 5,30:1. Mörkt tema är friat (8,58:1). */}
+                <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 border-b border-emerald-500/20 mb-1">
                   {group.name}
                 </div>
                 {group.items.map((tpl) => (

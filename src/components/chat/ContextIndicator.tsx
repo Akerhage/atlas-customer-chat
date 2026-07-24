@@ -69,7 +69,7 @@ return (
 <div className="flex min-w-0 items-center gap-0.5">
 {singletonOffice ? (
 <div
-className="flex min-w-0 max-w-[min(12rem,48vw)] items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-primary"
+className="flex min-w-0 max-w-[min(12rem,48vw)] items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-primary-ink"
 title={locationLabel}
 >
 <MapPin className="w-3 h-3 shrink-0" />
@@ -80,7 +80,7 @@ title={locationLabel}
 <DropdownMenu>
 <DropdownMenuTrigger asChild>
 <button
-className="group flex min-w-0 max-w-[min(12rem,48vw)] items-center gap-1 px-2 py-1 rounded-l-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+className="group flex min-w-0 max-w-[min(12rem,48vw)] items-center gap-1 px-2 py-1 rounded-l-full bg-primary/10 text-primary-ink hover:bg-primary/20 transition-colors"
 title={locationLabel}
 >
 <MapPin className="w-3 h-3 shrink-0" />
@@ -113,7 +113,7 @@ className="cursor-pointer text-sm"
 </DropdownMenu>
 <button
 onClick={() => onUpdateContext({ city: null, area: null })}
-className="shrink-0 p-1 rounded-r-full bg-primary/10 text-primary hover:bg-primary/30 transition-colors"
+className="shrink-0 p-1 rounded-r-full bg-primary/10 text-primary-ink hover:bg-primary/30 transition-colors"
 aria-label="Ta bort stad"
 >
 <X className="w-3 h-3" />

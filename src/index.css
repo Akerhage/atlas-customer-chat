@@ -34,6 +34,20 @@ Baserat på chrome-light estetik.
 --muted: 144 40% 93%;
 --muted-foreground: 145 27% 33%;
 
+/* === LÄSBARHETSGOLV (Å-W, auditens §I.5, 2026-07-24) ===
+   Dämpad hjälptext i widgeten mätte 2,08-3,10:1 i ljust tema när
+   --muted-foreground alpha-dämpades (/50, /70, opacity-60). Golvet är EN
+   token per tema i stället för per-yta-lappning, så nya hjälptextytor ärver
+   AA automatiskt. OBS: att bara höja alphan till /80 räcker INTE (mätt
+   3,60:1 i ljust) - dämpningen måste bort och färgen bära läsbarheten. */
+--text-help: 145 27% 30%;
+
+/* Primärfärgen när den används som TEXT (intake-pills, CTA-länkar,
+   blockquote, formuläretiketter). Ljusa temats --primary når bara 3,6-4,2:1
+   på primary-tonade och ljusa ytor. Samma hue/mättnad, 6 % mörkare. I mörkt
+   tema är den identisk med --primary, som redan är friad (5,99:1). */
+--primary-ink: 174 64% 26%;
+
 /* === ACCENT - Teal === */
 --accent: 174 48% 40%;
 --accent-foreground: 0 0% 100%;
@@ -60,8 +74,11 @@ Baserat på chrome-light estetik.
 --bubble-atlas-text: 150 20% 14%;
 --bubble-atlas-shadow: 144 30% 75%;
 
---bubble-user-bg: 174 64% 32%;
---bubble-user-border: 174 64% 28%;
+/* Å-W: bubblan var 174 64% 32%, vilket gav VIT brödtext bara 4,42:1 - under AA.
+   Även opacity-100 på tidsstämpeln hade fallit. Bubblan är därför sänkt till
+   samma lightness som --primary-ink; vit brödtext ligger nu på 6,16:1. */
+--bubble-user-bg: 174 64% 26%;
+--bubble-user-border: 174 64% 22%;
 --bubble-user-text: 0 0% 100%;
 --bubble-user-shadow: 210 60% 35%;
 
@@ -113,6 +130,12 @@ Baserat på chrome-light estetik.
 
 --muted: 220 15% 16%;
 --muted-foreground: 215 15% 60%;
+
+/* Å-W: mörka temats läsbarhetsgolv, se :root-kommentaren. --primary-ink är
+   identisk med --primary här - mörkt tema är redan friat och får inte
+   regressera. */
+--text-help: 215 15% 66%;
+--primary-ink: 160 70% 45%;
 
 --accent: 160 60% 40%;
 --accent-foreground: 220 20% 10%;
@@ -478,7 +501,8 @@ padding: 0.62rem 0.95rem;
 border-radius: 999px;
 border: 1px solid hsl(var(--primary) / 0.28);
 background: hsl(var(--primary) / 0.12);
-color: hsl(var(--primary));
+/* Å-W: --primary som text på egen 12 %-platta mätte 3,64:1 i ljust. */
+color: hsl(var(--primary-ink));
 font-weight: 700;
 line-height: 1.25;
 text-align: center;
@@ -554,12 +578,13 @@ margin: 0.15rem 0;
 margin-top: 0.15rem;
 }
 
+/* Å-W: kampanjnotisens ljusa gradient gav --primary bara 3,86:1 som text. */
 .atlas-bot-message .atlas-message-content blockquote strong {
-color: hsl(var(--primary));
+color: hsl(var(--primary-ink));
 }
 
 .atlas-bot-message .atlas-message-content blockquote a {
-color: hsl(var(--primary));
+color: hsl(var(--primary-ink));
 font-weight: 700;
 }
 

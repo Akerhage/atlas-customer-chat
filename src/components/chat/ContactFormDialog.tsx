@@ -364,7 +364,7 @@ aria-label="Telefonnummer"
 </div>
 
 <div className="space-y-2">
-<Label className="flex items-center gap-2 font-bold text-primary"><MapPin className="h-4 w-4" /> {formLabels.unit} *</Label>
+<Label className="flex items-center gap-2 font-bold text-primary-ink"><MapPin className="h-4 w-4" /> {formLabels.unit} *</Label>
 {singletonOfficeLabel ? (
 <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm">{singletonOfficeLabel}</div>
 ) : (
@@ -372,7 +372,7 @@ aria-label="Telefonnummer"
 <SelectTrigger><SelectValue placeholder="Välj kontor" /></SelectTrigger>
 <SelectContent className="max-h-[min(60vh,400px)]">
 <SelectGroup>
-<SelectLabel className="text-primary font-bold border-b pb-1">Global</SelectLabel>
+<SelectLabel className="text-primary-ink font-bold border-b pb-1">Global</SelectLabel>
 <SelectItem value="Centralsupport" className="font-bold">Centralsupport (Huvudinkorgen)</SelectItem>
 </SelectGroup>
 <SelectGroup>
@@ -388,7 +388,7 @@ aria-label="Telefonnummer"
 
 {categoryFormMode ? (
 <div className="space-y-2">
-<Label className="flex items-center gap-2 font-bold text-primary"><Tags className="h-4 w-4" /> {formLabels.category} *</Label>
+<Label className="flex items-center gap-2 font-bold text-primary-ink"><Tags className="h-4 w-4" /> {formLabels.category} *</Label>
 <Select value={formData.category} onValueChange={(v) => setFormData({ ...formData, category: v })}>
 <SelectTrigger><SelectValue placeholder={`Välj ${formLabels.category.toLowerCase()}`} /></SelectTrigger>
 <SelectContent className="max-w-[calc(100vw-1rem)]">
@@ -401,7 +401,7 @@ aria-label="Telefonnummer"
 </div>
 ) : (
 <div className="space-y-2">
-<Label className="flex items-center gap-2 font-bold text-primary"><Car className="h-4 w-4" /> Fordon *</Label>
+<Label className="flex items-center gap-2 font-bold text-primary-ink"><Car className="h-4 w-4" /> Fordon *</Label>
 <Select value={formData.vehicle} onValueChange={(v) => setFormData({ ...formData, vehicle: v })}>
 <SelectTrigger><SelectValue placeholder="Välj fordonstyp" /></SelectTrigger>
 <SelectContent className="max-w-[calc(100vw-1rem)]">
@@ -469,7 +469,7 @@ className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground hover
 >
 <Paperclip className="h-4 w-4 shrink-0" />
 {attachments.length === 0 ? "Bifoga fil eller bild" : "Lägg till fler filer"}
-<span className="text-xs opacity-60">
+<span className="text-xs text-help">
 ({activeAttachmentCount}/{MAX_ATTACHMENT_FILES}, max {MAX_ATTACHMENT_FILE_SIZE_MB} MB/st)
 </span>
 </button>
@@ -486,7 +486,7 @@ className="hidden"
 </div>
 
 {/* GDPR-information vid insamlingspunkten — relativ länk => boxens egen /privacy */}
-<p className="text-xs text-muted-foreground/70 leading-snug">
+<p className="text-xs text-help leading-snug">
 Genom att skicka godkänner du att vi behandlar dina uppgifter enligt vår{" "}
 <a
 href="/privacy"

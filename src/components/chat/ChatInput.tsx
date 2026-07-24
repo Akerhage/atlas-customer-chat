@@ -303,7 +303,7 @@ onDrop={handleDrop}
 placeholder={placeholder}
 disabled={disabled}
 rows={1}
-className="flex-1 resize-none bg-transparent text-sm py-2 text-foreground focus:outline-none min-h-[24px] max-h-[120px] chat-input-scrollbar"
+className="flex-1 resize-none bg-transparent text-sm py-2 text-foreground placeholder:text-help focus:outline-none min-h-[24px] max-h-[120px] chat-input-scrollbar"
 />
 
 {showStandardSelfserviceMenu && onStandardMenuChoice && !isUploading && (
@@ -342,7 +342,7 @@ className={cn("flex-shrink-0 w-9 h-9 rounded-xl mb-0.5 flex items-center justify
 </div>
 {/* Integritetspolicy-länken visas ALLTID (GDPR-information nära insamlingspunkten),
     AI-brasklappen bara i AI-läge. Relativ länk => varje box når sin egen /privacy. */}
-<p className="text-[11px] text-muted-foreground/50 text-center mt-2">
+<p className="text-[11px] text-help text-center mt-2">
 {aiRepliesEnabled && !humanMode && (
 <>Atlas AI kan ibland ge felaktiga svar. Kontrollera alltid viktig information med en handläggare.{" "}·{" "}</>
 )}
@@ -351,7 +351,7 @@ href="/privacy"
 target="_blank"
 rel="noopener noreferrer"
 title="Läs hur vi behandlar dina personuppgifter"
-className="underline underline-offset-2 hover:text-muted-foreground transition-colors"
+className="underline underline-offset-2 hover:text-foreground transition-colors"
 >
 Integritetspolicy
 </a>

@@ -27,7 +27,11 @@ export default {
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
+          // Å-W (§I.5): primärfärgen som TEXT. Se --primary-ink i index.css.
+          ink: "hsl(var(--primary-ink))",
         },
+        // Å-W (§I.5): läsbarhetsgolv för dämpad hjälptext. Se --text-help.
+        help: "hsl(var(--text-help))",
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
           foreground: "hsl(var(--secondary-foreground))",
