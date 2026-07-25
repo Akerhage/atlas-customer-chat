@@ -192,41 +192,6 @@ function getSafeVehicle(value: string | null | undefined): VehicleType | null {
 return VEHICLE_CHOICES.some((choice) => choice.value === value) ? value as VehicleType : null;
 }
 
-const AI_ON_WELCOME_MESSAGE_CONTENT = `Hej och välkommen till oss! 👋
-
-Jag är företagets smarta AI-assistent!
-
-Du kan fråga mig allt som rör ditt körkort och vårt utbud.
-
-Jag har stenkoll på våra priser, produkter, utbildningar och kontor, men även på allmän information som rör körkort. Ställ gärna en fråga i taget, kort och konkret – då hittar jag snabbast rätt svar. Eller testa våra snabbfrågor direkt i chatten.
-
-Vill du hellre prata med en människa?
-
-[💬 Prata med en människa](#atlas-human)
-
-Du kan också skriva *"jag vill prata med en människa"* eller klicka på headsetikonen i menyn ovanför chatten.
-
-Vad kan jag hjälpa dig med idag?`;
-
-const AI_OFF_WELCOME_MESSAGE_CONTENT = `Hej och välkommen till oss! 👋
-
-Har du frågor att ställa till oss är du varmt välkommen att ställa dem här.
-
-Här kan du välja att ställa frågor till vår Centralsupport i Stockholm.
-
-Du kan också mejla eller chatta direkt med ditt lokala kontor.
-
-Jag guidar dig genom att fylla i ditt namn och skicka ärendet rätt.
-
-Några korta steg, sedan är du igång!
-
-Vi börjar med ditt namn.
-
-Vad heter du?`;
-
-const getWelcomeMessageContent = (aiRepliesEnabled: boolean) =>
-aiRepliesEnabled ? AI_ON_WELCOME_MESSAGE_CONTENT : AI_OFF_WELCOME_MESSAGE_CONTENT;
-
 const CROSS_TAB_SYNC_CHANNEL = 'atlas_customer_chat_sync';
 const CROSS_TAB_SYNC_STORAGE_KEY = 'atlas_customer_chat_sync_event';
 const CROSS_TAB_CUSTOMER_MESSAGE = 'customer-message-sent';

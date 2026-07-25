@@ -4,19 +4,44 @@ import { describe, expect, it } from "vitest";
 
 const source = readFileSync(new URL("./AtlasChat.tsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const atlasClientSource = readFileSync(new URL("../../lib/atlas-client.ts", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+const intakeMachineSource = readFileSync(new URL("../../lib/intake-machine.ts", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 
-function blockHash(startMarker: string, endMarker: string): string {
-  const start = source.indexOf(startMarker);
-  const end = source.indexOf(endMarker);
+function blockHashIn(src: string, startMarker: string, endMarker: string): string {
+  const start = src.indexOf(startMarker);
+  const end = src.indexOf(endMarker);
   expect(start).toBeGreaterThanOrEqual(0);
   expect(end).toBeGreaterThan(start);
-  return createHash("sha256").update(source.slice(start, end)).digest("hex");
+  return createHash("sha256").update(src.slice(start, end)).digest("hex");
+}
+
+function blockHash(startMarker: string, endMarker: string): string {
+  return blockHashIn(source, startMarker, endMarker);
 }
 
 describe("AtlasChat intake-order contract", () => {
-  it("keeps the legacy AI-off welcome constant byte-identical", () => {
-    expect(blockHash("const AI_OFF_WELCOME_MESSAGE_CONTENT", "const getWelcomeMessageContent"))
-      .toBe("fcf77376033ab2a4f4c9ab2d762c589440034b371c1255b5e68ab56634e7bde8");
+  // K7c (2026-07-26): vakten låg tidigare på AI_OFF_WELCOME_MESSAGE_CONTENT i
+  // AtlasChat.tsx. Den ytan var DÖD sedan 44cc0d5 (2026-07-12), som flyttade
+  // välkomsttexten till resolveWidgetTexts() — vakten skrevs 32cb32b
+  // (2026-07-16), alltså mot en kvarglömd tvilling av den riktiga copyn.
+  // Skyddet är däremot verkligt: detta är trafik-editionens (Box1-3)
+  // välkomsttext, som inte får glida under Box4-arbete. Vakten är därför
+  // FLYTTAD hit, inte struken — och täcker nu hela LEGACY_TEXTS, dvs. även
+  // welcomeAiOn som den gamla vakten missade.
+  it("keeps the legacy (trafik) widget texts byte-identical", () => {
+    expect(blockHashIn(intakeMachineSource, "const LEGACY_TEXTS", "export function resolveWidgetTexts"))
+      .toBe("85f7baf0adce2e309ef6407f74f216f4295058fc543f9ccd274d6bc8d567ed34");
+  });
+
+  // Vakt över det som FAKTISKT renderas: välkomstbubblan läser widget-texterna,
+  // och de döda konstanterna får inte återuppstå som en andra sanning.
+  it("renders the welcome message from resolveWidgetTexts, not from local constants", () => {
+    expect(source).toContain("const createWelcomeMessage = (aiRepliesEnabled: boolean, texts = resolveWidgetTexts(undefined)): ChatMessage => ({");
+    expect(source).toContain("content: aiRepliesEnabled ? texts.welcomeAiOn : texts.welcomeAiOff,");
+    expect(source).toContain("setMessages([createWelcomeMessage(aiRepliesEnabled, widgetTexts)]);");
+    // Profilbyte skriver om den redan visade välkomstbubblan ur widget-texterna.
+    expect(source).toContain("? { ...message, content: aiRepliesEnabled ? widgetTexts.welcomeAiOn : widgetTexts.welcomeAiOff }");
+    expect(source).not.toContain("WELCOME_MESSAGE_CONTENT");
+    expect(source).not.toContain("getWelcomeMessageContent");
   });
 
   it("keeps the slice-24 handoff implementation byte-identical", () => {
