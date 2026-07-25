@@ -55,6 +55,29 @@ describe("AtlasChat intake-order contract", () => {
     expect(source).toContain("setIntakeStep(null);");
   });
 
+  // K7/C (Patrik-beslut 2026-07-25): utvägen heter "Vet inte / allmän fråga",
+  // ligger SIST och är visuellt skild — men MEKANIKEN är oförändrad.
+  it("puts the standard escape-hatch unit last, full width, without touching the office=NULL value", () => {
+    const start = source.indexOf("const getStandardUnitChoices");
+    const end = source.indexOf("const getCategoryChoicesForOffice", start);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    const block = source.slice(start, end);
+
+    // De riktiga enheterna först, utvägen sist.
+    expect(block.indexOf("...offices.map")).toBeLessThan(block.indexOf("STANDARD_CENTRAL_SUPPORT_LABEL"));
+    // Visuellt skild via bundlens egen fullWidth-markör.
+    expect(block).toContain("value: unitChoiceValue(STANDARD_CENTRAL_SUPPORT), fullWidth: true");
+    // Kunden ska aldrig läsa det interna ordet i chippet.
+    expect(block).not.toContain("label: 'Centralsupport'");
+    // MEKANIKVAKT: värdet som ger office = NULL får inte ha bytts.
+    expect(block).toContain("unitChoiceValue(STANDARD_CENTRAL_SUPPORT)");
+    expect(source).toContain("export");
+    // Sentinelen lever kvar där den JÄMFÖRS — etiketten byttes bara i renderingen.
+    expect(source).toContain("intakeData.city === 'Centralsupport'");
+    expect(source).toContain("selfserviceUnitId === STANDARD_CENTRAL_SUPPORT ? STANDARD_CENTRAL_SUPPORT_LABEL : selfserviceUnitLabel");
+  });
+
   it("reselects a different category from menu without rewriting the preserved category bubble", () => {
     const start = source.indexOf("const isMidIntakeCategoryReselection");
     const end = source.indexOf("if (selfserviceStage === 'unit')", start);

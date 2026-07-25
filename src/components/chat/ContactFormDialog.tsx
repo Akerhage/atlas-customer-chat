@@ -43,6 +43,7 @@ usePendingAttachments,
 } from "@/lib/pending-attachments";
 import type { ActiveVehicle } from "@/lib/atlas-client";
 import { filterCategoryChoicesForOffice, type IntakeMode } from "@/lib/intake-machine";
+import { STANDARD_CENTRAL_SUPPORT_LABEL } from "@/lib/standard-selfservice-machine";
 
 interface ContactFormDialogProps {
 onSubmit?: (data: any) => void;
@@ -371,16 +372,29 @@ aria-label="Telefonnummer"
 <Select value={formData.city} onValueChange={(v) => setFormData({ ...formData, city: v })}>
 <SelectTrigger><SelectValue placeholder="Välj kontor" /></SelectTrigger>
 <SelectContent className="max-h-[min(60vh,400px)]">
+{/* K7/C: i Standard läser kunden aldrig "Centralsupport" eller "Huvudinkorgen"
+    — bägge är interna Atlas-begrepp. Utvägen får samma ord som enhetschippet i
+    chatten och flyttas SIST, så listan börjar med de riktiga enheterna.
+    VÄRDET "Centralsupport" är en sentinel (jämförs i AtlasChat.tsx och styr
+    office = NULL) och byts INTE. Trafik-editionen behåller sin gamla ordning
+    och sina rubriker, eftersom Box1–3 inte rörs i denna slice. */}
+{!categoryFormMode && (
 <SelectGroup>
 <SelectLabel className="text-primary-ink font-bold border-b pb-1">Global</SelectLabel>
-<SelectItem value="Centralsupport" className="font-bold">Centralsupport (Huvudinkorgen)</SelectItem>
+<SelectItem value={DEFAULT_CITY} className="font-bold">Centralsupport (Huvudinkorgen)</SelectItem>
 </SelectGroup>
+)}
 <SelectGroup>
-<SelectLabel className="font-bold border-t mt-2 pt-2">Välj Kontor</SelectLabel>
+{!categoryFormMode && <SelectLabel className="font-bold border-t mt-2 pt-2">Välj Kontor</SelectLabel>}
 {offices.map((office) => (
 <SelectItem key={office.id} value={getOfficeDisplayName(office)}>{getOfficeDisplayName(office)}</SelectItem>
 ))}
 </SelectGroup>
+{categoryFormMode && (
+<SelectGroup>
+<SelectItem value={DEFAULT_CITY} className="border-t mt-2 pt-2">{STANDARD_CENTRAL_SUPPORT_LABEL}</SelectItem>
+</SelectGroup>
+)}
 </SelectContent>
 </Select>
 )}

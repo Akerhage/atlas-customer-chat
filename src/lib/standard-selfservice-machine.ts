@@ -5,6 +5,13 @@ export const STANDARD_UNIT_PREFIX = 'standard:unit-choice:';
 export const STANDARD_CATEGORY_PREFIX = 'standard:category-choice:';
 export const STANDARD_MENU_PREFIX = 'standard:menu-choice:';
 export const STANDARD_CENTRAL_SUPPORT = '__central_support__';
+// K7/C (Patrik-beslut 2026-07-25): kunden ska inte behöva förstå ordet
+// "Centralsupport" — det är ett internt begrepp, och chippet är ingen enhet utan
+// en utväg för den som inte vet vilken enhet frågan hör till. Endast ETIKETTEN
+// byts; värdet STANDARD_CENTRAL_SUPPORT ger fortfarande office = NULL, vilket är
+// det som får ärendet att hamna i Inkorgen (routes/team.js:388-405, dokumenterat
+// avsiktlig design). Rör inte värdet.
+export const STANDARD_CENTRAL_SUPPORT_LABEL = 'Vet inte / allmän fråga';
 export const STANDARD_EMPTY_MESSAGE =
   'Vi har ingen direktinformation för detta val ännu. Du kan skapa ett ärende så hjälper vi dig.';
 

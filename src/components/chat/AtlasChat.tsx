@@ -42,6 +42,7 @@ type WidgetTexts,
 import {
 STANDARD_CATEGORY_PREFIX,
 STANDARD_CENTRAL_SUPPORT,
+STANDARD_CENTRAL_SUPPORT_LABEL,
 STANDARD_EMPTY_MESSAGE,
 STANDARD_ESCALATE_VALUE,
 STANDARD_MENU_PREFIX,
@@ -546,12 +547,16 @@ return { label: name, value: name };
 }),
 ];
 
-const getStandardUnitChoices = (): { label: string; value: string }[] => [
-{ label: 'Centralsupport', value: unitChoiceValue(STANDARD_CENTRAL_SUPPORT) },
+// K7/C: de riktiga enheterna först, utvägen SIST och i helbredd. fullWidth är
+// bundlens egen markör för ett chip som inte är ett likvärdigt alternativ i
+// raden (samma grepp som "Jag behöver mer hjälp – skapa ärende",
+// standard-selfservice-machine.ts:withEscalationValue) — ingen ny komponent.
+const getStandardUnitChoices = (): { label: string; value: string; fullWidth?: boolean }[] => [
 ...offices.map((office) => ({
 label: getOfficeDisplayName(office),
 value: unitChoiceValue(office.routing_tag),
 })),
+{ label: STANDARD_CENTRAL_SUPPORT_LABEL, value: unitChoiceValue(STANDARD_CENTRAL_SUPPORT), fullWidth: true },
 ];
 
 const getCategoryChoicesForOffice = (office: Office | null | undefined) =>
@@ -1950,7 +1955,10 @@ placeholder={selfserviceFreeTextBlocked
 showQuickQuestions={intakeMode === 'legacy' && aiRepliesEnabled && !humanMode && messages.length > 1}
 showStandardSelfserviceMenu={showStandardSelfserviceMenuButton}
 standardSelfserviceMenu={selfserviceMenu}
-standardUnitLabel={selfserviceUnitLabel}
+// K7/C: 'Centralsupport' är en SENTINEL internt (jämförs mot intakeData.city
+// och selectedCity på flera ställen, t.ex. rad 979 och 575) — den byts inte.
+// Kunden ska däremot aldrig läsa ordet, så vi mappar först vid renderingen.
+standardUnitLabel={selfserviceUnitId === STANDARD_CENTRAL_SUPPORT ? STANDARD_CENTRAL_SUPPORT_LABEL : selfserviceUnitLabel}
 standardCategoryLabel={selfserviceCategoryLabel}
 onStandardMenuChoice={(value) => { void handleStandardChoice(value); }}
 selectedVehicle={selectedVehicle}
