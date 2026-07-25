@@ -1949,8 +1949,12 @@ activeVehicles={activeVehicles}
 onSend={handleInputSend}
 
 disabled={isTyping || selfserviceFreeTextBlocked}
+// K7/§5: den långa varianten ("Välj ett alternativ ovan eller skapa ett
+// ärende") wrappade till två rader i mobil viewport och andra raden KLIPPTES
+// — mätt på 390px: textarea scrollHeight 56 > clientHeight 36, medan desktop
+// (402px bred) fick 36 = 36. Kortare text ryms på en rad i båda.
 placeholder={selfserviceFreeTextBlocked
-? "Välj ett alternativ ovan eller skapa ett ärende"
+? "Välj ett alternativ ovan"
 : (!aiRepliesEnabled && !humanMode ? "Skriv ditt svar..." : (humanMode ? "Skriv till support..." : "Skriv ett meddelande..."))}
 showQuickQuestions={intakeMode === 'legacy' && aiRepliesEnabled && !humanMode && messages.length > 1}
 showStandardSelfserviceMenu={showStandardSelfserviceMenuButton}
