@@ -35,6 +35,7 @@ describe("resolveWidgetTexts", () => {
     expect(texts.seoTitle).toBe("Atlas - Din Körkortsguide");
     expect(texts.seoDescription).toBe("Atlas är din personliga körkortsguide. Få svar på frågor om körkort, priser och hitta rätt trafikskola.");
     expect(texts.welcomeAiOn).toContain("Du kan fråga mig allt som rör ditt körkort och vårt utbud.");
+    expect(texts.welcomeAiOn).toContain('Du kan också skriva *"jag vill prata med en människa"*');
     expect(texts.welcomeAiOff).toContain("Här kan du välja att ställa frågor till vår Centralsupport i Stockholm.");
     expect(texts.welcomeAiOff).toContain(legacyNameLead);
   });
@@ -56,6 +57,8 @@ describe("resolveWidgetTexts", () => {
       seoDescription: "Atlas kundservice – ställ din fråga eller skicka ett ärende till oss.",
     });
     expect(texts.welcomeAiOn).toContain("företagets inlagda fakta om tjänster");
+    expect(texts.welcomeAiOn).toContain("Du kan också klicka på headsetikonen i menyn ovanför chatten.");
+    expect(texts.welcomeAiOn).not.toContain('Du kan också skriva *"jag vill prata med en människa"*');
     expect(texts.welcomeAiOff).toContain("skickar ditt ärende till rätt mottagare hos oss");
     expect(texts.welcomeAiOff).toContain("Vi börjar med vart du vill skicka ärendet.");
     expect(texts.welcomeAiOff).not.toContain(legacyNameLead);

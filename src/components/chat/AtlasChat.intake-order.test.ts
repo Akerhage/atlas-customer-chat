@@ -71,6 +71,19 @@ describe("AtlasChat intake-order contract", () => {
     expect(source).toContain("finishIntakeHandoff({\n...nextIntakeData,\ncity: isCentralSupport ? 'Centralsupport' : getOfficeDisplayName(safeOffice!),\nvehicle: null,\ngeneral: true,");
   });
 
+  it("never tells a standard customer to type while selfservice free text is blocked", () => {
+    expect(source).toContain(
+      "showCompactStandardMenuFollowup('Okej, ärendet avbröts. Du hittar alternativen i menyn nere vid skrivfältet.');",
+    );
+    expect(source).not.toContain("Skriv gärna om du har fler frågor!");
+    expect(source).toContain(
+      "{' '}— {selfserviceFreeTextBlocked ? 'välj ett alternativ' : 'skriv något'} för att hålla den öppen.",
+    );
+    expect(source).toContain(
+      "const selfserviceFreeTextBlocked = standardSelfserviceEnabled && !humanMode && !intakeStep;",
+    );
+  });
+
   it("allows standard unit reselection with in-place update before category and reset after", () => {
     expect(source).toContain("const selfserviceUnitMessageIdRef = useRef<string | null>(null);");
     expect(source).toContain("selfserviceStage === 'category' && !selectedCategoryId && !intakeStep");

@@ -81,7 +81,7 @@ Vill du hellre prata med en människa?
 
 [💬 Prata med en människa](#atlas-human)
 
-Du kan också skriva *"jag vill prata med en människa"* eller klicka på headsetikonen i menyn ovanför chatten.
+Du kan också klicka på headsetikonen i menyn ovanför chatten.
 
 Vad kan jag hjälpa dig med idag?`,
     formUnitLabel: profile?.labels?.unit ?? "Kontor",

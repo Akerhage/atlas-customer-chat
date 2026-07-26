@@ -902,7 +902,7 @@ startIntake('Okej, vi börjar om. Vad heter du?', 'Okej, vi börjar om. Vad gäl
 return;
 }
 setIntakeStep(null);
-injectBotMessage('Okej, vi avbröt det. Skriv gärna om du har fler frågor!');
+showCompactStandardMenuFollowup('Okej, ärendet avbröts. Du hittar alternativen i menyn nere vid skrivfältet.');
 return;
 }
 
@@ -1802,7 +1802,7 @@ Chatten stängs automatiskt pga inaktivitet om{' '}
 <span className="tabular-nums font-bold">
 {Math.floor(inactivityCountdown / 60)}:{String(inactivityCountdown % 60).padStart(2, '0')}
 </span>
-{' '}— skriv något för att hålla den öppen.
+{' '}— {selfserviceFreeTextBlocked ? 'välj ett alternativ' : 'skriv något'} för att hålla den öppen.
 </span>
 </div>
 </div>
