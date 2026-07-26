@@ -1,22 +1,26 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 
 async function loadGetTenantConfig() {
   vi.stubGlobal("window", { location: { origin: "https://box4.atlas-support.se" } });
   return (await import("./atlas-client")).getTenantConfig;
 }
 
-function installStorage() {
-  const values = new Map<string, string>([
-    ["chat_session_id", "session_test"],
-    ["chat_owner_token", "owner_test"],
-  ]);
+function installStorage(initial: Array<[string, string]> = [
+  ["chat_session_id", "session_test"],
+  ["chat_owner_token", "owner_test"],
+]) {
+  const values = new Map<string, string>(initial);
   vi.stubGlobal("localStorage", {
     getItem: (key: string) => values.get(key) ?? null,
     setItem: (key: string, value: string) => values.set(key, value),
     removeItem: (key: string) => values.delete(key),
   });
+  return values;
 }
 
 describe("getTenantConfig tenant capability wiring", () => {
@@ -167,5 +171,170 @@ describe("standard selfservice client", () => {
       action,
     });
     expect(result.values).toEqual({ price: 125 });
+  });
+
+  it("recovers a desynchronized owned session through one new customer session", async () => {
+    vi.resetModules();
+    vi.stubGlobal("window", { location: { origin: "https://box4.atlas-support.se" } });
+    const storage = installStorage([
+      ["chat_session_id", "session_owned_elsewhere"],
+      ["chat_owner_token", "stale_owner_token"],
+    ]);
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        text: async () => '{"error":"Invalid session token"}',
+      })
+      .mockImplementationOnce(async (_url, request) => {
+        const recoverySessionId = JSON.parse(request.body as string).sessionId;
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            answer: "Support och felhantering",
+            presentation: "Så här fungerar support och felhantering.",
+            source_ids: { fact_id: 42 },
+            values: { answer: "Support och felhantering" },
+            ownerToken: "fresh_owner_token",
+            sessionId: recoverySessionId,
+          }),
+        };
+      });
+    vi.stubGlobal("fetch", fetchMock);
+    const { answerStandardSelfservice } = await import("./atlas-client");
+    const action = {
+      type: "fact" as const,
+      unit_id: "bosses_kundtjanst",
+      category_id: "OVRIGA_FRAGOR",
+      fact_id: 42,
+    };
+
+    const result = await answerStandardSelfservice(
+      action,
+      { canRecoverSession: () => true }
+    );
+
+    expect(result.presentation).toBe("Så här fungerar support och felhantering.");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body as string)).toMatchObject({
+      sessionId: "session_owned_elsewhere",
+      ownerToken: "stale_owner_token",
+      action,
+    });
+    const recoveredBody = JSON.parse(fetchMock.mock.calls[1][1].body as string);
+    expect(recoveredBody.sessionId).not.toBe("session_owned_elsewhere");
+    expect(recoveredBody).not.toHaveProperty("ownerToken");
+    expect(storage.get("chat_session_id")).toBe(recoveredBody.sessionId);
+    expect(storage.get("chat_owner_token")).toBe("fresh_owner_token");
+    expect(storage.get("chat_owner_token_session_id")).toBe(recoveredBody.sessionId);
+  });
+
+  it("does not spend a doomed request when a stored session has no owner token", async () => {
+    vi.resetModules();
+    vi.useFakeTimers();
+    vi.stubGlobal("window", {
+      location: { origin: "https://box4.atlas-support.se" },
+      setTimeout,
+      clearTimeout,
+    });
+    installStorage([["chat_session_id", "session_missing_token"]]);
+    const fetchMock = vi.fn().mockImplementation(async (_url, request) => {
+      const recoverySessionId = JSON.parse(request.body as string).sessionId;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          answer: "Svar",
+          presentation: "Levererat svar",
+          ownerToken: "fresh_owner_token",
+          sessionId: recoverySessionId,
+        }),
+      };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const { answerStandardSelfservice } = await import("./atlas-client");
+    const pending = answerStandardSelfservice({
+      type: "fact",
+      unit_id: "bosses_kundtjanst",
+      category_id: "OVRIGA_FRAGOR",
+      fact_id: 42,
+    }, { canRecoverSession: () => true });
+
+    await vi.advanceTimersByTimeAsync(751);
+    const result = await pending;
+
+    expect(result.presentation).toBe("Levererat svar");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body.sessionId).not.toBe("session_missing_token");
+    expect(body).not.toHaveProperty("ownerToken");
+  });
+
+  it("keeps a wrong token blocked when session recovery is not safe", async () => {
+    vi.resetModules();
+    vi.stubGlobal("window", { location: { origin: "https://box4.atlas-support.se" } });
+    const storage = installStorage([
+      ["chat_session_id", "session_human_mode"],
+      ["chat_owner_token", "wrong_owner_token"],
+    ]);
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      text: async () => '{"error":"Invalid session token"}',
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const { answerStandardSelfservice } = await import("./atlas-client");
+
+    await expect(answerStandardSelfservice({
+      type: "fact",
+      unit_id: "bosses_kundtjanst",
+      category_id: "OVRIGA_FRAGOR",
+      fact_id: 42,
+    }, { canRecoverSession: () => false })).rejects.toThrow("Selfservice answer error 401");
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(storage.get("chat_session_id")).toBe("session_human_mode");
+    expect(storage.get("chat_owner_token")).toBe("wrong_owner_token");
+  });
+
+  it("retries ownership recovery only once", async () => {
+    vi.resetModules();
+    vi.stubGlobal("window", { location: { origin: "https://box4.atlas-support.se" } });
+    installStorage([
+      ["chat_session_id", "session_wrong_token"],
+      ["chat_owner_token", "wrong_owner_token"],
+    ]);
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      text: async () => '{"error":"Invalid session token"}',
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const { answerStandardSelfservice } = await import("./atlas-client");
+
+    await expect(answerStandardSelfservice({
+      type: "fact",
+      unit_id: "bosses_kundtjanst",
+      category_id: "OVRIGA_FRAGOR",
+      fact_id: 42,
+    }, { canRecoverSession: () => true })).rejects.toThrow("Selfservice answer error 401");
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects a token explicitly bound to a different stored session", async () => {
+    vi.resetModules();
+    vi.stubGlobal("window", { location: { origin: "https://box4.atlas-support.se" } });
+    const storage = installStorage([
+      ["chat_session_id", "session_current"],
+      ["chat_owner_token", "owner_for_old_session"],
+      ["chat_owner_token_session_id", "session_old"],
+    ]);
+    const { getOwnerToken } = await import("./atlas-client");
+
+    expect(getOwnerToken()).toBeNull();
+    expect(storage.has("chat_owner_token")).toBe(false);
+    expect(storage.has("chat_owner_token_session_id")).toBe(false);
   });
 });

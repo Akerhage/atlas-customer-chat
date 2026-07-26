@@ -115,6 +115,7 @@ const NGROK_SKIP_VALUE = 'true';
 
 const SESSION_STORAGE_KEY = 'chat_session_id';
 const OWNER_TOKEN_STORAGE_KEY = 'chat_owner_token';
+const OWNER_TOKEN_SESSION_STORAGE_KEY = 'chat_owner_token_session_id';
 
 function generateSessionId(): string {
 return `session_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
@@ -122,6 +123,7 @@ return `session_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
 
 let currentSessionId: string | null = null;
 let currentOwnerToken: string | null = null;
+let currentOwnerTokenSessionId: string | null = null;
 let ownerTokenWaiters: Array<(token: string | null) => void> = [];
 
 export function getSessionId(): string {
@@ -142,19 +144,36 @@ return currentSessionId;
 }
 
 export function getOwnerToken(): string | null {
+const sessionId = getSessionId();
 if (currentOwnerToken !== null) {
+if (currentOwnerToken && currentOwnerTokenSessionId && currentOwnerTokenSessionId !== sessionId) {
+clearOwnerToken();
+return null;
+}
 return currentOwnerToken;
 }
 
 const stored = localStorage.getItem(OWNER_TOKEN_STORAGE_KEY);
+const storedSessionId = localStorage.getItem(OWNER_TOKEN_SESSION_STORAGE_KEY);
+if (stored && storedSessionId && storedSessionId !== sessionId) {
+clearOwnerToken();
+return null;
+}
 currentOwnerToken = stored || "";
+currentOwnerTokenSessionId = stored ? (storedSessionId || sessionId) : null;
+if (stored && !storedSessionId) {
+localStorage.setItem(OWNER_TOKEN_SESSION_STORAGE_KEY, sessionId);
+}
 return currentOwnerToken || null;
 }
 
-export function setOwnerToken(ownerToken: unknown): void {
+export function setOwnerToken(ownerToken: unknown, sessionId: unknown = getSessionId()): void {
 if (typeof ownerToken !== 'string' || ownerToken.length === 0) return;
+if (typeof sessionId !== 'string' || sessionId.length === 0) return;
 currentOwnerToken = ownerToken;
+currentOwnerTokenSessionId = sessionId;
 localStorage.setItem(OWNER_TOKEN_STORAGE_KEY, ownerToken);
+localStorage.setItem(OWNER_TOKEN_SESSION_STORAGE_KEY, sessionId);
 const waiters = ownerTokenWaiters;
 ownerTokenWaiters = [];
 waiters.forEach((resolve) => resolve(ownerToken));
@@ -162,7 +181,9 @@ waiters.forEach((resolve) => resolve(ownerToken));
 
 function clearOwnerToken(): void {
 currentOwnerToken = null;
+currentOwnerTokenSessionId = null;
 localStorage.removeItem(OWNER_TOKEN_STORAGE_KEY);
+localStorage.removeItem(OWNER_TOKEN_SESSION_STORAGE_KEY);
 const waiters = ownerTokenWaiters;
 ownerTokenWaiters = [];
 waiters.forEach((resolve) => resolve(null));
@@ -338,7 +359,7 @@ query: { sessionId, conversationId: sessionId, sessionToken, [NGROK_SKIP_HEADER]
 socket.on('session:token_issued', (data: { sessionId?: string; ownerToken?: string }) => {
 if (!data?.ownerToken) return;
 if (data.sessionId && data.sessionId !== getSessionId()) return;
-setOwnerToken(data.ownerToken);
+setOwnerToken(data.ownerToken, data.sessionId || getSessionId());
 });
 
 socket.on('connect', () => {
@@ -491,7 +512,7 @@ throw new Error(`API returned non-JSON (${contentType || 'unknown content-type'}
 
 const data = await response.json();
 if (data?.ownerToken) {
-  setOwnerToken(data.ownerToken);
+  setOwnerToken(data.ownerToken, data.sessionId || sessionId);
 }
 
 return {
@@ -524,29 +545,41 @@ export async function getStandardSelfserviceMenu(
   };
 }
 
-export async function answerStandardSelfservice(
-  action: StandardSelfserviceAction
+export interface StandardSelfserviceAnswerOptions {
+  canRecoverSession?: () => boolean;
+}
+
+class StandardSelfserviceAnswerError extends Error {
+  readonly status: number;
+
+  constructor(status: number, body: string) {
+    super(`Selfservice answer error ${status}: ${body}`);
+    this.name = 'StandardSelfserviceAnswerError';
+    this.status = status;
+  }
+}
+
+async function requestStandardSelfserviceAnswer(
+  action: StandardSelfserviceAction,
+  sessionId: string,
+  ownerToken: string | null
 ): Promise<StandardSelfserviceAnswerResponse> {
-  const sessionId = getSessionId();
-  const ownerToken = getOwnerToken() || await waitForOwnerToken();
+  const body: Record<string, unknown> = { sessionId, action };
+  if (ownerToken) body.ownerToken = ownerToken;
   const response = await fetch(`${BASE_URL}/standard-selfservice/answer`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       [NGROK_SKIP_HEADER]: NGROK_SKIP_VALUE
     },
-    body: JSON.stringify({
-      sessionId,
-      ownerToken: ownerToken || '',
-      action
-    })
+    body: JSON.stringify(body)
   });
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Selfservice answer error ${response.status}: ${errorText}`);
+    throw new StandardSelfserviceAnswerError(response.status, errorText);
   }
   const data = await response.json();
-  if (data?.ownerToken) setOwnerToken(data.ownerToken);
+  if (data?.ownerToken) setOwnerToken(data.ownerToken, data?.sessionId || sessionId);
   return {
     answer: typeof data?.answer === 'string' ? data.answer : '',
     presentation: typeof data?.presentation === 'string' ? data.presentation : '',
@@ -556,6 +589,72 @@ export async function answerStandardSelfservice(
     sessionId: data?.sessionId,
     miss: data?.miss === true
   };
+}
+
+function snapshotSocketCallbacks() {
+  return {
+    onReply: replyCallback,
+    onStatusChange: statusCallback,
+    onAgentTyping: agentTypingCallback,
+    onWarning: warningCallback,
+    onAssigned: assignmentCallback,
+    onReconnect: reconnectCallback,
+  };
+}
+
+async function recoverStandardSelfserviceAnswer(
+  action: StandardSelfserviceAction
+): Promise<StandardSelfserviceAnswerResponse> {
+  const callbacks = snapshotSocketCallbacks();
+  disconnectSocket();
+  const sessionId = resetSession();
+  try {
+    // Den nya slumpade sessionen finns ännu inte på servern. HTTP får därför
+    // minta dess token först; socketen återansluts med tokenen efter svaret.
+    return await requestStandardSelfserviceAnswer(action, sessionId, null);
+  } finally {
+    if (callbacks.onReply) {
+      connectSocket(
+        callbacks.onReply,
+        callbacks.onStatusChange || undefined,
+        callbacks.onAgentTyping || undefined,
+        callbacks.onWarning || undefined,
+        callbacks.onAssigned || undefined,
+        callbacks.onReconnect || undefined
+      );
+    }
+  }
+}
+
+export async function answerStandardSelfservice(
+  action: StandardSelfserviceAction,
+  options: StandardSelfserviceAnswerOptions = {}
+): Promise<StandardSelfserviceAnswerResponse> {
+  const sessionId = getSessionId();
+  const ownerToken = getOwnerToken() || await waitForOwnerToken();
+  const canRecover = () => options.canRecoverSession?.() === true;
+
+  // En tidigare känd session utan token kan bara 401:a. Skapa en ny egen
+  // session direkt i stället för att skicka en tom, garanterat underkänd token.
+  if (!ownerToken) {
+    if (!canRecover()) {
+      throw new StandardSelfserviceAnswerError(401, 'Missing session token');
+    }
+    return recoverStandardSelfserviceAnswer(action);
+  }
+
+  try {
+    return await requestStandardSelfserviceAnswer(action, sessionId, ownerToken);
+  } catch (error) {
+    if (
+      error instanceof StandardSelfserviceAnswerError &&
+      error.status === 401 &&
+      canRecover()
+    ) {
+      return recoverStandardSelfserviceAnswer(action);
+    }
+    throw error;
+  }
 }
 
 /**

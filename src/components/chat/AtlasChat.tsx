@@ -279,6 +279,10 @@ const [selfserviceMenu, setSelfserviceMenu] = useState<StandardSelfserviceMenuIt
 const standardSelfserviceStartedRef = useRef(false);
 const selfserviceUnitMessageIdRef = useRef<string | null>(null);
 const selfserviceCategoryMessageIdRef = useRef<string | null>(null);
+const humanModeRef = useRef(humanMode);
+const intakeStepRef = useRef(intakeStep);
+humanModeRef.current = humanMode;
+intakeStepRef.current = intakeStep;
 
 const activeVehicleChoices = VEHICLE_CHOICES.filter(choice => activeVehicles.includes(choice.value));
 const getSafeActiveVehicle = (value: string | null | undefined): VehicleType | null => {
@@ -749,7 +753,9 @@ return true;
 injectUserMessage(item.label);
 setIsTyping(true);
 try {
-const response = await answerStandardSelfservice(item.action);
+const response = await answerStandardSelfservice(item.action, {
+canRecoverSession: () => !humanModeRef.current && !intakeStepRef.current,
+});
 injectBotMessage(response.presentation || response.answer || STANDARD_EMPTY_MESSAGE);
 } catch (error) {
 console.error('[AtlasChat] Selfservice answer error:', error);

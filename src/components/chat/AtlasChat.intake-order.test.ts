@@ -84,6 +84,17 @@ describe("AtlasChat intake-order contract", () => {
     );
   });
 
+  it("only permits selfservice session recovery outside human mode and intake", () => {
+    expect(source).toContain("const humanModeRef = useRef(humanMode);");
+    expect(source).toContain("const intakeStepRef = useRef(intakeStep);");
+    expect(source).toContain(
+      "canRecoverSession: () => !humanModeRef.current && !intakeStepRef.current,",
+    );
+    expect(source).toContain(
+      "injectBotMessage(response.presentation || response.answer || STANDARD_EMPTY_MESSAGE);",
+    );
+  });
+
   it("allows standard unit reselection with in-place update before category and reset after", () => {
     expect(source).toContain("const selfserviceUnitMessageIdRef = useRef<string | null>(null);");
     expect(source).toContain("selfserviceStage === 'category' && !selectedCategoryId && !intakeStep");
