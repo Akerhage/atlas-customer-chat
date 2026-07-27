@@ -11,6 +11,7 @@ import {
   withEscalationChoice,
   withEscalationValue,
 } from './standard-selfservice-machine';
+import type { StandardSelfserviceAction } from './standard-selfservice-machine';
 
 describe('standard selfservice machine', () => {
   it('gates only Standard category_first with structured answers', () => {
@@ -52,6 +53,15 @@ describe('standard selfservice machine', () => {
       { label: 'Vad kostar produkten?', value: `${STANDARD_MENU_PREFIX}opaque-1`, fullWidth: true },
       { label: 'Jag behöver mer hjälp – skapa ärende', value: STANDARD_ESCALATE_VALUE, fullWidth: true },
     ]);
+  });
+
+  it('accepts the backend category-info action in the shared contract', () => {
+    const action: StandardSelfserviceAction = {
+      type: 'category_info',
+      unit_id: 'unit',
+      category_id: 'category',
+    };
+    expect(action.type).toBe('category_info');
   });
 
   it('can append the same escalation choice to arbitrary label/value choices', () => {

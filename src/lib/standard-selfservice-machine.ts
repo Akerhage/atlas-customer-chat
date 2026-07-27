@@ -18,7 +18,7 @@ export const STANDARD_EMPTY_MESSAGE =
 export type StandardSelfserviceStage = 'unit' | 'category' | 'menu' | null;
 
 export interface StandardSelfserviceAction {
-  type: 'category_overview' | 'offering' | 'unit_info' | 'fact';
+  type: 'category_overview' | 'category_info' | 'offering' | 'unit_info' | 'fact';
   unit_id: string;
   category_id: string;
   offering_id?: string;
