@@ -326,6 +326,74 @@ describe("standard selfservice client", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it("preserves a structured archived-session 410 without attempting recovery", async () => {
+    vi.resetModules();
+    vi.stubGlobal("window", { location: { origin: "https://box4.atlas-support.se" } });
+    installStorage();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 410,
+      text: async () => JSON.stringify({
+        error: "Session archived",
+        is_archived: true,
+        close_reason: "inactivity",
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const {
+      answerStandardSelfservice,
+      isArchivedStandardSelfserviceAnswerError,
+    } = await import("./atlas-client");
+
+    let caught: unknown;
+    try {
+      await answerStandardSelfservice({
+        type: "fact",
+        unit_id: "bosses_kundtjanst",
+        category_id: "OVRIGA_FRAGOR",
+        fact_id: 42,
+      }, { canRecoverSession: () => true });
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(isArchivedStandardSelfserviceAnswerError(caught)).toBe(true);
+    if (isArchivedStandardSelfserviceAnswerError(caught)) {
+      expect(caught.closeReason).toBe("inactivity");
+    }
+  });
+
+  it("does not classify a real 500 as an archived-session response", async () => {
+    vi.resetModules();
+    vi.stubGlobal("window", { location: { origin: "https://box4.atlas-support.se" } });
+    installStorage();
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      text: async () => JSON.stringify({ error: "Internal error" }),
+    }));
+    const {
+      answerStandardSelfservice,
+      isArchivedStandardSelfserviceAnswerError,
+    } = await import("./atlas-client");
+
+    let caught: unknown;
+    try {
+      await answerStandardSelfservice({
+        type: "fact",
+        unit_id: "bosses_kundtjanst",
+        category_id: "OVRIGA_FRAGOR",
+        fact_id: 42,
+      });
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(isArchivedStandardSelfserviceAnswerError(caught)).toBe(false);
+    expect(caught).toBeInstanceOf(Error);
+  });
+
   it("rejects a token explicitly bound to a different stored session", async () => {
     vi.resetModules();
     vi.stubGlobal("window", { location: { origin: "https://box4.atlas-support.se" } });

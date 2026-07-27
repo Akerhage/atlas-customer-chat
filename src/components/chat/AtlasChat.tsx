@@ -11,6 +11,7 @@ import {
 sendMessage,
 getStandardSelfserviceMenu,
 answerStandardSelfservice,
+isArchivedStandardSelfserviceAnswerError,
 resetSession,
 getHistory,
 connectSocket,
@@ -27,6 +28,11 @@ type SessionStatusEvent,
 type SessionWarningEvent,
 type ActiveVehicle,
 } from "@/lib/atlas-client";
+import {
+createSessionStatusMachine,
+type ArchivedSessionStatus,
+type PersistentSessionStatus,
+} from "@/lib/session-status-machine";
 import type { TenantProfile } from "@/lib/tenant-capabilities";
 import {
 buildCategoryChoices,
@@ -473,6 +479,67 @@ const agentTypingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 const tabIdRef = useRef<string>(createCrossTabId());
 const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
 const lastCrossTabEventIdRef = useRef<string | null>(null);
+const archiveEffectsRef = useRef<(status: ArchivedSessionStatus) => void>(() => undefined);
+const persistentStatusPollRef = useRef<() => Promise<PersistentSessionStatus | null>>(getHistory);
+const sessionStatusMachineRef = useRef<ReturnType<typeof createSessionStatusMachine> | null>(null);
+
+archiveEffectsRef.current = (status) => {
+const reason = status.closeReason || null;
+setIsArchived(true);
+setCloseReason(reason);
+setArchivedMessage(status.message || (reason === 'inactivity'
+? 'Chatten har stängts automatiskt på grund av inaktivitet.'
+: (reason === 'deleted' ? 'Chatten har avslutats.' : 'Chatten är avslutad av handläggaren.')));
+if (agentTypingTimerRef.current) {
+clearTimeout(agentTypingTimerRef.current);
+agentTypingTimerRef.current = null;
+}
+setIsTyping(false);
+setTypingAgentName(null);
+setInactivityWarning(false);
+if (inactivityTimerRef.current) {
+clearInterval(inactivityTimerRef.current);
+inactivityTimerRef.current = null;
+}
+setShowEndDialog(true);
+};
+
+if (!sessionStatusMachineRef.current) {
+sessionStatusMachineRef.current = createSessionStatusMachine({
+poll: () => persistentStatusPollRef.current(),
+onArchived: (status) => archiveEffectsRef.current(status),
+});
+}
+
+const applyArchivedState = useCallback((status: ArchivedSessionStatus) => {
+sessionStatusMachineRef.current?.archived(status);
+}, []);
+
+const clearInactivityWarningForCustomerActivity = useCallback(() => {
+sessionStatusMachineRef.current?.customerActivity();
+setInactivityWarning(false);
+setInactivityCountdown(300);
+if (inactivityTimerRef.current) {
+clearInterval(inactivityTimerRef.current);
+inactivityTimerRef.current = null;
+}
+}, []);
+
+useEffect(() => {
+sessionStatusMachineRef.current?.setHumanMode(humanMode);
+}, [humanMode]);
+
+useEffect(() => {
+const handleVisibilityChange = () => {
+sessionStatusMachineRef.current?.visibilityChanged(document.visibilityState === 'visible');
+};
+document.addEventListener('visibilitychange', handleVisibilityChange);
+return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+}, []);
+
+useEffect(() => {
+return () => sessionStatusMachineRef.current?.destroy();
+}, []);
 
 const generateMessageId = () => `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
@@ -807,6 +874,7 @@ if (!item) {
 showStandardMenu(selfserviceMenu);
 return true;
 }
+clearInactivityWarningForCustomerActivity();
 injectUserMessage(item.label);
 setIsTyping(true);
 try {
@@ -816,7 +884,15 @@ canRecoverSession: () => !humanModeRef.current && !intakeStepRef.current,
 injectBotMessage(response.presentation || response.answer || STANDARD_EMPTY_MESSAGE);
 } catch (error) {
 console.error('[AtlasChat] Selfservice answer error:', error);
+if (isArchivedStandardSelfserviceAnswerError(error)) {
+setSelfserviceMenu([]);
+setSelfserviceStage(null);
+applyArchivedState({
+closeReason: error.closeReason,
+});
+} else {
 showCompactStandardMenuFollowup('Svaret kunde inte hämtas just nu. Försök igen via menyn nere vid skrivfältet eller skapa ett ärende.');
+}
 } finally {
 setIsTyping(false);
 }
@@ -884,19 +960,12 @@ setTypingAgentName(null);
 // disconnect/reconnect-loop där lyssnarna aldrig hann registreras korrekt.
 const handleSessionStatus = useCallback((event: SessionStatusEvent) => {
 if (event.status === 'archived') {
-setIsArchived(true);
-setCloseReason(event.close_reason || null);
-setArchivedMessage(event.message || (event.close_reason === 'inactivity' ? 'Chatten har stängts automatiskt på grund av inaktivitet.' : (event.close_reason === 'deleted' ? 'Chatten har avslutats.' : 'Chatten är avslutad av handläggaren.')));
-if (agentTypingTimerRef.current) {
-clearTimeout(agentTypingTimerRef.current);
-agentTypingTimerRef.current = null;
+applyArchivedState({
+closeReason: event.close_reason || null,
+message: event.message,
+});
 }
-setIsTyping(false);
-setInactivityWarning(false);
-if (inactivityTimerRef.current) { clearInterval(inactivityTimerRef.current); inactivityTimerRef.current = null; }
-setShowEndDialog(true);
-}
-}, []); // eslint-disable-line react-hooks/exhaustive-deps
+}, [applyArchivedState]);
 
 // Handle agent typing indicator
 const handleAgentTyping = useCallback((_sessionId: string, agentName: string | null, isTyping: boolean) => {
@@ -931,6 +1000,7 @@ setAgentNames(agentName ? [agentName] : []);
 // Handle inactivity warning - start a 5-minute countdown
 const handleInactivityWarning = useCallback((event: SessionWarningEvent) => {
 const seconds = (event.minutesLeft ?? 5) * 60;
+sessionStatusMachineRef.current?.startWarning();
 setInactivityWarning(true);
 setInactivityCountdown(seconds);
 
@@ -942,6 +1012,7 @@ setInactivityCountdown((prev) => {
 if (prev <= 1) {
 clearInterval(inactivityTimerRef.current!);
 inactivityTimerRef.current = null;
+sessionStatusMachineRef.current?.countdownExpired();
 return 0;
 }
 return prev - 1;
@@ -1096,9 +1167,9 @@ setHumanMode(history.human_mode);
 
 // Check if session is archived (persistent state from backend)
 if (history.is_archived) {
-setIsArchived(true);
-setCloseReason(history.close_reason || null);
-setArchivedMessage(history.close_reason === 'inactivity' ? 'Chatten har stängts automatiskt på grund av inaktivitet.' : (history.close_reason === 'deleted' ? 'Chatten har avslutats.' : 'Chatten är avslutad av handläggaren.'));
+applyArchivedState({
+closeReason: history.close_reason || null,
+});
 }
 
 // Always sync messages from server - compare by content, not just count
@@ -1130,21 +1201,32 @@ return welcomeMsg ? [welcomeMsg, ...newMessages] : newMessages;
 lastMessageCountRef.current = serverMsgCount;
 setIsTyping(false);
 }
+return history;
 } catch (error) {
 console.error('[AtlasChat] Polling error:', error);
 // Don't show error toast for polling failures - silent retry
+return null;
 }
-}, []);
+}, [applyArchivedState]);
+persistentStatusPollRef.current = pollHistory;
+
+const handleReconnect = useCallback(() => {
+if (humanModeRef.current) {
+void pollHistory();
+return;
+}
+sessionStatusMachineRef.current.reconnected();
+}, [pollHistory]);
 
 // Connect socket on mount, disconnect on unmount
 useEffect(() => {
-connectSocket(handleAgentReply, handleSessionStatus, handleAgentTyping, handleInactivityWarning, handleSessionAssigned, pollHistory);
+connectSocket(handleAgentReply, handleSessionStatus, handleAgentTyping, handleInactivityWarning, handleSessionAssigned, handleReconnect);
 
 return () => {
 if (inactivityTimerRef.current) clearInterval(inactivityTimerRef.current);
 disconnectSocket();
 };
-}, [handleAgentReply, handleSessionStatus, handleAgentTyping, handleInactivityWarning, handleSessionAssigned, pollHistory]);
+}, [handleAgentReply, handleSessionStatus, handleAgentTyping, handleInactivityWarning, handleSessionAssigned, handleReconnect]);
 
 const handleCrossTabSync = useCallback((event: CrossTabSyncEvent | null) => {
 if (!event || event.type !== CROSS_TAB_CUSTOMER_MESSAGE) return;
@@ -1300,12 +1382,7 @@ return;
 
 // Rensa inaktivitetsvarning när kunden skriver
 if (inactivityWarning) {
-setInactivityWarning(false);
-setInactivityCountdown(300);
-if (inactivityTimerRef.current) {
-clearInterval(inactivityTimerRef.current);
-inactivityTimerRef.current = null;
-}
+clearInactivityWarningForCustomerActivity();
 }
 
 // 1. Bygg context: Prioritera data från snabbknapp (contextData), annars använd sidans val
@@ -1354,9 +1431,9 @@ const response = await sendMessage(content, messages.length <= 1, messageContext
 notifySiblingTabs();
 
 if (response.is_archived) {
-setIsArchived(true);
-setCloseReason(response.close_reason || 'deleted');
-setArchivedMessage(response.close_reason === 'inactivity' ? 'Chatten har stängts automatiskt på grund av inaktivitet.' : 'Chatten har avslutats.');
+applyArchivedState({
+closeReason: response.close_reason || 'deleted',
+});
 setHumanMode(false);
 setIsTyping(false);
 return;
@@ -1466,12 +1543,13 @@ setAssignedAgentName(null);
 setIsArchived(false);
 setCloseReason(null);
 setArchivedMessage(null);
+sessionStatusMachineRef.current?.reset();
 lastMessageCountRef.current = 0;
 
 // Reset the session id AND ensure the socket joins the new session room.
 disconnectSocket();
 resetSession();
-connectSocket(handleAgentReply, handleSessionStatus, handleAgentTyping, handleInactivityWarning, handleSessionAssigned, pollHistory);
+connectSocket(handleAgentReply, handleSessionStatus, handleAgentTyping, handleInactivityWarning, handleSessionAssigned, handleReconnect);
 };
 
 const handleQuickAction = (message: string, contextData?: QuickContextPayload) => {
@@ -1863,11 +1941,15 @@ status={assignedAgentName ? 'active' : 'waiting'}
 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
 </svg>
 <span className="text-sm font-medium">
+{inactivityCountdown > 0 ? (
+<>
 Chatten stängs automatiskt pga inaktivitet om{' '}
 <span className="tabular-nums font-bold">
 {Math.floor(inactivityCountdown / 60)}:{String(inactivityCountdown % 60).padStart(2, '0')}
 </span>
 {' '}— {selfserviceFreeTextBlocked ? 'välj ett alternativ' : 'skriv något'} för att hålla den öppen.
+</>
+) : 'Chatten avslutas nu…'}
 </span>
 </div>
 </div>
@@ -1916,7 +1998,7 @@ timestamp={message.timestamp}
 isLatest={index === messages.length - 1}
 senderName={message.senderName}
 choices={message.choices}
-onChoiceSelect={handleChoiceSelected}
+onChoiceSelect={isArchived ? undefined : handleChoiceSelected}
 onRequestHuman={handleRequestHuman}
 onOpenContactForm={() => setContactFormOpen(true)}
 />

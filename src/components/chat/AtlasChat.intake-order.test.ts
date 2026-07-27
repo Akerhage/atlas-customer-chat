@@ -142,6 +142,30 @@ describe("AtlasChat intake-order contract", () => {
     );
   });
 
+  it("routes all four archive sources through the shared idempotent transition", () => {
+    const archiveCalls = source.match(/applyArchivedState\(\{/g) || [];
+    expect(archiveCalls).toHaveLength(4);
+    expect(source).toContain("if (isArchivedStandardSelfserviceAnswerError(error)) {");
+    expect(source).toContain("onChoiceSelect={isArchived ? undefined : handleChoiceSelected}");
+    expect(source).toContain("sessionStatusMachineRef.current.reconnected();");
+    expect(source).toContain("document.addEventListener('visibilitychange', handleVisibilityChange);");
+    expect(source.match(/clearInactivityWarningForCustomerActivity\(\);/g)).toHaveLength(2);
+  });
+
+  it("keeps the generic selfservice error only for non-archive failures", () => {
+    const catchStart = source.indexOf("} catch (error) {", source.indexOf("const handleStandardChoice"));
+    const catchEnd = source.indexOf("} finally {", catchStart);
+    const catchBlock = source.slice(catchStart, catchEnd);
+
+    expect(catchBlock).toContain("isArchivedStandardSelfserviceAnswerError(error)");
+    expect(catchBlock).toContain("applyArchivedState({");
+    expect(catchBlock).toContain(
+      "showCompactStandardMenuFollowup('Svaret kunde inte hämtas just nu. Försök igen via menyn nere vid skrivfältet eller skapa ett ärende.');",
+    );
+    expect(catchBlock.indexOf("applyArchivedState({"))
+      .toBeLessThan(catchBlock.indexOf("showCompactStandardMenuFollowup("));
+  });
+
   it("allows standard unit reselection with in-place update before category and reset after", () => {
     expect(source).toContain("const selfserviceUnitMessageIdRef = useRef<string | null>(null);");
     expect(source).toContain("selfserviceStage === 'category' && !selectedCategoryId && !intakeStep");

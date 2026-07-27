@@ -549,14 +549,43 @@ export interface StandardSelfserviceAnswerOptions {
   canRecoverSession?: () => boolean;
 }
 
+export interface ArchivedStandardSelfserviceAnswerError extends Error {
+  readonly status: 410;
+  readonly isArchived: true;
+  readonly closeReason: string | null;
+}
+
 class StandardSelfserviceAnswerError extends Error {
   readonly status: number;
+  readonly isArchived: boolean;
+  readonly closeReason: string | null;
 
   constructor(status: number, body: string) {
     super(`Selfservice answer error ${status}: ${body}`);
     this.name = 'StandardSelfserviceAnswerError';
     this.status = status;
+    let parsed: unknown = null;
+    try {
+      parsed = JSON.parse(body);
+    } catch {
+      // The original response text remains available in Error.message.
+    }
+    const payload = parsed && typeof parsed === 'object'
+      ? parsed as Record<string, unknown>
+      : {};
+    this.isArchived = payload.is_archived === true;
+    this.closeReason = typeof payload.close_reason === 'string'
+      ? payload.close_reason
+      : null;
   }
+}
+
+export function isArchivedStandardSelfserviceAnswerError(
+  error: unknown
+): error is ArchivedStandardSelfserviceAnswerError {
+  return error instanceof StandardSelfserviceAnswerError &&
+    error.status === 410 &&
+    error.isArchived === true;
 }
 
 async function requestStandardSelfserviceAnswer(
