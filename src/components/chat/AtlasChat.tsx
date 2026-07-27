@@ -264,9 +264,7 @@ export function AtlasChat() {
 const initialWidgetTextsRef = useRef<WidgetTexts | null>(null);
 if (!initialWidgetTextsRef.current) initialWidgetTextsRef.current = readCachedWidgetTexts();
 const initialWidgetTexts = initialWidgetTextsRef.current;
-const [messages, setMessages] = useState<ChatMessage[]>([
-createWelcomeMessage(true, initialWidgetTexts)
-]);
+const [messages, setMessages] = useState<ChatMessage[]>([]);
 const [offices, setOffices] = useState<Office[]>([]); // 🔥 Håller kontorslistan
 const [officesLoaded, setOfficesLoaded] = useState(false);
 const [aiRepliesEnabled, setAiRepliesEnabled] = useState(true);
@@ -322,6 +320,7 @@ const [selfserviceUnitId, setSelfserviceUnitId] = useState<string | null>(null);
 const [selfserviceUnitLabel, setSelfserviceUnitLabel] = useState<string | null>(null);
 const [selfserviceMenu, setSelfserviceMenu] = useState<StandardSelfserviceMenuItem[]>([]);
 const standardSelfserviceStartedRef = useRef(false);
+const welcomeSeededRef = useRef(false);
 const selfserviceUnitMessageIdRef = useRef<string | null>(null);
 const selfserviceCategoryMessageIdRef = useRef<string | null>(null);
 const humanModeRef = useRef(humanMode);
@@ -339,6 +338,7 @@ const singletonOfficeLabel = singletonOffice ? getOfficeDisplayName(singletonOff
 const singletonVehicle = activeVehicles.length === 1 ? activeVehicles[0] : null;
 const categoryFirstEnabled = isCategoryFirstIntake(intakeMode, categoryChoices.length);
 const standardSelfserviceEnabled = isStandardSelfserviceEnabled(tenantProfile, intakeMode);
+const bootstrapping = !publicConfigLoaded || !tenantConfigLoaded;
 const selfserviceCategoryLabel = categoryChoices.find(choice => choice.value === selectedCategoryId)?.label || null;
 const STANDARD_EMPTY_CATEGORY_MESSAGE =
 'Den här avdelningen har inga kategorier ännu. Skapa ett ärende så hjälper vi dig vidare.';
@@ -370,6 +370,15 @@ setMessages((current) => current.map((message) => message.id === 'welcome-msg'
 ? { ...message, content: aiRepliesEnabled ? widgetTexts.welcomeAiOn : widgetTexts.welcomeAiOff }
 : message));
 }, [widgetTexts, aiRepliesEnabled]);
+
+useEffect(() => {
+if (welcomeSeededRef.current) return;
+if (bootstrapping) return;
+welcomeSeededRef.current = true;
+setMessages((prev) => prev.length === 0
+? [createWelcomeMessage(aiRepliesEnabled, widgetTexts)]
+: prev);
+}, [bootstrapping, aiRepliesEnabled, widgetTexts]);
 
 useEffect(() => {
 if (selectedVehicle && !activeVehicles.includes(selectedVehicle)) {
@@ -1824,6 +1833,7 @@ companyName={companyName}
 companyLogoUrl={companyLogoUrl}
 activeVehicles={activeVehicles}
 subtitle={widgetTexts.headerSubtitle}
+subtitleLoading={bootstrapping}
 templatesTitle={widgetTexts.templatesTitle}
 templatesSubtitle={widgetTexts.templatesSubtitle}
 intakeMode={intakeMode}
@@ -1910,7 +1920,7 @@ onOpenContactForm={() => setContactFormOpen(true)}
 ))}
 
 <div className="min-h-[52px]">
-<div className={isTyping ? "opacity-100 transition-opacity duration-150" : "opacity-0 pointer-events-none transition-opacity duration-200"}>
+<div className={bootstrapping || isTyping ? "opacity-100 transition-opacity duration-150" : "opacity-0 pointer-events-none transition-opacity duration-200"}>
 <TypingIndicator agentName={typingAgentName} />
 </div>
 </div>

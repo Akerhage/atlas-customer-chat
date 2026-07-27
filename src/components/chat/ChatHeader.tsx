@@ -26,6 +26,7 @@ activeVehicles: ActiveVehicle[];
 subtitle?: string;
 templatesTitle?: string;
 templatesSubtitle?: string;
+subtitleLoading?: boolean;
 intakeMode: IntakeMode;
 categoryChoices: { label: string; value: string }[];
 formLabels: { unit: string; category: string };
@@ -50,6 +51,7 @@ activeVehicles,
 subtitle = "Din körkortsguide",
 templatesTitle = "Vårt utbud",
 templatesSubtitle = "Här kan du läsa mer om våra paket, vår policy, våra kurser, utbildningar och erbjudanden — klicka för att visa i chatten",
+subtitleLoading = false,
 intakeMode,
 categoryChoices,
 formLabels,
@@ -76,7 +78,7 @@ className="max-h-6 w-full object-contain sm:max-h-7"
 
 <div className="hidden min-[440px]:block min-w-0">
 <h1 className="font-semibold leading-tight text-foreground">Atlas</h1>
-<p className="hidden min-[360px]:block text-xs text-muted-foreground">{subtitle}</p>
+<p className="hidden min-h-4 min-[360px]:block text-xs text-muted-foreground">{subtitleLoading ? '' : subtitle}</p>
 </div>
 </div>
 

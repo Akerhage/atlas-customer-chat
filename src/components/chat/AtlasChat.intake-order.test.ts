@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const source = readFileSync(new URL("./AtlasChat.tsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+const chatHeaderSource = readFileSync(new URL("./ChatHeader.tsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const atlasClientSource = readFileSync(new URL("../../lib/atlas-client.ts", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const intakeMachineSource = readFileSync(new URL("../../lib/intake-machine.ts", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 
@@ -40,7 +41,8 @@ describe("AtlasChat intake-order contract", () => {
     expect(source).toContain("setMessages([createWelcomeMessage(aiRepliesEnabled, widgetTexts)]);");
     // G6-8: ingen call site får hårdkoda AI-flaggan tillsammans med widgetTexts.
     expect(source).not.toContain("createWelcomeMessage(false, widgetTexts)");
-    expect(source.match(/createWelcomeMessage\(aiRepliesEnabled, widgetTexts\)/g)).toHaveLength(3);
+    // G6-8c lägger till den fjärde call siten: post-config seed för legacy AI-PÅ-tenants.
+    expect(source.match(/createWelcomeMessage\(aiRepliesEnabled, widgetTexts\)/g)).toHaveLength(4);
     // Profilbyte skriver om den redan visade välkomstbubblan ur widget-texterna.
     expect(source).toContain("? { ...message, content: aiRepliesEnabled ? widgetTexts.welcomeAiOn : widgetTexts.welcomeAiOff }");
     expect(source).not.toContain("WELCOME_MESSAGE_CONTENT");
@@ -52,6 +54,31 @@ describe("AtlasChat intake-order contract", () => {
     expect(atlasClientSource).toContain("companyNameRaw: null");
     expect(atlasClientSource).toContain("const companyNameRaw =");
     expect(atlasClientSource).toContain("companyNameRaw,");
+  });
+
+  it("does not render legacy welcome copy before live config has loaded", () => {
+    expect(source).toContain("const bootstrapping = !publicConfigLoaded || !tenantConfigLoaded;");
+    expect(source).toContain("const [messages, setMessages] = useState<ChatMessage[]>([]);");
+    expect(source).not.toContain("createWelcomeMessage(true, initialWidgetTexts)");
+  });
+
+  it("seeds exactly one welcome bubble after config load, including legacy AI-on tenants", () => {
+    expect(source).toContain("const welcomeSeededRef = useRef(false);");
+    expect(source).toContain("if (welcomeSeededRef.current) return;");
+    expect(source).toContain("if (bootstrapping) return;");
+    expect(source).toContain("welcomeSeededRef.current = true;");
+    expect(source).toContain("setMessages((prev) => prev.length === 0");
+    expect(source).toContain("? [createWelcomeMessage(aiRepliesEnabled, widgetTexts)]");
+  });
+
+  it("uses the existing typing indicator for bootstrapping without coupling it to flow state", () => {
+    expect(source).toContain("subtitleLoading={bootstrapping}");
+    expect(source).toContain("bootstrapping || isTyping");
+    expect(source).toContain("<TypingIndicator agentName={typingAgentName} />");
+    expect(source).not.toContain("setIsTyping(bootstrapping)");
+    expect(chatHeaderSource).toContain("subtitleLoading?: boolean;");
+    expect(chatHeaderSource).toContain("subtitleLoading ? '' : subtitle");
+    expect(chatHeaderSource).toContain("min-h-4");
   });
 
   it("keeps the slice-24 handoff implementation byte-identical", () => {
