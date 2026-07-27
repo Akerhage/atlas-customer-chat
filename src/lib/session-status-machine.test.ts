@@ -120,7 +120,7 @@ describe("session status machine", () => {
     await vi.runAllTimersAsync();
 
     expect(poll).toHaveBeenCalledTimes(SELF_HEAL_BACKOFF_MS.length);
-    expect(machine.snapshot().running).toBe(false);
+    expect(machine.snapshot().polling).toBe(false);
     expect(vi.getTimerCount()).toBe(0);
   });
 

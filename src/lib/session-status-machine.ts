@@ -16,7 +16,7 @@ export interface SessionStatusMachineSnapshot {
   warningActive: boolean;
   countdownExpired: boolean;
   humanMode: boolean;
-  running: boolean;
+  polling: boolean;
   attempts: number;
 }
 
@@ -52,7 +52,7 @@ export function createSessionStatusMachine({
   let warningActive = false;
   let countdownHasExpired = false;
   let humanModeState = false;
-  let running = false;
+  let polling = false;
   let attempts = 0;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let generation = 0;
@@ -66,7 +66,7 @@ export function createSessionStatusMachine({
   const stop = () => {
     generation += 1;
     clearTimer();
-    running = false;
+    polling = false;
     attempts = 0;
   };
 
@@ -83,7 +83,7 @@ export function createSessionStatusMachine({
   };
 
   const schedulePoll = (bounded: boolean, expectedGeneration: number) => {
-    if (destroyed || archivedState || humanModeState || !running) {
+    if (destroyed || archivedState || humanModeState || !polling) {
       stop();
       return;
     }
@@ -124,8 +124,8 @@ export function createSessionStatusMachine({
   };
 
   const startPolling = (bounded: boolean) => {
-    if (destroyed || archivedState || humanModeState || running) return;
-    running = true;
+    if (destroyed || archivedState || humanModeState || polling) return;
+    polling = true;
     attempts = 0;
     generation += 1;
     schedulePoll(bounded, generation);
@@ -177,7 +177,7 @@ export function createSessionStatusMachine({
         warningActive,
         countdownExpired: countdownHasExpired,
         humanMode: humanModeState,
-        running,
+        polling,
         attempts,
       };
     },
