@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 const source = readFileSync(new URL("./AtlasChat.tsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const chatHeaderSource = readFileSync(new URL("./ChatHeader.tsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+const contactFormSource = readFileSync(new URL("./ContactFormDialog.tsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const atlasClientSource = readFileSync(new URL("../../lib/atlas-client.ts", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const intakeMachineSource = readFileSync(new URL("../../lib/intake-machine.ts", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 
@@ -28,9 +29,9 @@ describe("AtlasChat intake-order contract", () => {
   // välkomsttext, som inte får glida under Box4-arbete. Vakten är därför
   // FLYTTAD hit, inte struken — och täcker nu hela LEGACY_TEXTS, dvs. även
   // welcomeAiOn som den gamla vakten missade.
-  it("keeps the legacy (trafik) widget texts byte-identical", () => {
+  it("keeps the approved G6-8b legacy (trafik) widget texts byte-identical", () => {
     expect(blockHashIn(intakeMachineSource, "const LEGACY_TEXTS", "export function resolveWidgetTexts"))
-      .toBe("85f7baf0adce2e309ef6407f74f216f4295058fc543f9ccd274d6bc8d567ed34");
+      .toBe("5b4a91d7367ff721f5d73bcf1de9da0e0ed9d3ea5fbd1959e39a0208e2bdfa85");
   });
 
   // Vakt över det som FAKTISKT renderas: välkomstbubblan läser widget-texterna,
@@ -54,6 +55,15 @@ describe("AtlasChat intake-order contract", () => {
     expect(atlasClientSource).toContain("companyNameRaw: null");
     expect(atlasClientSource).toContain("const companyNameRaw =");
     expect(atlasClientSource).toContain("companyNameRaw,");
+  });
+
+  it("plumbs the raw tenant support display name without an Atlas fallback", () => {
+    expect(atlasClientSource).toContain("supportDisplayName: string | null;");
+    expect(atlasClientSource).toContain("supportDisplayName: null");
+    expect(atlasClientSource).toContain("const supportDisplayName =");
+    expect(atlasClientSource).toContain("supportDisplayName,");
+    expect(source).toContain("const [supportDisplayName, setSupportDisplayName] = useState<string | null>(null);");
+    expect(source).toContain("setSupportDisplayName(config.supportDisplayName);");
   });
 
   it("does not render legacy welcome copy before live config has loaded", () => {
@@ -162,6 +172,24 @@ describe("AtlasChat intake-order contract", () => {
     // Sentinelen lever kvar där den JÄMFÖRS — etiketten byttes bara i renderingen.
     expect(source).toContain("intakeData.city === 'Centralsupport'");
     expect(source).toContain("selfserviceUnitId === STANDARD_CENTRAL_SUPPORT ? STANDARD_CENTRAL_SUPPORT_LABEL : selfserviceUnitLabel");
+  });
+
+  it("shows the tenant support label in legacy intake without changing the office=NULL sentinel", () => {
+    const start = source.indexOf("const getOfficeChoices");
+    const end = source.indexOf("const getStandardUnitChoices", start);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    const block = source.slice(start, end);
+
+    expect(block).toContain("label: supportDisplayName || 'Supportavdelningen'");
+    expect(block).toContain("value: 'Centralsupport'");
+    expect(block).not.toContain("label: 'Centralsupport'");
+    expect(source).toContain("injectUserMessage(value === 'Centralsupport' ? supportDisplayName || 'Supportavdelningen' : value);");
+    expect(source).toContain("supportDisplayName={supportDisplayName}");
+    expect(chatHeaderSource).toContain("supportDisplayName?: string | null;");
+    expect(chatHeaderSource).toContain("supportDisplayName={supportDisplayName}");
+    expect(contactFormSource).toContain("supportDisplayName?: string | null;");
+    expect(contactFormSource).toContain("<SelectItem value={DEFAULT_CITY} className=\"font-bold\">{supportDisplayName || 'Supportavdelningen'}</SelectItem>");
   });
 
   it("reselects a different category from menu without rewriting the preserved category bubble", () => {

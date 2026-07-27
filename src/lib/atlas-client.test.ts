@@ -30,6 +30,7 @@ describe("getTenantConfig tenant capability wiring", () => {
       ok: true,
       json: async () => ({
         company_name: "Bosses",
+        support_display_name: "  Bosses Support  ",
         active_vehicles: ["BIL", "MC"],
         tenant_profile: { schema_version: 1, edition: "standard" },
         category_registry: [{ id: "MUTTRAR", label: "Muttrar", icon: "NUT", active: true }],
@@ -37,6 +38,7 @@ describe("getTenantConfig tenant capability wiring", () => {
     }));
 
     const config = await getTenantConfig();
+    expect(config.supportDisplayName).toBe("Bosses Support");
     expect(config.tenantProfile).toEqual({ schema_version: 1, edition: "standard" });
     expect(config.categories).toEqual([
       { id: "MUTTRAR", label: "Muttrar", icon: "NUT", active: true },
@@ -51,6 +53,7 @@ describe("getTenantConfig tenant capability wiring", () => {
     vi.stubGlobal("fetch", fetchMock);
     const config = await getTenantConfig();
 
+    expect(config.supportDisplayName).toBeNull();
     expect(config.tenantProfile).toEqual({ schema_version: 1, edition: "trafikskola" });
     expect(config.categories).toEqual([
       { id: "BIL", label: "BIL", icon: "BIL", active: true },

@@ -21,6 +21,7 @@ generalMode?: boolean;
 offices: any[];
 onTemplateSelect: (content: string) => void;
 companyName?: string | null;
+supportDisplayName?: string | null;
 companyLogoUrl?: string | null;
 activeVehicles: ActiveVehicle[];
 subtitle?: string;
@@ -46,6 +47,7 @@ generalMode = false,
 offices,
 onTemplateSelect,
 companyName,
+supportDisplayName,
 companyLogoUrl,
 activeVehicles,
 subtitle = "Din körkortsguide",
@@ -93,6 +95,7 @@ selectedCity={selectedCity}
 selectedVehicle={selectedVehicle}
 generalMode={generalMode}
 offices={offices}
+supportDisplayName={supportDisplayName}
 activeVehicles={activeVehicles}
 intakeMode={intakeMode}
 categoryChoices={categoryChoices}

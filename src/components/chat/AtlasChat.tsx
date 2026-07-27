@@ -307,6 +307,7 @@ const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null
 const [selectedCity, setSelectedCity] = useState<string | null>(null);
 const [generalMode, setGeneralMode] = useState(false);
 const [companyName, setCompanyName] = useState<string | null>(null);
+const [supportDisplayName, setSupportDisplayName] = useState<string | null>(null);
 const [companyLogoUrl, setCompanyLogoUrl] = useState<string | null>(null);
 const [activeVehicles, setActiveVehicles] = useState<VehicleType[]>(['BIL', 'MC', 'AM', 'LASTBIL', 'SLÄP']);
 const [quickQuestions, setQuickQuestions] = useState<string[]>([]);
@@ -354,6 +355,7 @@ getPublicOffices()
 useEffect(() => {
 getTenantConfig().then(config => {
 setCompanyName(config.companyName);
+setSupportDisplayName(config.supportDisplayName);
 setCompanyLogoUrl(config.companyLogoUrl);
 setActiveVehicles(config.activeVehicles);
 setQuickQuestions(config.quickQuestions);
@@ -564,7 +566,7 @@ timestamp: new Date(),
 };
 
 const getOfficeChoices = (): { label: string; value: string }[] => [
-{ label: 'Centralsupport', value: 'Centralsupport' },
+{ label: supportDisplayName || 'Supportavdelningen', value: 'Centralsupport' },
 ...offices.map((office) => {
 const name = getOfficeDisplayName(office);
 return { label: name, value: name };
@@ -1635,7 +1637,7 @@ return;
 }
 
 if (intakeStep === 'office') {
-injectUserMessage(value);
+injectUserMessage(value === 'Centralsupport' ? supportDisplayName || 'Supportavdelningen' : value);
 if (categoryFirstEnabled) {
 const selectedOffice = value === 'Centralsupport'
 ? undefined
@@ -1830,6 +1832,7 @@ generalMode={generalMode}
 offices={offices}
 onTemplateSelect={handleTemplateSelect}
 companyName={companyName}
+supportDisplayName={supportDisplayName}
 companyLogoUrl={companyLogoUrl}
 activeVehicles={activeVehicles}
 subtitle={widgetTexts.headerSubtitle}

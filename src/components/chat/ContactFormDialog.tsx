@@ -51,6 +51,7 @@ selectedCity?: string | null;
 selectedVehicle?: string | null;
 generalMode?: boolean;
 offices: any[];
+supportDisplayName?: string | null;
 activeVehicles: ActiveVehicle[];
 intakeMode: IntakeMode;
 categoryChoices: { label: string; value: string }[];
@@ -109,7 +110,7 @@ normalizeOfficeLabel(office.area) === normalizeOfficeLabel(area)
 return exactMatches.length === 1 ? exactMatches[0] : undefined;
 };
 
-export function ContactFormDialog({ onSubmit, selectedCity, selectedVehicle, generalMode = false, offices, activeVehicles, intakeMode, categoryChoices, formLabels, open: controlledOpen, onOpenChange }: ContactFormDialogProps) {
+export function ContactFormDialog({ onSubmit, selectedCity, selectedVehicle, generalMode = false, offices, supportDisplayName, activeVehicles, intakeMode, categoryChoices, formLabels, open: controlledOpen, onOpenChange }: ContactFormDialogProps) {
 const [internalOpen, setInternalOpen] = useState(false);
 const isControlled = controlledOpen !== undefined;
 const open = isControlled ? controlledOpen : internalOpen;
@@ -381,7 +382,7 @@ aria-label="Telefonnummer"
 {!categoryFormMode && (
 <SelectGroup>
 <SelectLabel className="text-primary-ink font-bold border-b pb-1">Global</SelectLabel>
-<SelectItem value={DEFAULT_CITY} className="font-bold">Centralsupport (Huvudinkorgen)</SelectItem>
+<SelectItem value={DEFAULT_CITY} className="font-bold">{supportDisplayName || 'Supportavdelningen'}</SelectItem>
 </SelectGroup>
 )}
 <SelectGroup>

@@ -39,9 +39,7 @@ Vad kan jag hjälpa dig med idag?`,
 
 Har du frågor att ställa till oss är du varmt välkommen att ställa dem här.
 
-Här kan du välja att ställa frågor till vår Centralsupport i Stockholm.
-
-Du kan också mejla eller chatta direkt med ditt lokala kontor.
+Här kan du välja att chatta eller mejla direkt med ditt lokala kontor, eller med vår supportavdelning.
 
 Jag guidar dig genom att fylla i ditt namn och skicka ärendet rätt.
 
@@ -58,8 +56,15 @@ Vad heter du?`,
 };
 
 export function resolveWidgetTexts(profile: TenantProfile | null | undefined, companyName?: string | null): WidgetTexts {
-  if (resolveIntakeMode(profile) !== "category_first") return { ...LEGACY_TEXTS };
   const greetingName = (companyName ?? "").trim() || "oss";
+  if (resolveIntakeMode(profile) !== "category_first") {
+    const greeting = `Hej och välkommen till ${greetingName}! 👋`;
+    return {
+      ...LEGACY_TEXTS,
+      welcomeAiOn: LEGACY_TEXTS.welcomeAiOn.replace("Hej och välkommen till oss! 👋", greeting),
+      welcomeAiOff: LEGACY_TEXTS.welcomeAiOff.replace("Hej och välkommen till oss! 👋", greeting),
+    };
+  }
   return {
     headerSubtitle: "Kundservice",
     templatesTitle: "Kundinformation",

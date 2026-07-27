@@ -25,9 +25,11 @@ describe("resolveIntakeMode", () => {
 });
 
 describe("resolveWidgetTexts", () => {
-  it("preserves the exact legacy text contract", () => {
-    const texts = resolveWidgetTexts(undefined);
+  it("returns the legacy traffic text contract with the tenant company name", () => {
+    const texts = resolveWidgetTexts(undefined, "My Driving Academy");
     const legacyNameLead = "Vi börjar med ditt " + "namn.";
+    expect(texts.welcomeAiOn).toMatch(/^Hej och välkommen till My Driving Academy! 👋/);
+    expect(texts.welcomeAiOff).toMatch(/^Hej och välkommen till My Driving Academy! 👋/);
     expect(texts.headerSubtitle).toBe("Din körkortsguide");
     expect(texts.templatesTitle).toBe("Vårt utbud");
     expect(texts.templatesSubtitle).toBe("Här kan du läsa mer om våra paket, vår policy, våra kurser, utbildningar och erbjudanden — klicka för att visa i chatten");
@@ -36,8 +38,19 @@ describe("resolveWidgetTexts", () => {
     expect(texts.seoDescription).toBe("Atlas är din personliga körkortsguide. Få svar på frågor om körkort, priser och hitta rätt trafikskola.");
     expect(texts.welcomeAiOn).toContain("Du kan fråga mig allt som rör ditt körkort och vårt utbud.");
     expect(texts.welcomeAiOn).toContain('Du kan också skriva *"jag vill prata med en människa"*');
-    expect(texts.welcomeAiOff).toContain("Här kan du välja att ställa frågor till vår Centralsupport i Stockholm.");
+    expect(texts.welcomeAiOff).toContain("Här kan du välja att chatta eller mejla direkt med ditt lokala kontor, eller med vår supportavdelning.");
+    expect(texts.welcomeAiOff).not.toContain("Centralsupport i Stockholm");
     expect(texts.welcomeAiOff).toContain(legacyNameLead);
+  });
+
+  it("falls back to oss for missing legacy company names instead of Atlas", () => {
+    for (const missing of [undefined, null, "", "   "]) {
+      const texts = resolveWidgetTexts(undefined, missing as string | null | undefined);
+      expect(texts.welcomeAiOn).toMatch(/^Hej och välkommen till oss! 👋/);
+      expect(texts.welcomeAiOff).toMatch(/^Hej och välkommen till oss! 👋/);
+      expect(texts.welcomeAiOn).not.toContain("välkommen till Atlas");
+      expect(texts.welcomeAiOff).not.toContain("välkommen till Atlas");
+    }
   });
 
   it("returns the locked standard texts and interpolated labels", () => {
