@@ -45,7 +45,7 @@ describe("resolveWidgetTexts", () => {
     const texts = resolveWidgetTexts({
       ...standardProfile,
       labels: { unit: "Avdelning", category: "Ärendetyp" },
-    });
+    }, "Bosses Skruvfabrik");
     expect(texts).toMatchObject({
       headerSubtitle: "Kundservice",
       templatesTitle: "Kundinformation",
@@ -56,12 +56,31 @@ describe("resolveWidgetTexts", () => {
       seoTitle: "Atlas - Kundservice",
       seoDescription: "Atlas kundservice – ställ din fråga eller skicka ett ärende till oss.",
     });
+    expect(texts.welcomeAiOn).toContain("Hej och välkommen till Bosses Skruvfabrik!");
+    expect(texts.welcomeAiOff).toContain("Hej och välkommen till Bosses Skruvfabrik!");
     expect(texts.welcomeAiOn).toContain("företagets inlagda fakta om tjänster");
-    expect(texts.welcomeAiOn).toContain("Du kan också klicka på headsetikonen i menyn ovanför chatten.");
+    expect(texts.welcomeAiOn).toContain("headsetikonen i menyn ovanför chatten");
+    expect(texts.welcomeAiOn).toContain("välj bland knapparna i chatten");
+    expect(texts.welcomeAiOn).not.toContain("Vad kan jag hjälpa dig med idag?");
+    expect(texts.welcomeAiOn).not.toContain("Ställ gärna en fråga");
+    expect(texts.welcomeAiOn).not.toContain("(#atlas-human)");
     expect(texts.welcomeAiOn).not.toContain('Du kan också skriva *"jag vill prata med en människa"*');
     expect(texts.welcomeAiOff).toContain("skickar ditt ärende till rätt mottagare hos oss");
     expect(texts.welcomeAiOff).toContain("Vi börjar med vart du vill skicka ärendet.");
     expect(texts.welcomeAiOff).not.toContain(legacyNameLead);
+    expect(texts.welcomeAiOn).not.toMatch(/enhet/i);
+    expect(texts.welcomeAiOff).not.toMatch(/enhet/i);
+    expect(texts.officeQuestion).not.toMatch(/enhet/i);
+  });
+
+  it("falls back to oss for missing standard company names instead of Atlas", () => {
+    for (const missing of [undefined, null, "", "   "]) {
+      const texts = resolveWidgetTexts(standardProfile, missing as string | null | undefined);
+      expect(texts.welcomeAiOn).toContain("Hej och välkommen till oss!");
+      expect(texts.welcomeAiOff).toContain("Hej och välkommen till oss!");
+      expect(texts.welcomeAiOn).not.toContain("välkommen till Atlas");
+      expect(texts.welcomeAiOff).not.toContain("välkommen till Atlas");
+    }
   });
 
   it("uses neutral standard label fallbacks and is deterministic without throwing", () => {

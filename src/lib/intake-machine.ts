@@ -57,33 +57,30 @@ Vad heter du?`,
   seoDescription: "Atlas är din personliga körkortsguide. Få svar på frågor om körkort, priser och hitta rätt trafikskola.",
 };
 
-export function resolveWidgetTexts(profile: TenantProfile | null | undefined): WidgetTexts {
+export function resolveWidgetTexts(profile: TenantProfile | null | undefined, companyName?: string | null): WidgetTexts {
   if (resolveIntakeMode(profile) !== "category_first") return { ...LEGACY_TEXTS };
+  const greetingName = (companyName ?? "").trim() || "oss";
   return {
     headerSubtitle: "Kundservice",
     templatesTitle: "Kundinformation",
     templatesSubtitle: "Här kan du läsa mer om våra tjänster, villkor och annat bra att veta — klicka för att visa i chatten",
     officeQuestion: "Vart vill du skicka ditt ärende?",
-    welcomeAiOff: `Hej och välkommen till oss! 👋
+    welcomeAiOff: `Hej och välkommen till ${greetingName}! 👋
 
 Har du frågor eller vill du skicka ett ärende till oss är du varmt välkommen.
 
 Jag guidar dig genom några korta steg och skickar ditt ärende till rätt mottagare hos oss.
 
 Vi börjar med vart du vill skicka ärendet.`,
-    welcomeAiOn: `Hej och välkommen till oss! 👋
+    welcomeAiOn: `Hej och välkommen till ${greetingName}! 👋
 
-Jag är företagets smarta AI-assistent!
+Jag är vår smarta AI-assistent!
 
-Jag svarar utifrån företagets inlagda fakta om tjänster, öppettider och kontaktvägar. Ställ gärna en fråga i taget, kort och konkret – då hittar jag snabbast rätt svar.
+Jag svarar utifrån företagets inlagda fakta om tjänster, öppettider och kontaktvägar.
 
-Vill du hellre prata med en människa?
+Du behöver inte skriva något — välj bland knapparna i chatten så visar jag det du vill veta.
 
-[💬 Prata med en människa](#atlas-human)
-
-Du kan också klicka på headsetikonen i menyn ovanför chatten.
-
-Vad kan jag hjälpa dig med idag?`,
+Vill du hellre prata med en människa klickar du på headsetikonen i menyn ovanför chatten, så hjälper vi dig att skapa ett ärende.`,
     formUnitLabel: profile?.labels?.unit ?? "Kontor",
     formCategoryLabel: profile?.labels?.category ?? "Kategori",
     seoTitle: "Atlas - Kundservice",

@@ -210,6 +210,8 @@ return `tab_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
 const OFFICE_HOURS_NOTICE_ID = 'office-hours-notice';
 const OFFICE_HOURS_REMINDER_PREFIX = 'office-hours-reminder_';
+const WIDGET_TEXTS_PROFILE_CACHE_KEY = 'atlas-widget-texts-profile-v1';
+const WIDGET_TEXTS_COMPANY_NAME_CACHE_KEY = 'atlas-widget-texts-company-name-v1';
 
 const createWelcomeMessage = (aiRepliesEnabled: boolean, texts = resolveWidgetTexts(undefined)): ChatMessage => ({
 id: 'welcome-msg',
@@ -218,9 +220,52 @@ content: aiRepliesEnabled ? texts.welcomeAiOn : texts.welcomeAiOff,
 timestamp: new Date(),
 });
 
+function readCachedTenantProfile(): TenantProfile | null | undefined {
+if (typeof window === 'undefined') return undefined;
+try {
+const raw = window.localStorage.getItem(WIDGET_TEXTS_PROFILE_CACHE_KEY);
+if (!raw) return undefined;
+const parsed = JSON.parse(raw);
+return parsed && typeof parsed === 'object' ? parsed as TenantProfile : undefined;
+} catch {
+return undefined;
+}
+}
+
+function readCachedCompanyName(): string | null | undefined {
+if (typeof window === 'undefined') return undefined;
+try {
+const raw = window.localStorage.getItem(WIDGET_TEXTS_COMPANY_NAME_CACHE_KEY);
+return typeof raw === 'string' ? raw : undefined;
+} catch {
+return undefined;
+}
+}
+
+function readCachedWidgetTexts(): WidgetTexts {
+return resolveWidgetTexts(readCachedTenantProfile(), readCachedCompanyName());
+}
+
+function cacheWidgetTextInputs(profile: TenantProfile, companyNameRaw: string | null): void {
+if (typeof window === 'undefined') return;
+try {
+window.localStorage.setItem(WIDGET_TEXTS_PROFILE_CACHE_KEY, JSON.stringify(profile));
+if (companyNameRaw) {
+window.localStorage.setItem(WIDGET_TEXTS_COMPANY_NAME_CACHE_KEY, companyNameRaw);
+} else {
+window.localStorage.removeItem(WIDGET_TEXTS_COMPANY_NAME_CACHE_KEY);
+}
+} catch {
+// Cache is only a pre-paint optimization; failing it must not affect chat flow.
+}
+}
+
 export function AtlasChat() {
+const initialWidgetTextsRef = useRef<WidgetTexts | null>(null);
+if (!initialWidgetTextsRef.current) initialWidgetTextsRef.current = readCachedWidgetTexts();
+const initialWidgetTexts = initialWidgetTextsRef.current;
 const [messages, setMessages] = useState<ChatMessage[]>([
-createWelcomeMessage(true)
+createWelcomeMessage(true, initialWidgetTexts)
 ]);
 const [offices, setOffices] = useState<Office[]>([]); // 🔥 Håller kontorslistan
 const [officesLoaded, setOfficesLoaded] = useState(false);
@@ -271,7 +316,7 @@ const [intakeMode, setIntakeMode] = useState<IntakeMode>('legacy');
 const [tenantProfile, setTenantProfile] = useState<TenantProfile | null>(null);
 const [tenantConfigLoaded, setTenantConfigLoaded] = useState(false);
 const [categoryChoices, setCategoryChoices] = useState<{ label: string; value: string }[]>([]);
-const [widgetTexts, setWidgetTexts] = useState<WidgetTexts>(() => resolveWidgetTexts(undefined));
+const [widgetTexts, setWidgetTexts] = useState<WidgetTexts>(() => initialWidgetTexts);
 const [selfserviceStage, setSelfserviceStage] = useState<StandardSelfserviceStage>(null);
 const [selfserviceUnitId, setSelfserviceUnitId] = useState<string | null>(null);
 const [selfserviceUnitLabel, setSelfserviceUnitLabel] = useState<string | null>(null);
@@ -315,7 +360,8 @@ setQuickQuestions(config.quickQuestions);
 setTenantProfile(config.tenantProfile);
 setIntakeMode(resolveIntakeMode(config.tenantProfile));
 setCategoryChoices(buildCategoryChoices(config.categories));
-setWidgetTexts(resolveWidgetTexts(config.tenantProfile));
+cacheWidgetTextInputs(config.tenantProfile, config.companyNameRaw);
+setWidgetTexts(resolveWidgetTexts(config.tenantProfile, config.companyNameRaw));
 }).finally(() => setTenantConfigLoaded(true));
 }, []);
 
@@ -1174,7 +1220,7 @@ if (!publicConfigLoaded || !initialHistoryLoaded || !tenantConfigLoaded || !offi
 
 if (standardSelfserviceEnabled) {
 if (standardSelfserviceStartedRef.current) return;
-setMessages([createWelcomeMessage(false, widgetTexts)]);
+setMessages([createWelcomeMessage(aiRepliesEnabled, widgetTexts)]);
 setContext({ city: null, area: null, vehicle: null });
 setSelectedVehicle(null);
 setSelectedCity(null);
@@ -1187,7 +1233,7 @@ return;
 
 if (aiRepliesEnabled) return;
 
-setMessages([createWelcomeMessage(false, widgetTexts)]);
+setMessages([createWelcomeMessage(aiRepliesEnabled, widgetTexts)]);
 setSelectedCategoryId(null);
 startIntake('Vad heter du?');
 setIntakeData({});

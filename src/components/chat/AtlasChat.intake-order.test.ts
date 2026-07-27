@@ -38,10 +38,20 @@ describe("AtlasChat intake-order contract", () => {
     expect(source).toContain("const createWelcomeMessage = (aiRepliesEnabled: boolean, texts = resolveWidgetTexts(undefined)): ChatMessage => ({");
     expect(source).toContain("content: aiRepliesEnabled ? texts.welcomeAiOn : texts.welcomeAiOff,");
     expect(source).toContain("setMessages([createWelcomeMessage(aiRepliesEnabled, widgetTexts)]);");
+    // G6-8: ingen call site får hårdkoda AI-flaggan tillsammans med widgetTexts.
+    expect(source).not.toContain("createWelcomeMessage(false, widgetTexts)");
+    expect(source.match(/createWelcomeMessage\(aiRepliesEnabled, widgetTexts\)/g)).toHaveLength(3);
     // Profilbyte skriver om den redan visade välkomstbubblan ur widget-texterna.
     expect(source).toContain("? { ...message, content: aiRepliesEnabled ? widgetTexts.welcomeAiOn : widgetTexts.welcomeAiOff }");
     expect(source).not.toContain("WELCOME_MESSAGE_CONTENT");
     expect(source).not.toContain("getWelcomeMessageContent");
+  });
+
+  it("keeps raw company names separate from Atlas display fallback", () => {
+    expect(atlasClientSource).toContain("companyNameRaw: string | null;");
+    expect(atlasClientSource).toContain("companyNameRaw: null");
+    expect(atlasClientSource).toContain("const companyNameRaw =");
+    expect(atlasClientSource).toContain("companyNameRaw,");
   });
 
   it("keeps the slice-24 handoff implementation byte-identical", () => {

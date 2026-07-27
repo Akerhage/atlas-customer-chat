@@ -741,6 +741,7 @@ export type ActiveVehicle = "BIL" | "MC" | "AM" | "LASTBIL" | "SLÄP";
 
 export interface TenantConfig {
   companyName: string;
+  companyNameRaw: string | null;
   companyLogoUrl: string | null;
   activeVehicles: ActiveVehicle[];
   quickQuestions: string[];
@@ -752,6 +753,7 @@ const DEFAULT_ACTIVE_VEHICLES: ActiveVehicle[] = ["BIL", "MC", "AM", "LASTBIL", 
 const DEFAULT_TENANT_PROFILE = normalizeTenantProfile(undefined);
 const DEFAULT_TENANT_CONFIG: TenantConfig = {
   companyName: 'Atlas',
+  companyNameRaw: null,
   companyLogoUrl: null,
   activeVehicles: DEFAULT_ACTIVE_VEHICLES,
   quickQuestions: [],
@@ -793,11 +795,13 @@ export async function getTenantConfig(): Promise<TenantConfig> {
     });
     if (!response.ok) return DEFAULT_TENANT_CONFIG;
     const data = await response.json();
-    const companyName = (typeof data?.company_name === 'string' && data.company_name.trim()) ? data.company_name.trim() : 'Atlas';
+    const companyNameRaw = (typeof data?.company_name === 'string' && data.company_name.trim()) ? data.company_name.trim() : null;
+    const companyName = companyNameRaw || 'Atlas';
     const activeVehicles = normalizeActiveVehicles(data?.active_vehicles);
     const tenantProfile = normalizeTenantProfile(data?.tenant_profile);
     return {
       companyName,
+      companyNameRaw,
       companyLogoUrl: normalizeTenantLogoUrl(data?.company_logo_url),
       activeVehicles,
       quickQuestions: Array.isArray(data?.quick_questions)
