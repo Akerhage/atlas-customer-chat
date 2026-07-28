@@ -352,13 +352,16 @@ className="mt-0.5"
 />
 <Label htmlFor="callback-opt-in" className="flex cursor-pointer items-center gap-2 leading-snug">
 <Phone className="h-4 w-4 shrink-0" />
-Jag vill bli uppringd
+Lägg till mobilnummer (valfritt)
 </Label>
 </div>
+<p className="text-xs leading-snug text-muted-foreground">
+Vill du bli uppringd? Skriv det tydligt i meddelandet.
+</p>
 {wantsCallback && (
 <Input
 type="tel"
-placeholder="0701234567"
+placeholder="070 123 45 67"
 value={formData.phone}
 onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/\D/g, "").slice(0, 10) })}
 maxLength={14}

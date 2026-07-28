@@ -124,6 +124,13 @@ describe("AtlasChat intake-order contract", () => {
     expect(contactFormSource).toContain('{!categoryFormMode && <SelectLabel');
   });
 
+  it("keeps the contact form phone copy honest about callbacks", () => {
+    expect(contactFormSource).toContain("Lägg till mobilnummer (valfritt)");
+    expect(contactFormSource).toContain("Vill du bli uppringd? Skriv det tydligt i meddelandet.");
+    expect(contactFormSource).toContain('placeholder="070 123 45 67"');
+    expect(contactFormSource).not.toContain("Jag vill bli uppringd");
+  });
+
   it("never tells a standard customer to type while selfservice free text is blocked", () => {
     expect(source).toContain(
       "showCompactStandardMenuFollowup('Okej, ärendet avbröts. Du hittar alternativen i menyn nere vid skrivfältet.');",
