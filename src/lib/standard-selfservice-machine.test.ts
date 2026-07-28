@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   STANDARD_EMPTY_CATEGORY_MESSAGE,
   STANDARD_UNIT_PROMPT,
-  STANDARD_CONTACT_RECIPIENT_PLACEHOLDER,
   STANDARD_ESCALATE_VALUE,
   STANDARD_MENU_PREFIX,
   categoryChoiceValue,
@@ -22,7 +21,6 @@ describe('standard selfservice machine', () => {
     expect(STANDARD_EMPTY_CATEGORY_MESSAGE).toBe(
       'Det här valet har inga kategorier ännu. Skapa ett ärende så hjälper vi dig vidare.'
     );
-    expect(STANDARD_CONTACT_RECIPIENT_PLACEHOLDER).toBe('Välj mottagare');
   });
 
   it('gates only Standard category_first with structured answers', () => {

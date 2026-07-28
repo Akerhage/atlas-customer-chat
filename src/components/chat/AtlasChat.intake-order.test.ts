@@ -121,10 +121,6 @@ describe("AtlasChat intake-order contract", () => {
 
   it("consumes the shared Standard unit and contact-recipient copy", () => {
     expect(source).toContain("injectBotMessage(STANDARD_UNIT_PROMPT, getStandardUnitChoices())");
-    expect(contactFormSource).toContain("STANDARD_CONTACT_RECIPIENT_PLACEHOLDER,");
-    expect(contactFormSource).toContain(
-      'placeholder={categoryFormMode ? STANDARD_CONTACT_RECIPIENT_PLACEHOLDER : "Välj kontor"}',
-    );
     expect(contactFormSource).toContain('{!categoryFormMode && <SelectLabel');
   });
 

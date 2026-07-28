@@ -17,7 +17,6 @@ export const STANDARD_EMPTY_MESSAGE =
 export const STANDARD_UNIT_PROMPT = 'Välj vem du vill ha hjälp av.';
 export const STANDARD_EMPTY_CATEGORY_MESSAGE =
   'Det här valet har inga kategorier ännu. Skapa ett ärende så hjälper vi dig vidare.';
-export const STANDARD_CONTACT_RECIPIENT_PLACEHOLDER = 'Välj mottagare';
 
 export type StandardSelfserviceStage = 'unit' | 'category' | 'menu' | null;
 
