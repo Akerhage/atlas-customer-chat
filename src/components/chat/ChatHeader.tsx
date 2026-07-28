@@ -109,6 +109,7 @@ onOpenChange={onContactFormOpenChange}
 <TooltipTrigger asChild>
 <button
 onClick={onRequestHuman}
+aria-label="Prata med människa"
 className="p-1.5 sm:p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
 >
 <Headset className="w-5 h-5" />
@@ -125,6 +126,7 @@ className="p-1.5 sm:p-2 rounded-lg text-muted-foreground hover:text-primary hove
 <TooltipTrigger asChild>
 <button
 onClick={onToggleTheme}
+aria-label={isDark ? "Ljust tema" : "Mörkt tema"}
 className="p-1.5 sm:p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
 >
 {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
@@ -142,6 +144,7 @@ className="p-1.5 sm:p-2 rounded-lg text-muted-foreground hover:text-foreground h
 <TooltipTrigger asChild>
 <button
 onClick={onEndSession}
+aria-label="Avsluta ärende"
 className="p-1.5 sm:p-2 rounded-lg text-red-500 hover:text-red-600 hover:bg-red-500/10 transition-colors"
 >
 <XCircle className="w-5 h-5" />

@@ -131,6 +131,13 @@ describe("AtlasChat intake-order contract", () => {
     expect(contactFormSource).not.toContain("Jag vill bli uppringd");
   });
 
+  it("gives every customer-chat header action a stable accessible name", () => {
+    expect(contactFormSource).toContain('aria-label="Skicka meddelande"');
+    expect(chatHeaderSource).toContain('aria-label="Prata med människa"');
+    expect(chatHeaderSource).toContain('aria-label={isDark ? "Ljust tema" : "Mörkt tema"}');
+    expect(chatHeaderSource).toContain('aria-label="Avsluta ärende"');
+  });
+
   it("never tells a standard customer to type while selfservice free text is blocked", () => {
     expect(source).toContain(
       "showCompactStandardMenuFollowup('Okej, ärendet avbröts. Du hittar alternativen i menyn nere vid skrivfältet.');",
