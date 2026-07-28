@@ -43,7 +43,10 @@ usePendingAttachments,
 } from "@/lib/pending-attachments";
 import type { ActiveVehicle } from "@/lib/atlas-client";
 import { filterCategoryChoicesForOffice, type IntakeMode } from "@/lib/intake-machine";
-import { STANDARD_CENTRAL_SUPPORT_LABEL } from "@/lib/standard-selfservice-machine";
+import {
+STANDARD_CENTRAL_SUPPORT_LABEL,
+STANDARD_CONTACT_RECIPIENT_PLACEHOLDER,
+} from "@/lib/standard-selfservice-machine";
 
 interface ContactFormDialogProps {
 onSubmit?: (data: any) => void;
@@ -371,7 +374,7 @@ aria-label="Telefonnummer"
 <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm">{singletonOfficeLabel}</div>
 ) : (
 <Select value={formData.city} onValueChange={(v) => setFormData({ ...formData, city: v })}>
-<SelectTrigger><SelectValue placeholder="Välj kontor" /></SelectTrigger>
+<SelectTrigger><SelectValue placeholder={categoryFormMode ? STANDARD_CONTACT_RECIPIENT_PLACEHOLDER : "Välj kontor"} /></SelectTrigger>
 <SelectContent className="max-h-[min(60vh,400px)]">
 {/* K7/C: i Standard läser kunden aldrig "Centralsupport" eller "Huvudinkorgen"
     — bägge är interna Atlas-begrepp. Utvägen får samma ord som enhetschippet i

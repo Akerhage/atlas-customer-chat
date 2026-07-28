@@ -49,10 +49,12 @@ import {
 STANDARD_CATEGORY_PREFIX,
 STANDARD_CENTRAL_SUPPORT,
 STANDARD_CENTRAL_SUPPORT_LABEL,
+STANDARD_EMPTY_CATEGORY_MESSAGE,
 STANDARD_EMPTY_MESSAGE,
 STANDARD_ESCALATE_VALUE,
 STANDARD_MENU_PREFIX,
 STANDARD_UNIT_PREFIX,
+STANDARD_UNIT_PROMPT,
 categoryChoiceValue,
 isStandardSelfserviceEnabled,
 shouldShowStandardSelfserviceMenu,
@@ -347,9 +349,6 @@ const categoryFirstEnabled = isCategoryFirstIntake(intakeMode, categoryChoices.l
 const standardSelfserviceEnabled = isStandardSelfserviceEnabled(tenantProfile, intakeMode);
 const bootstrapping = !publicConfigLoaded || !tenantConfigLoaded;
 const selfserviceCategoryLabel = categoryChoices.find(choice => choice.value === selectedCategoryId)?.label || null;
-const STANDARD_EMPTY_CATEGORY_MESSAGE =
-'Den här avdelningen har inga kategorier ännu. Skapa ett ärende så hjälper vi dig vidare.';
-
 // Hämta kontorslistan från API när chatten bootar
 useEffect(() => {
 getPublicOffices()
@@ -736,7 +735,7 @@ setSelfserviceUnitId(null);
 setSelfserviceUnitLabel(null);
 setSelfserviceMenu([]);
 setSelfserviceStage('unit');
-injectBotMessage('Välj den avdelning du vill ha hjälp av.', getStandardUnitChoices());
+injectBotMessage(STANDARD_UNIT_PROMPT, getStandardUnitChoices());
 };
 
 const startStandardEscalation = () => {

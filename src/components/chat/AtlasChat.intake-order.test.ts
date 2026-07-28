@@ -111,11 +111,21 @@ describe("AtlasChat intake-order contract", () => {
   });
 
   it("keeps empty selfservice category choices escapable instead of buttonless", () => {
-    expect(source).toContain("const STANDARD_EMPTY_CATEGORY_MESSAGE =");
+    expect(source).toContain("STANDARD_EMPTY_CATEGORY_MESSAGE,");
+    expect(source).toContain("content: STANDARD_EMPTY_CATEGORY_MESSAGE,");
     expect(source).toContain("choices: withEscalationValue([])");
     expect(source).toContain("const categoryStep = getStandardCategoryStep(requestedUnitId);");
     expect(source).toContain("if (choices.length > 0) {");
     expect(source).toContain("finishIntakeHandoff({\n...nextIntakeData,\ncity: isCentralSupport ? 'Centralsupport' : getOfficeDisplayName(safeOffice!),\nvehicle: null,\ngeneral: true,");
+  });
+
+  it("consumes the shared Standard unit and contact-recipient copy", () => {
+    expect(source).toContain("injectBotMessage(STANDARD_UNIT_PROMPT, getStandardUnitChoices())");
+    expect(contactFormSource).toContain("STANDARD_CONTACT_RECIPIENT_PLACEHOLDER,");
+    expect(contactFormSource).toContain(
+      'placeholder={categoryFormMode ? STANDARD_CONTACT_RECIPIENT_PLACEHOLDER : "Välj kontor"}',
+    );
+    expect(contactFormSource).toContain('{!categoryFormMode && <SelectLabel');
   });
 
   it("never tells a standard customer to type while selfservice free text is blocked", () => {
