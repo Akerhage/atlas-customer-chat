@@ -602,6 +602,23 @@ margin-top: 0.65rem;
 margin-bottom: 0.65rem;
 }
 
+[data-atlas-edition="standard"] .atlas-bot-message .atlas-message-content ul,
+[data-atlas-edition="standard"] .atlas-bot-message .atlas-message-content ol {
+padding-left: 1.1rem;
+}
+
+[data-atlas-edition="standard"] .atlas-bot-message .atlas-message-content ul {
+list-style: disc outside;
+}
+
+[data-atlas-edition="standard"] .atlas-bot-message .atlas-message-content ol {
+list-style: decimal outside;
+}
+
+[data-atlas-edition="standard"] .atlas-bot-message .atlas-message-content li {
+display: list-item;
+}
+
 [data-atlas-edition="standard"] .atlas-bot-message .atlas-message-content ul + p,
 [data-atlas-edition="standard"] .atlas-bot-message .atlas-message-content ol + p,
 [data-atlas-edition="standard"] .atlas-bot-message .atlas-message-content ul + p:has(> strong:first-child),
