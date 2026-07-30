@@ -594,3 +594,30 @@ border-left-color: hsl(var(--primary) / 0.48);
 background: linear-gradient(135deg, hsl(var(--primary) / 0.13), hsl(var(--card) / 0.92));
 box-shadow: 0 2px 12px -6px hsl(var(--primary) / 0.22);
 }
+
+[data-atlas-edition="standard"] .atlas-bot-message .atlas-message-content p,
+[data-atlas-edition="standard"] .atlas-bot-message .atlas-message-content ul,
+[data-atlas-edition="standard"] .atlas-bot-message .atlas-message-content ol {
+margin-top: 0.65rem;
+margin-bottom: 0.65rem;
+}
+
+[data-atlas-edition="standard"] .atlas-bot-message .atlas-message-content ul + p,
+[data-atlas-edition="standard"] .atlas-bot-message .atlas-message-content ol + p,
+[data-atlas-edition="standard"] .atlas-bot-message .atlas-message-content ul + p:has(> strong:first-child),
+[data-atlas-edition="standard"] .atlas-bot-message .atlas-message-content ol + p:has(> strong:first-child) {
+margin-top: 0.65rem;
+}
+
+[data-atlas-edition="standard"] .atlas-bot-message .atlas-message-content ul:has(+ p > strong:first-child),
+[data-atlas-edition="standard"] .atlas-bot-message .atlas-message-content ol:has(+ p > strong:first-child) {
+margin-bottom: 0.65rem;
+}
+
+[data-atlas-edition="standard"] .atlas-bot-message .atlas-message-content p > a:only-child {
+margin-top: 0.9rem;
+}
+
+[data-atlas-edition="standard"] .atlas-bot-message .atlas-message-content hr {
+margin: 1rem 0 0;
+}

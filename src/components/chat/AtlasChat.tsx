@@ -320,7 +320,7 @@ const [companyLogoUrl, setCompanyLogoUrl] = useState<string | null>(null);
 const [activeVehicles, setActiveVehicles] = useState<VehicleType[]>(['BIL', 'MC', 'AM', 'LASTBIL', 'SLÄP']);
 const [quickQuestions, setQuickQuestions] = useState<string[]>([]);
 const [intakeMode, setIntakeMode] = useState<IntakeMode>('legacy');
-const [tenantProfile, setTenantProfile] = useState<TenantProfile | null>(null);
+const [tenantProfile, setTenantProfile] = useState<TenantProfile | null>(() => readCachedTenantProfile() ?? null);
 const [tenantConfigLoaded, setTenantConfigLoaded] = useState(false);
 const [categoryChoices, setCategoryChoices] = useState<{ label: string; value: string }[]>([]);
 const [widgetTexts, setWidgetTexts] = useState<WidgetTexts>(() => initialWidgetTexts);
@@ -347,6 +347,7 @@ const singletonOfficeLabel = singletonOffice ? getOfficeDisplayName(singletonOff
 const singletonVehicle = activeVehicles.length === 1 ? activeVehicles[0] : null;
 const categoryFirstEnabled = isCategoryFirstIntake(intakeMode, categoryChoices.length);
 const standardSelfserviceEnabled = isStandardSelfserviceEnabled(tenantProfile, intakeMode);
+const atlasEdition = tenantProfile?.edition === 'standard' ? 'standard' : undefined;
 const bootstrapping = !publicConfigLoaded || !tenantConfigLoaded;
 const selfserviceCategoryLabel = categoryChoices.find(choice => choice.value === selectedCategoryId)?.label || null;
 // Hämta kontorslistan från API när chatten bootar
@@ -1967,7 +1968,11 @@ Chatten stängs automatiskt pga inaktivitet om{' '}
 )}
 
 {/* Messages area */}
-<div ref={scrollContainerRef} className="flex-1 overflow-y-auto chat-scrollbar px-4 py-4">
+<div
+ref={scrollContainerRef}
+className="flex-1 overflow-y-auto chat-scrollbar px-4 py-4"
+data-atlas-edition={atlasEdition}
+>
 <div className="flex flex-col gap-3">
 {/* Välkomst-widget (logga + snabbknappar) visas bara innan kunden skickat något */}
 {showWelcomeWidget && (
