@@ -187,7 +187,7 @@ function extractMarkdownWithoutImages(root: ParentNode): string {
     if (tagName === "IMG" || tagName === "PICTURE" || tagName === "SOURCE" || tagName === "SCRIPT" || tagName === "STYLE") {
       return "";
     }
-    if (tagName === "BR") return "  \n";
+    if (tagName === "BR") return "\x20\x20\n";
 
     const children = Array.from(element.childNodes).map(inlineText).join("");
     const text = children.trim();
@@ -214,7 +214,7 @@ function extractMarkdownWithoutImages(root: ParentNode): string {
     if (tagName === "IMG" || tagName === "PICTURE" || tagName === "SOURCE" || tagName === "SCRIPT" || tagName === "STYLE") {
       return "";
     }
-    if (tagName === "BR") return "  \n";
+    if (tagName === "BR") return "\x20\x20\n";
     if (tagName === "UL" || tagName === "OL") {
       const items = Array.from(element.children)
         .filter((child) => child.tagName === "LI")
