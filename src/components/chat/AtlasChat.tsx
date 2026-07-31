@@ -581,7 +581,14 @@ return id;
 // 🕒 Notis när chatten är obemannad. Informerar bara — inget flöde blockeras.
 const buildOfficeHoursNotice = () => {
 const reopens = chatReopensLabel ? ` — chatten är bemannad igen ${chatReopensLabel}` : '';
-return `👋 Just nu är personalen inte på plats${reopens}. Vill du inte vänta? [Skicka ett ärende via mailformuläret](#atlas-contact) så tar vi det så snart vi är tillbaka. Snabbfrågorna och AI-assistenten hjälper dig gärna under tiden.`;
+// Patrik IRL 2026-07-31: länken låg mitt i löptexten. index.css:497 ger den
+// pill-formen via `p > a:only-child` (textnoder räknas inte som syskon), så den
+// blev en knapp med text som rann runt sig. Egna stycken före/efter ⇒ egen rad.
+return `👋 Just nu är personalen inte på plats${reopens}. Vill du inte vänta?
+
+[Skicka ett ärende via mailformuläret](#atlas-contact)
+
+Vi tar det så snart vi är tillbaka. Snabbfrågorna och AI-assistenten hjälper dig gärna under tiden.`;
 };
 
 // Lägger notisen DIREKT efter välkomstbubblan oavsett vad intake-/selfservice-
