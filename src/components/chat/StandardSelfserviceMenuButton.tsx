@@ -38,9 +38,14 @@ export function StandardSelfserviceMenuButton({
   const [view, setView] = useState<'menu' | 'unit' | 'category'>('menu');
   const contextLabel = [categoryLabel, unitLabel].filter(Boolean).join(" · ");
 
-  const handleChoice = (value: string) => {
+  const handleMenuChoice = (value: string) => {
     onChoice(value);
     setOpen(false);
+  };
+
+  const handleCategoryChoice = (value: string) => {
+    onChoice(value);
+    setView('menu');
   };
 
   const handleUnitChoice = (value: string) => {
@@ -120,7 +125,7 @@ export function StandardSelfserviceMenuButton({
               <button
                 key={choice.value}
                 type="button"
-                onClick={() => handleChoice(choice.value)}
+                onClick={() => handleCategoryChoice(choice.value)}
                 className="w-full rounded-md px-2 py-2 text-left text-xs transition-colors hover:bg-accent hover:text-accent-foreground"
               >
                 {choice.label}
@@ -136,7 +141,7 @@ export function StandardSelfserviceMenuButton({
               <button
                 key={item.id}
                 type="button"
-                onClick={() => handleChoice(menuChoiceValue(item.id))}
+                onClick={() => handleMenuChoice(menuChoiceValue(item.id))}
                 className="w-full rounded-md px-2 py-2 text-left text-xs transition-colors hover:bg-accent hover:text-accent-foreground"
               >
                 {item.label}
@@ -154,7 +159,7 @@ export function StandardSelfserviceMenuButton({
         <div className="border-t border-border p-2">
           <button
             type="button"
-            onClick={() => handleChoice(STANDARD_ESCALATE_VALUE)}
+            onClick={() => handleMenuChoice(STANDARD_ESCALATE_VALUE)}
             className="w-full rounded-lg bg-primary px-3 py-2 text-left text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
             Jag behöver mer hjälp – skapa ärende
