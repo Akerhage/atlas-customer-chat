@@ -14,16 +14,28 @@ interface StandardSelfserviceMenuButtonProps {
   items: StandardSelfserviceMenuItem[];
   categoryLabel?: string | null;
   unitLabel?: string | null;
+  unitChoices?: StandardSelfserviceChoice[];
+  categoryChoices?: StandardSelfserviceChoice[];
   onChoice: (value: string) => void;
+  onUnitChoice?: (value: string) => void;
+}
+
+interface StandardSelfserviceChoice {
+  label: string;
+  value: string;
 }
 
 export function StandardSelfserviceMenuButton({
   items,
   categoryLabel,
   unitLabel,
+  unitChoices = [],
+  categoryChoices = [],
   onChoice,
+  onUnitChoice,
 }: StandardSelfserviceMenuButtonProps) {
   const [open, setOpen] = useState(false);
+  const [view, setView] = useState<'menu' | 'unit' | 'category'>('menu');
   const contextLabel = [categoryLabel, unitLabel].filter(Boolean).join(" · ");
 
   const handleChoice = (value: string) => {
@@ -31,8 +43,18 @@ export function StandardSelfserviceMenuButton({
     setOpen(false);
   };
 
+  const handleUnitChoice = (value: string) => {
+    onUnitChoice?.(value);
+    setView('category');
+  };
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen);
+    if (!nextOpen) setView('menu');
+  };
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <button
           type="button"
@@ -63,8 +85,53 @@ export function StandardSelfserviceMenuButton({
           )}
         </div>
 
+        {view === 'menu' && (
+          <div className="grid grid-cols-2 gap-2 border-b border-border p-2">
+            <button
+              type="button"
+              onClick={() => setView('unit')}
+              className="rounded-md border border-border px-2 py-2 text-left text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+            >
+              Byt avdelning
+            </button>
+            <button
+              type="button"
+              onClick={() => setView('category')}
+              className="rounded-md border border-border px-2 py-2 text-left text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+            >
+              Byt kategori
+            </button>
+          </div>
+        )}
+
         <ScrollArea className="h-64">
           <div className="p-2">
+            {view === 'unit' && unitChoices.map((choice) => (
+              <button
+                key={choice.value}
+                type="button"
+                onClick={() => handleUnitChoice(choice.value)}
+                className="w-full rounded-md px-2 py-2 text-left text-xs transition-colors hover:bg-accent hover:text-accent-foreground"
+              >
+                {choice.label}
+              </button>
+            ))}
+            {view === 'category' && (categoryChoices.length ? categoryChoices.map((choice) => (
+              <button
+                key={choice.value}
+                type="button"
+                onClick={() => handleChoice(choice.value)}
+                className="w-full rounded-md px-2 py-2 text-left text-xs transition-colors hover:bg-accent hover:text-accent-foreground"
+              >
+                {choice.label}
+              </button>
+            )) : (
+              <p className="px-2 py-4 text-xs leading-relaxed text-muted-foreground">
+                {STANDARD_EMPTY_MESSAGE}
+              </p>
+            ))}
+            {view === 'menu' && (
+              <>
             {items.length ? items.map((item) => (
               <button
                 key={item.id}
@@ -78,6 +145,8 @@ export function StandardSelfserviceMenuButton({
               <p className="px-2 py-4 text-xs leading-relaxed text-muted-foreground">
                 {STANDARD_EMPTY_MESSAGE}
               </p>
+            )}
+              </>
             )}
           </div>
         </ScrollArea>

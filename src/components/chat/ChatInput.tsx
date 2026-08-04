@@ -32,10 +32,13 @@ disabled?: boolean;
 placeholder?: string;
 showQuickQuestions?: boolean;
 showStandardSelfserviceMenu?: boolean;
-standardSelfserviceMenu?: StandardSelfserviceMenuItem[];
-standardUnitLabel?: string | null;
-standardCategoryLabel?: string | null;
-onStandardMenuChoice?: (value: string) => void;
+  standardSelfserviceMenu?: StandardSelfserviceMenuItem[];
+  standardUnitLabel?: string | null;
+  standardCategoryLabel?: string | null;
+  standardUnitChoices?: { label: string; value: string }[];
+  standardCategoryChoices?: { label: string; value: string }[];
+  onStandardMenuChoice?: (value: string) => void;
+  onStandardMenuUnitChoice?: (value: string) => void;
 selectedVehicle?: VehicleType;
 selectedCity?: string | null;
 onVehicleChange: (vehicle: VehicleType) => void;
@@ -60,10 +63,13 @@ disabled = false,
 placeholder = "Skriv ett meddelande...",
 showQuickQuestions = false,
 showStandardSelfserviceMenu = false,
-standardSelfserviceMenu = [],
-standardUnitLabel = null,
-standardCategoryLabel = null,
-onStandardMenuChoice,
+  standardSelfserviceMenu = [],
+  standardUnitLabel = null,
+  standardCategoryLabel = null,
+  standardUnitChoices = [],
+  standardCategoryChoices = [],
+  onStandardMenuChoice,
+  onStandardMenuUnitChoice,
 selectedVehicle = null,
 selectedCity = null,
 onVehicleChange,
@@ -311,7 +317,10 @@ className="flex-1 resize-none bg-transparent text-sm py-2 text-foreground placeh
 items={standardSelfserviceMenu}
 unitLabel={standardUnitLabel}
 categoryLabel={standardCategoryLabel}
+unitChoices={standardUnitChoices}
+categoryChoices={standardCategoryChoices}
 onChoice={onStandardMenuChoice}
+onUnitChoice={onStandardMenuUnitChoice}
 />
 )}
 

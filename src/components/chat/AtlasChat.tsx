@@ -759,7 +759,7 @@ setSelectedVehicle(null);
 injectBotMessage('För att skapa ett ärende behöver vi några uppgifter. Vad heter du?');
 };
 
-const handleStandardChoice = async (value: string): Promise<boolean> => {
+const handleStandardChoice = async (value: string, fromQuickMenuUnitChoice = false): Promise<boolean> => {
 const requestedUnitId = valueAfterPrefix(value, STANDARD_UNIT_PREFIX);
 const requestedCategoryId = valueAfterPrefix(value, STANDARD_CATEGORY_PREFIX);
 if (!standardSelfserviceEnabled || humanMode) return false;
@@ -818,6 +818,10 @@ setSelectedCategoryId(null);
 setSelectedVehicle(null);
 window.selectedVehicle = null;
 setSelfserviceMenu([]);
+if (fromQuickMenuUnitChoice) {
+setSelfserviceStage('menu');
+return true;
+}
 setSelfserviceStage('category');
 const unitMessageId = injectUserMessage(selection.label);
 const categoryStep = getStandardCategoryStep(requestedUnitId);
@@ -2087,7 +2091,10 @@ standardSelfserviceMenu={selfserviceMenu}
 // Kunden ska däremot aldrig läsa ordet, så vi mappar först vid renderingen.
 standardUnitLabel={selfserviceUnitId === STANDARD_CENTRAL_SUPPORT ? STANDARD_CENTRAL_SUPPORT_LABEL : selfserviceUnitLabel}
 standardCategoryLabel={selfserviceCategoryLabel}
+standardUnitChoices={getStandardUnitChoices()}
+standardCategoryChoices={getStandardCategoryChoices(selfserviceUnitId)}
 onStandardMenuChoice={(value) => { void handleStandardChoice(value); }}
+onStandardMenuUnitChoice={(value) => { void handleStandardChoice(value, true); }}
 selectedVehicle={selectedVehicle}
 onVehicleChange={handleVehicleChange}
 onGeneralVehicleSelect={handleGeneralVehicleSelect}
