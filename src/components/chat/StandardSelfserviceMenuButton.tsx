@@ -90,24 +90,22 @@ export function StandardSelfserviceMenuButton({
           )}
         </div>
 
-        {view === 'menu' && (
-          <div className="grid grid-cols-2 gap-2 border-b border-border p-2">
-            <button
-              type="button"
-              onClick={() => setView('unit')}
-              className="rounded-md border border-border px-2 py-2 text-left text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
-            >
-              Byt avdelning
-            </button>
-            <button
-              type="button"
-              onClick={() => setView('category')}
-              className="rounded-md border border-border px-2 py-2 text-left text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
-            >
-              Byt kategori
-            </button>
-          </div>
-        )}
+        <div className="grid grid-cols-2 gap-2 border-b border-border p-2">
+          <button
+            type="button"
+            onClick={() => setView('unit')}
+            className="rounded-md border border-border px-2 py-2 text-left text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+          >
+            Byt avdelning
+          </button>
+          <button
+            type="button"
+            onClick={() => setView('category')}
+            className="rounded-md border border-border px-2 py-2 text-left text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+          >
+            Byt kategori
+          </button>
+        </div>
 
         <ScrollArea className="h-64">
           <div className="p-2">
