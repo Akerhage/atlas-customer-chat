@@ -30,6 +30,9 @@ interface ChatInputProps {
 onSend: (message: string, context?: { vehicle: string | null; city: string; vehicle_choice?: string | null; clear_vehicle?: boolean }) => void;
 disabled?: boolean;
 placeholder?: string;
+// L-019: döljer textarean OCH skicka-knappen helt. Inmatningsraden står kvar och
+// bär självservicemenyn — annars blir chatten en återvändsgränd för besökaren.
+hideFreeText?: boolean;
 showQuickQuestions?: boolean;
 showStandardSelfserviceMenu?: boolean;
   standardSelfserviceMenu?: StandardSelfserviceMenuItem[];
@@ -61,6 +64,7 @@ export function ChatInput({
 onSend,
 disabled = false,
 placeholder = "Skriv ett meddelande...",
+hideFreeText = false,
 showQuickQuestions = false,
 showStandardSelfserviceMenu = false,
   standardSelfserviceMenu = [],
@@ -299,6 +303,7 @@ title={`Bifoga fil eller bild (max ${MAX_ATTACHMENT_FILES}, ${MAX_ATTACHMENT_FIL
 </button>
 )}
 
+{!hideFreeText && (
 <textarea
 ref={textareaRef}
 value={message}
@@ -311,6 +316,10 @@ disabled={disabled}
 rows={1}
 className="flex-1 resize-none bg-transparent text-sm py-2 text-foreground placeholder:text-help focus:outline-none min-h-[24px] max-h-[120px] chat-input-scrollbar"
 />
+)}
+{/* L-019: när fritexten är dold saknar raden sitt flex-1-element. Spacern
+    håller självservicemenyn högerställd precis som när textarean finns. */}
+{hideFreeText && <div className="flex-1 min-h-[40px]" aria-hidden="true" />}
 
 {showStandardSelfserviceMenu && onStandardMenuChoice && !isUploading && (
 <StandardSelfserviceMenuButton
@@ -340,6 +349,7 @@ quickQuestions={quickQuestions}
 />
 )}
 
+{!hideFreeText && (
 <button
 type="button"
 onClick={handleSubmit}
@@ -348,6 +358,7 @@ className={cn("flex-shrink-0 w-9 h-9 rounded-xl mb-0.5 flex items-center justify
 >
 <Send className="w-4 h-4" />
 </button>
+)}
 </div>
 {/* Integritetspolicy-länken visas ALLTID (GDPR-information nära insamlingspunkten),
     AI-brasklappen bara i AI-läge. Relativ länk => varje box når sin egen /privacy. */}

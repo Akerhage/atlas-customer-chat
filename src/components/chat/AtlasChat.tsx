@@ -2076,10 +2076,18 @@ activeVehicles={activeVehicles}
 onSend={handleInputSend}
 
 disabled={isTyping || selfserviceFreeTextBlocked}
+// L-019 (Patrik 2026-08-06): när branschkunskapen är AV ska besökaren inte
+// kunna skriva fri text ALLS — fältet döljs, det disablas inte. Samma villkor
+// som tidigare styrde disabled/placeholder återanvänds med flit: det är redan
+// rätt avgränsat (falskt i humanMode och under intakeStep, så kunden kan skriva
+// sitt namn och till en agent). Konstruera inte ett nytt villkor här.
+hideFreeText={selfserviceFreeTextBlocked}
 // K7/§5: den långa varianten ("Välj ett alternativ ovan eller skapa ett
 // ärende") wrappade till två rader i mobil viewport och andra raden KLIPPTES
 // — mätt på 390px: textarea scrollHeight 56 > clientHeight 36, medan desktop
 // (402px bred) fick 36 = 36. Kortare text ryms på en rad i båda.
+// Behålls som fallback: hideFreeText döljer fältet, men placeholdern gäller
+// fortfarande de lägen där fältet visas.
 placeholder={selfserviceFreeTextBlocked
 ? "Välj ett alternativ ovan"
 : (!aiRepliesEnabled && !humanMode ? "Skriv ditt svar..." : (humanMode ? "Skriv till support..." : "Skriv ett meddelande..."))}

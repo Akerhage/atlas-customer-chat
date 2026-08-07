@@ -34,13 +34,26 @@ export interface StandardSelfserviceMenuItem {
   action: StandardSelfserviceAction;
 }
 
+// L-021 (Patrik 2026-08-07): en trafikskola som stänger av Branschkunskap ska få
+// den klickbara prisvägen. Widgeten bar en EGEN editionsgrind utöver serverns —
+// utan denna ändring hade den aldrig ens frågat, hur öppen servern än var.
+//
+// 🔴 intakeMode lämnas medvetet ORÖRD. resolveIntakeMode (intake-machine.ts:96)
+// ger Trafik 'legacy' alltid, och det ska den fortsätta göra: intakeMode styr hela
+// intake-ordningen och snabbfrågeknappen, så att flippa den hade byggt om
+// kundflödet för VARJE trafikskola — även de med branschkunskapen PÅ. Rätt lösning
+// är att frikoppla självservicen från intakeMode, inte att ändra intakeMode.
 export function isStandardSelfserviceEnabled(
   profile: TenantProfile | null | undefined,
   intakeMode: string
 ): boolean {
-  return profile?.edition === 'standard' &&
-    profile?.modules?.structured_answers === true &&
-    intakeMode === 'category_first';
+  // Opt-in: frånvarande/ogiltig flagga ⇒ AV. Box1-3 saknar profil och ska aldrig
+  // få den publika självservicevägen.
+  if (profile?.modules?.structured_answers !== true) return false;
+  // Standard: oförändrat kontrakt (edition + category_first).
+  if (profile?.edition === 'standard') return intakeMode === 'category_first';
+  // Övriga editioner kör deterministiskt läge när branschkunskapen är explicit AV.
+  return profile?.modules?.industry_rag === false;
 }
 
 export function withEscalationChoice(
