@@ -317,9 +317,17 @@ rows={1}
 className="flex-1 resize-none bg-transparent text-sm py-2 text-foreground placeholder:text-help focus:outline-none min-h-[24px] max-h-[120px] chat-input-scrollbar"
 />
 )}
-{/* L-019: när fritexten är dold saknar raden sitt flex-1-element. Spacern
-    håller självservicemenyn högerställd precis som när textarean finns. */}
-{hideFreeText && <div className="flex-1 min-h-[40px]" aria-hidden="true" />}
+{/* L-019: när fritexten är dold saknar raden sitt flex-1-element. Utan
+    ersättare blir inmatningsraden en tom rundad ruta som ser trasig ut —
+    uppmätt i skärmbild på både Box4 och sandbox. Vi återanvänder samma
+    vägledning som tidigare låg i textareans placeholder, nu som statisk
+    text: kunden ser varför det inte går att skriva och vad hen ska göra.
+    Inte aria-hidden — det är den enda instruktionen besökaren får. */}
+{hideFreeText && (
+<div className="flex-1 min-h-[40px] flex items-center text-sm text-help select-none">
+{placeholder}
+</div>
+)}
 
 {showStandardSelfserviceMenu && onStandardMenuChoice && !isUploading && (
 <StandardSelfserviceMenuButton
