@@ -24,6 +24,38 @@ describe("resolveIntakeMode", () => {
   });
 });
 
+describe("resolveWidgetTexts — L-019 fritextlöftet", () => {
+  const trafikRagOff: TenantProfile = {
+    schema_version: 1,
+    edition: "trafikskola",
+    modules: { structured_answers: true, industry_rag: false },
+  };
+
+  it("lovar INTE fritext när branschkunskapen är av och fältet därmed är dolt", () => {
+    const texts = resolveWidgetTexts(trafikRagOff, "Test Trafik");
+    expect(texts.welcomeAiOn).toContain("Du behöver inte skriva något");
+    // 🔴 Dessa uppmaningar motsäger ett dolt fritextfält och får inte finnas.
+    expect(texts.welcomeAiOn).not.toContain("Du kan fråga mig allt");
+    expect(texts.welcomeAiOn).not.toContain("Ställ gärna en fråga i taget");
+    expect(texts.welcomeAiOn).not.toContain('skriva *"jag vill prata med en människa"*');
+    // Trafikidentiteten behålls — detta är inte en omställning till Standard.
+    expect(texts.headerSubtitle).toBe("Din körkortsguide");
+    expect(texts.templatesTitle).toBe("Vårt utbud");
+    expect(texts.formCategoryLabel).toBe("Fordon");
+    expect(texts.welcomeAiOn).toMatch(/^Hej och välkommen till Test Trafik! 👋/);
+  });
+
+  it("behåller den gamla hälsningen när branschkunskapen är PÅ", () => {
+    const ragOn: TenantProfile = {
+      ...trafikRagOff,
+      modules: { structured_answers: true, industry_rag: true },
+    };
+    expect(resolveWidgetTexts(ragOn, "Test Trafik").welcomeAiOn).toContain("Du kan fråga mig allt");
+    // Profillös tenant (Box1-3) ska aldrig byta text.
+    expect(resolveWidgetTexts(undefined, "MDA").welcomeAiOn).toContain("Du kan fråga mig allt");
+  });
+});
+
 describe("resolveWidgetTexts", () => {
   it("returns the legacy traffic text contract with the tenant company name", () => {
     const texts = resolveWidgetTexts(undefined, "My Driving Academy");

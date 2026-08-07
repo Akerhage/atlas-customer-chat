@@ -1,4 +1,5 @@
 import type { EffectiveCategory, TenantProfile } from "@/lib/tenant-capabilities";
+import { isStandardSelfserviceEnabled } from "@/lib/standard-selfservice-machine";
 
 export type IntakeMode = "category_first" | "legacy";
 export type IntakeOrderStep = "category" | "office" | "name" | "email" | "phone" | "vehicle" | "handoff";
@@ -15,6 +16,33 @@ export interface WidgetTexts {
   seoTitle: string;
   seoDescription: string;
 }
+
+// L-019: en trafikskola med Branschkunskap AV har INGET fritextfält — det döljs
+// av ChatInput. Den äldre AI-PÅ-hälsningen ber besökaren "fråga mig allt" och
+// "skriv jag vill prata med en människa", vilket direkt motsäger gränssnittet.
+// Trafikidentiteten behålls (rubrik, utbud, fordonsetiketter) — endast
+// välkomsttextens löfte om fritext byts mot menyvägen.
+//
+// 🔴 Placerad FÖRE textblocket nedan med flit: AtlasChat.intake-order.test.ts:33
+// är en byte-identitetsvakt över det blocket, som skyddar Box1-3:s trafiktext
+// från att glida under Box4-arbete. Ny kod läggs utanför blocket och vaktens
+// hash skrivs aldrig om. Kommentaren undviker dessutom vaktens markörsträngar
+// ordagrant — de matchas med indexOf, så en kopia här flyttar blockets start.
+const TRAFIK_SELFSERVICE_WELCOME_AI_ON = `Hej och välkommen till oss! 👋
+
+Jag är företagets smarta guide!
+
+Du behöver inte skriva något — välj bland knapparna i chatten så visar jag det du vill veta.
+
+Jag har stenkoll på våra priser, produkter, utbildningar och kontor. Välj kontor och fordon så visar jag vad som gäller. Du kan också testa våra snabbfrågor direkt i chatten.
+
+Vill du hellre prata med en människa?
+
+[💬 Prata med en människa](#atlas-human)
+
+Du kan också klicka på headsetikonen i menyn ovanför chatten.
+
+Vad kan jag hjälpa dig med idag?`;
 
 const LEGACY_TEXTS: WidgetTexts = {
   headerSubtitle: "Din körkortsguide",
@@ -57,11 +85,16 @@ Vad heter du?`,
 
 export function resolveWidgetTexts(profile: TenantProfile | null | undefined, companyName?: string | null): WidgetTexts {
   const greetingName = (companyName ?? "").trim() || "oss";
-  if (resolveIntakeMode(profile) !== "category_first") {
+  const intakeMode = resolveIntakeMode(profile);
+  if (intakeMode !== "category_first") {
     const greeting = `Hej och välkommen till ${greetingName}! 👋`;
+    // L-019: när fritextfältet är dolt får välkomsttexten inte be om fritext.
+    const welcomeAiOn = isStandardSelfserviceEnabled(profile, intakeMode)
+      ? TRAFIK_SELFSERVICE_WELCOME_AI_ON
+      : LEGACY_TEXTS.welcomeAiOn;
     return {
       ...LEGACY_TEXTS,
-      welcomeAiOn: LEGACY_TEXTS.welcomeAiOn.replace("Hej och välkommen till oss! 👋", greeting),
+      welcomeAiOn: welcomeAiOn.replace("Hej och välkommen till oss! 👋", greeting),
       welcomeAiOff: LEGACY_TEXTS.welcomeAiOff.replace("Hej och välkommen till oss! 👋", greeting),
     };
   }
