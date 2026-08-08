@@ -1,6 +1,12 @@
 export interface QuestionCategory {
 category: string;
 questions: string[];
+actions?: QuickQuestionAction[];
+}
+
+export interface QuickQuestionAction {
+label: string;
+value: string;
 }
 
 export const COMMON_QUESTIONS: QuestionCategory[] = [

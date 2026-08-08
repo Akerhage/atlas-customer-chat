@@ -56,7 +56,8 @@ STANDARD_MENU_PREFIX,
 STANDARD_UNIT_PREFIX,
 STANDARD_UNIT_PROMPT,
 categoryChoiceValue,
-isStandardSelfserviceEnabled,
+isStandardSelfserviceAvailable,
+isStandardSelfserviceExclusive,
 shouldShowStandardSelfserviceMenu,
 unitChoiceValue,
 valueAfterPrefix,
@@ -346,7 +347,8 @@ const singletonOffice = offices.length === 1 ? offices[0] : null;
 const singletonOfficeLabel = singletonOffice ? getOfficeDisplayName(singletonOffice) : null;
 const singletonVehicle = activeVehicles.length === 1 ? activeVehicles[0] : null;
 const categoryFirstEnabled = isCategoryFirstIntake(intakeMode, categoryChoices.length);
-const standardSelfserviceEnabled = isStandardSelfserviceEnabled(tenantProfile, intakeMode);
+const standardSelfserviceAvailable = isStandardSelfserviceAvailable(tenantProfile, intakeMode);
+const standardSelfserviceExclusive = isStandardSelfserviceExclusive(tenantProfile, intakeMode);
 const atlasEdition = tenantProfile?.edition === 'standard' ? 'standard' : undefined;
 const bootstrapping = !publicConfigLoaded || !tenantConfigLoaded;
 const selfserviceCategoryLabel = categoryChoices.find(choice => choice.value === selectedCategoryId)?.label || null;
@@ -762,7 +764,7 @@ injectBotMessage('För att skapa ett ärende behöver vi några uppgifter. Vad h
 const handleStandardChoice = async (value: string, fromQuickMenuUnitChoice = false): Promise<boolean> => {
 const requestedUnitId = valueAfterPrefix(value, STANDARD_UNIT_PREFIX);
 const requestedCategoryId = valueAfterPrefix(value, STANDARD_CATEGORY_PREFIX);
-if (!standardSelfserviceEnabled || humanMode) return false;
+if (!standardSelfserviceAvailable || humanMode) return false;
 if (intakeStep && !requestedUnitId && !requestedCategoryId) return false;
 if (value === STANDARD_ESCALATE_VALUE) {
 startStandardEscalation();
@@ -1036,7 +1038,7 @@ const trimmed = input.trim();
 
 if (['avbryt', 'avbryta', 'cancel'].includes(trimmed.toLowerCase())) {
 setIntakeData({});
-if (standardSelfserviceEnabled && selfserviceUnitId && selectedCategoryId) {
+if (standardSelfserviceAvailable && selfserviceUnitId && selectedCategoryId) {
 setIntakeStep(null);
 showCompactStandardMenuFollowup('Okej, ärendet avbröts. Fler snabbfrågor finns i menyn nere vid skrivfältet.');
 return;
@@ -1322,7 +1324,7 @@ cancelled = true;
 useEffect(() => {
 if (!publicConfigLoaded || !initialHistoryLoaded || !tenantConfigLoaded || !officesLoaded || humanMode || isArchived) return;
 
-if (standardSelfserviceEnabled) {
+if (standardSelfserviceExclusive) {
 if (standardSelfserviceStartedRef.current) return;
 setMessages([createWelcomeMessage(aiRepliesEnabled, widgetTexts)]);
 setContext({ city: null, area: null, vehicle: null });
@@ -1346,7 +1348,7 @@ setSelectedVehicle(null);
 setSelectedCity(null);
 setIsTyping(false);
 lastMessageCountRef.current = 0;
-}, [publicConfigLoaded, initialHistoryLoaded, tenantConfigLoaded, officesLoaded, standardSelfserviceEnabled, aiRepliesEnabled, humanMode, isArchived, widgetTexts, intakeMode, categoryChoices]); // eslint-disable-line react-hooks/exhaustive-deps
+}, [publicConfigLoaded, initialHistoryLoaded, tenantConfigLoaded, officesLoaded, standardSelfserviceExclusive, standardSelfserviceAvailable, aiRepliesEnabled, humanMode, isArchived, widgetTexts, intakeMode, categoryChoices]); // eslint-disable-line react-hooks/exhaustive-deps
 
 // 🕒 Chattöppettider: visa notisen när chatten öppnas utanför bemannad tid.
 // Körs EFTER bootstrap-effekten ovan (som nollställer meddelandelistan) så att
@@ -1539,7 +1541,7 @@ setSelfserviceUnitId(null);
 setSelfserviceUnitLabel(null);
 setSelfserviceMenu([]);
 standardSelfserviceStartedRef.current = false;
-if (standardSelfserviceEnabled) {
+if (standardSelfserviceExclusive) {
 setIntakeStep(null);
 beginStandardSelfservice();
 } else if (aiRepliesEnabled) {
@@ -1597,7 +1599,7 @@ const handleRequestHuman = () => {
 if (humanMode) return;
 // 🕒 Påminnelse utanför öppettid — informerar men blockerar inte eskaleringen.
 if (!chatStaffed) injectOfficeHoursReminder();
-if (standardSelfserviceEnabled) {
+if (standardSelfserviceExclusive) {
 if (selfserviceUnitId && selectedCategoryId) {
 startStandardEscalation();
 } else if (selfserviceStage === 'unit') {
@@ -1706,12 +1708,16 @@ LASTBIL: 'Lastbil / Buss',
 SLÄP: 'Släp (BE/B96)',
 };
 
-if (standardSelfserviceEnabled && !humanMode && !intakeStep) {
-void handleStandardChoice(value);
+if (standardSelfserviceAvailable && !humanMode && !intakeStep) {
+void handleStandardChoice(value).then((handled) => {
+if (!handled && !standardSelfserviceExclusive) {
+handleSendMessage(value);
+}
+});
 return;
 }
 if (
-standardSelfserviceEnabled &&
+standardSelfserviceAvailable &&
 !humanMode &&
 intakeStep &&
 (valueAfterPrefix(value, STANDARD_UNIT_PREFIX) || valueAfterPrefix(value, STANDARD_CATEGORY_PREFIX))
@@ -1884,15 +1890,18 @@ setMessages((prev) => [...prev, templateMessage]);
 
 const showWelcomeWidget = aiRepliesEnabled && messages.length === 1 && messages[0].id === 'welcome-msg' && !isTyping;
 const hasCustomerMessage = messages.some((message) => message.role === 'user');
-const selfserviceFreeTextBlocked = standardSelfserviceEnabled && !humanMode && !intakeStep;
+const selfserviceFreeTextBlocked = standardSelfserviceExclusive && !humanMode && !intakeStep;
+const standardSelfserviceMenuStage = standardSelfserviceAvailable && !standardSelfserviceExclusive && selfserviceStage === null
+? 'menu'
+: selfserviceStage;
 const showStandardSelfserviceMenuButton = shouldShowStandardSelfserviceMenu({
-stage: selfserviceStage,
+stage: standardSelfserviceMenuStage,
 humanMode,
 intakeActive: Boolean(intakeStep),
 isArchived,
 });
 const handleInputSend = (message: string, contextData?: QuickContextPayload) => {
-if (standardSelfserviceEnabled && !humanMode && !intakeStep) {
+if (standardSelfserviceExclusive && !humanMode && !intakeStep) {
 return;
 }
 if (!aiRepliesEnabled && !humanMode) {
@@ -2091,7 +2100,7 @@ hideFreeText={selfserviceFreeTextBlocked}
 placeholder={selfserviceFreeTextBlocked
 ? "Välj ett alternativ ovan"
 : (!aiRepliesEnabled && !humanMode ? "Skriv ditt svar..." : (humanMode ? "Skriv till support..." : "Skriv ett meddelande..."))}
-showQuickQuestions={intakeMode === 'legacy' && aiRepliesEnabled && !humanMode && messages.length > 1}
+showQuickQuestions={(intakeMode === 'legacy' && aiRepliesEnabled && !humanMode && messages.length > 1) || (standardSelfserviceAvailable && !standardSelfserviceExclusive && !humanMode && !intakeStep && !isArchived)}
 showStandardSelfserviceMenu={showStandardSelfserviceMenuButton}
 standardSelfserviceMenu={selfserviceMenu}
 // K7/C: 'Centralsupport' är en SENTINEL internt (jämförs mot intakeData.city

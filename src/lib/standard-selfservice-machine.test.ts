@@ -5,7 +5,9 @@ import {
   STANDARD_ESCALATE_VALUE,
   STANDARD_MENU_PREFIX,
   categoryChoiceValue,
+  isStandardSelfserviceAvailable,
   isStandardSelfserviceEnabled,
+  isStandardSelfserviceExclusive,
   menuChoiceValue,
   shouldShowStandardSelfserviceMenu,
   unitChoiceValue,
@@ -23,28 +25,36 @@ describe('standard selfservice machine', () => {
     );
   });
 
-  it('gates only Standard category_first with structured answers', () => {
-    expect(isStandardSelfserviceEnabled({
+  it('separates the clickable selfservice path from exclusive free-text blocking', () => {
+    const standard = {
       schema_version: 1,
       edition: 'standard',
       modules: { structured_answers: true },
       intake: { mode: 'category_first' },
-    }, 'category_first')).toBe(true);
-    expect(isStandardSelfserviceEnabled({
+    } as const;
+    const trafficRagOff = {
       schema_version: 1,
       edition: 'trafikskola',
-      modules: { structured_answers: true },
-    }, 'category_first')).toBe(false);
-    expect(isStandardSelfserviceEnabled({
+      modules: { structured_answers: true, industry_rag: false },
+    } as const;
+    const trafficRagOn = {
       schema_version: 1,
-      edition: 'standard',
-      modules: { structured_answers: false },
-    }, 'category_first')).toBe(false);
-    expect(isStandardSelfserviceEnabled({
-      schema_version: 1,
-      edition: 'standard',
-      modules: { structured_answers: true },
-    }, 'legacy')).toBe(false);
+      edition: 'trafikskola',
+      modules: { structured_answers: true, industry_rag: true },
+    } as const;
+    const profileless = null;
+
+    expect(isStandardSelfserviceAvailable(standard, 'category_first')).toBe(true);
+    expect(isStandardSelfserviceAvailable(trafficRagOff, 'legacy')).toBe(true);
+    expect(isStandardSelfserviceAvailable(trafficRagOn, 'legacy')).toBe(true);
+    expect(isStandardSelfserviceAvailable(profileless, 'legacy')).toBe(false);
+
+    expect(isStandardSelfserviceExclusive(standard, 'category_first')).toBe(true);
+    expect(isStandardSelfserviceExclusive(trafficRagOff, 'legacy')).toBe(true);
+    expect(isStandardSelfserviceExclusive(trafficRagOn, 'legacy')).toBe(false);
+    expect(isStandardSelfserviceExclusive(profileless, 'legacy')).toBe(false);
+
+    expect(isStandardSelfserviceEnabled(trafficRagOn, 'legacy')).toBe(false);
   });
 
   it('uses opaque prefixed values and keeps escalation last', () => {

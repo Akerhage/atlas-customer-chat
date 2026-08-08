@@ -147,7 +147,16 @@ describe("AtlasChat intake-order contract", () => {
       "{' '}— {selfserviceFreeTextBlocked ? 'välj ett alternativ' : 'skriv något'} för att hålla den öppen.",
     );
     expect(source).toContain(
-      "const selfserviceFreeTextBlocked = standardSelfserviceEnabled && !humanMode && !intakeStep;",
+      "const selfserviceFreeTextBlocked = standardSelfserviceExclusive && !humanMode && !intakeStep;",
+    );
+  });
+
+  it("shows the shared quick-question button immediately in parallel selfservice mode", () => {
+    expect(source).toContain(
+      "showQuickQuestions={(intakeMode === 'legacy' && aiRepliesEnabled && !humanMode && messages.length > 1) || (standardSelfserviceAvailable && !standardSelfserviceExclusive && !humanMode && !intakeStep && !isArchived)}",
+    );
+    expect(source).toContain(
+      "const standardSelfserviceMenuStage = standardSelfserviceAvailable && !standardSelfserviceExclusive && selfserviceStage === null",
     );
   });
 
@@ -261,7 +270,7 @@ describe("AtlasChat intake-order contract", () => {
     const start = source.indexOf("const isMidIntakeCategoryReselection");
     const end = source.indexOf("if (selfserviceStage === 'unit')", start);
     const block = source.slice(start, end);
-    const routeStart = source.indexOf("if (\nstandardSelfserviceEnabled &&\n!humanMode &&\nintakeStep");
+    const routeStart = source.indexOf("if (\nstandardSelfserviceAvailable &&\n!humanMode &&\nintakeStep");
     const routeEnd = source.indexOf("if (!intakeStep)", routeStart);
     const routeBlock = source.slice(routeStart, routeEnd);
 

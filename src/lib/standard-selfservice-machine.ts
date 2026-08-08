@@ -43,7 +43,7 @@ export interface StandardSelfserviceMenuItem {
 // intake-ordningen och snabbfrågeknappen, så att flippa den hade byggt om
 // kundflödet för VARJE trafikskola — även de med branschkunskapen PÅ. Rätt lösning
 // är att frikoppla självservicen från intakeMode, inte att ändra intakeMode.
-export function isStandardSelfserviceEnabled(
+export function isStandardSelfserviceAvailable(
   profile: TenantProfile | null | undefined,
   intakeMode: string
 ): boolean {
@@ -52,8 +52,26 @@ export function isStandardSelfserviceEnabled(
   if (profile?.modules?.structured_answers !== true) return false;
   // Standard: oförändrat kontrakt (edition + category_first).
   if (profile?.edition === 'standard') return intakeMode === 'category_first';
-  // Övriga editioner kör deterministiskt läge när branschkunskapen är explicit AV.
+  // L-021/#133: övriga editioner har den klickbara prisvägen när structured_answers är PÅ.
+  return true;
+}
+
+export function isStandardSelfserviceExclusive(
+  profile: TenantProfile | null | undefined,
+  intakeMode: string
+): boolean {
+  if (!isStandardSelfserviceAvailable(profile, intakeMode)) return false;
+  // Standard behåller dagens kategori-först-flöde och döljer fritext.
+  if (profile?.edition === 'standard') return true;
+  // Övriga editioner döljer fritext endast när branschkunskapen är explicit AV.
   return profile?.modules?.industry_rag === false;
+}
+
+export function isStandardSelfserviceEnabled(
+  profile: TenantProfile | null | undefined,
+  intakeMode: string
+): boolean {
+  return isStandardSelfserviceExclusive(profile, intakeMode);
 }
 
 export function withEscalationChoice(

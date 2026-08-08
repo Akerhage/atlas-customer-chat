@@ -329,7 +329,7 @@ className="flex-1 resize-none bg-transparent text-sm py-2 text-foreground placeh
 </div>
 )}
 
-{showStandardSelfserviceMenu && onStandardMenuChoice && !isUploading && (
+{showStandardSelfserviceMenu && !showQuickQuestions && onStandardMenuChoice && !isUploading && (
 <StandardSelfserviceMenuButton
 items={standardSelfserviceMenu}
 unitLabel={standardUnitLabel}
@@ -341,9 +341,11 @@ onUnitChoice={onStandardMenuUnitChoice}
 />
 )}
 
-{!showStandardSelfserviceMenu && showQuickQuestions && !isUploading && (
+{showQuickQuestions && !isUploading && (
 <QuickQuestionsButton
 onSendMessage={onSend}
+onStandardChoice={onStandardMenuChoice}
+onStandardUnitChoice={onStandardMenuUnitChoice}
 selectedVehicle={selectedVehicle}
 selectedCity={selectedCity}
 onVehicleChange={onVehicleChange}
@@ -354,6 +356,10 @@ disabled={disabled}
 offices={offices}
 activeVehicles={activeVehicles}
 quickQuestions={quickQuestions}
+standardSelfserviceMenu={showStandardSelfserviceMenu ? standardSelfserviceMenu : []}
+standardUnitLabel={standardUnitLabel}
+standardUnitChoices={showStandardSelfserviceMenu ? standardUnitChoices : []}
+standardCategoryChoices={showStandardSelfserviceMenu ? standardCategoryChoices : []}
 />
 )}
 

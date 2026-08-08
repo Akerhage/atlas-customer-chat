@@ -1,5 +1,5 @@
 import type { EffectiveCategory, TenantProfile } from "@/lib/tenant-capabilities";
-import { isStandardSelfserviceEnabled } from "@/lib/standard-selfservice-machine";
+import { isStandardSelfserviceExclusive } from "@/lib/standard-selfservice-machine";
 
 export type IntakeMode = "category_first" | "legacy";
 export type IntakeOrderStep = "category" | "office" | "name" | "email" | "phone" | "vehicle" | "handoff";
@@ -89,7 +89,7 @@ export function resolveWidgetTexts(profile: TenantProfile | null | undefined, co
   if (intakeMode !== "category_first") {
     const greeting = `Hej och välkommen till ${greetingName}! 👋`;
     // L-019: när fritextfältet är dolt får välkomsttexten inte be om fritext.
-    const welcomeAiOn = isStandardSelfserviceEnabled(profile, intakeMode)
+    const welcomeAiOn = isStandardSelfserviceExclusive(profile, intakeMode)
       ? TRAFIK_SELFSERVICE_WELCOME_AI_ON
       : LEGACY_TEXTS.welcomeAiOn;
     return {

@@ -17,12 +17,15 @@ PopoverTrigger,
 import { cn } from "@/lib/utils";
 import type { ActiveVehicle } from "@/lib/atlas-client";
 import { COMMON_QUESTIONS, type QuestionCategory } from "@/lib/quick-questions-data";
+import { STANDARD_UNIT_PREFIX, menuChoiceValue, type StandardSelfserviceMenuItem } from "@/lib/standard-selfservice-machine";
 import { CANONICAL_VEHICLE_ORDER, VEHICLE_LABELS, officeOffersVehicle } from "@/lib/vehicle-utils";
 
 type VehicleType = ActiveVehicle | null;
 
 interface QuickQuestionsButtonProps {
 onSendMessage: (message: string, context?: { vehicle: string | null; city: string; vehicle_choice?: string | null; clear_vehicle?: boolean }) => void;
+onStandardChoice?: (value: string) => void;
+onStandardUnitChoice?: (value: string) => void;
 selectedVehicle: VehicleType;
 selectedCity: string | null;
 onVehicleChange: (vehicle: VehicleType) => void;
@@ -33,6 +36,10 @@ disabled?: boolean;
 offices: any[]; // 🔥 TILLAGD
 activeVehicles: ActiveVehicle[];
 quickQuestions: string[];
+standardSelfserviceMenu?: StandardSelfserviceMenuItem[];
+standardUnitLabel?: string | null;
+standardUnitChoices?: { label: string; value: string }[];
+standardCategoryChoices?: { label: string; value: string }[];
 }
 
 // Kontorsspecifika frågor. Paket-/utbudsöversikten ligger numera i respektive
@@ -182,6 +189,85 @@ return hints.some((hint) => allowedVehicles.includes(hint));
 });
 }
 
+interface BuildQuickQuestionCategoriesInput {
+selectedCity: string | null;
+selectedVehicle: VehicleType;
+generalMode: boolean;
+selectedOffice: any | null;
+availableVehicles: ActiveVehicle[];
+quickQuestions: string[];
+standardSelfserviceMenu?: StandardSelfserviceMenuItem[];
+standardUnitLabel?: string | null;
+standardUnitChoices?: { label: string; value: string }[];
+standardCategoryChoices?: { label: string; value: string }[];
+}
+
+export function buildQuickQuestionCategories({
+selectedCity,
+selectedVehicle,
+generalMode,
+selectedOffice,
+availableVehicles,
+quickQuestions,
+standardSelfserviceMenu = [],
+standardUnitLabel = null,
+standardUnitChoices = [],
+standardCategoryChoices = [],
+}: BuildQuickQuestionCategoriesInput): QuestionCategory[] {
+const selfserviceActions = standardSelfserviceMenu.length
+? standardSelfserviceMenu.map(item => ({
+label: item.label,
+value: menuChoiceValue(item.id),
+}))
+: standardUnitLabel
+? standardCategoryChoices
+: standardUnitChoices;
+const selfserviceCategory: QuestionCategory | null = selfserviceActions.length
+? {
+category: "Priser & tjänster",
+questions: [],
+actions: selfserviceActions,
+}
+: null;
+const tenantQuestionVehicleFilter = generalMode
+? null
+: selectedVehicle
+? [selectedVehicle]
+: selectedOffice
+? availableVehicles
+: null;
+const tenantQuickQuestions = filterTenantQuickQuestions(
+quickQuestions.map(q => q.trim()).filter(Boolean).slice(0, 20),
+tenantQuestionVehicleFilter
+);
+const tenantCategory: QuestionCategory | null = tenantQuickQuestions.length
+? { category: "Vanliga frågor", questions: tenantQuickQuestions }
+: null;
+
+// Tenantens egna snabbfrågor kan vara kontors-/fordonsspecifika även om texten
+// saknar tydliga tokens. Visa dem först när både plats och fordon är kända.
+const canShowTenantQuestions = Boolean(selectedCity && selectedVehicle);
+const prefix = selfserviceCategory ? [selfserviceCategory] : [];
+
+// Om plats eller fordon saknas, visa bara bevisat generella frågor plus den
+// deterministiska självservicesektionen. Den måste byggas före denna retur.
+if (!selectedVehicle || !selectedCity) {
+return [...prefix, ...COMMON_QUESTIONS];
+}
+
+const officeCategory: QuestionCategory = {
+category: getOfficeQuestions().category.replace(/\{\{stad\}\}/g, selectedCity),
+questions: getOfficeQuestions().questions,
+};
+
+const vehicleCategories = QUESTIONS_BY_VEHICLE[selectedVehicle] || [];
+
+// Ordning: självservice -> fordonsfrågor -> tenantens egna -> kontorsfrågor -> generella.
+return canShowTenantQuestions && tenantCategory
+? [...prefix, ...vehicleCategories, tenantCategory, officeCategory, ...COMMON_QUESTIONS]
+: [...prefix, ...vehicleCategories, officeCategory, ...COMMON_QUESTIONS];
+}
+
 const getOfficeDisplayName = (office: any) => {
 const city = String(office?.city || '').trim();
 const area = String(office?.area || '').trim();
@@ -190,6 +276,8 @@ return String(office?.display_name || (city ? (area ? `${city} - ${area}` : city
 
 export function QuickQuestionsButton({
 onSendMessage,
+onStandardChoice,
+onStandardUnitChoice,
 selectedVehicle,
 selectedCity,
 onVehicleChange,
@@ -199,7 +287,11 @@ onCityChange,
 disabled = false,
 offices, // 🔥 TILLAGD
 activeVehicles,
-quickQuestions
+quickQuestions,
+standardSelfserviceMenu = [],
+standardUnitLabel = null,
+standardUnitChoices = [],
+standardCategoryChoices = [],
 }: QuickQuestionsButtonProps) {
 const [open, setOpen] = useState(false);
 const singletonOffice = offices.length === 1 ? offices[0] : null;
@@ -251,44 +343,27 @@ city: effectiveSelectedCity || "",
 setOpen(false);
 };
 
-const getQuestions = (): QuestionCategory[] => {
-const tenantQuestionVehicleFilter = generalMode
-? null
-: effectiveSelectedVehicle
-? [effectiveSelectedVehicle]
-: selectedOffice
-? availableVehicles
-: null;
-const tenantQuickQuestions = filterTenantQuickQuestions(
-quickQuestions.map(q => q.trim()).filter(Boolean).slice(0, 20),
-tenantQuestionVehicleFilter
-);
-const tenantCategory: QuestionCategory | null = tenantQuickQuestions.length
-? { category: "Vanliga frågor", questions: tenantQuickQuestions }
-: null;
-
-// Tenantens egna snabbfrågor kan vara kontors-/fordonsspecifika även om texten
-// saknar tydliga tokens. Visa dem först när både plats och fordon är kända.
-const canShowTenantQuestions = Boolean(effectiveSelectedCity && effectiveSelectedVehicle);
-
-// Om plats eller fordon saknas, visa bara bevisat generella frågor.
-if (!effectiveSelectedVehicle || !effectiveSelectedCity) {
-return COMMON_QUESTIONS;
+const handleStandardActionClick = (value: string) => {
+if (value.startsWith(STANDARD_UNIT_PREFIX) && onStandardUnitChoice) {
+onStandardUnitChoice(value);
+} else {
+onStandardChoice?.(value);
 }
-
-const officeCategory: QuestionCategory = {
-category: getOfficeQuestions().category.replace(/\{\{stad\}\}/g, effectiveSelectedCity),
-questions: getOfficeQuestions().questions,
+setOpen(false);
 };
 
-const vehicleCategories = QUESTIONS_BY_VEHICLE[effectiveSelectedVehicle] || [];
-
-// Ordning: Fordonsfrågor ÖVERST (kunden har uttryckligen valt fordon, då vill hen
-// se de frågorna direkt utan att leta) -> tenantens egna -> kontorsfrågor -> generella.
-return canShowTenantQuestions && tenantCategory
-? [...vehicleCategories, tenantCategory, officeCategory, ...COMMON_QUESTIONS]
-: [...vehicleCategories, officeCategory, ...COMMON_QUESTIONS];
-};
+const questionCategories = buildQuickQuestionCategories({
+selectedCity: effectiveSelectedCity,
+selectedVehicle: effectiveSelectedVehicle,
+generalMode,
+selectedOffice,
+availableVehicles,
+quickQuestions,
+standardSelfserviceMenu,
+standardUnitLabel,
+standardUnitChoices,
+standardCategoryChoices,
+});
 
 return (
 <Popover open={open} onOpenChange={handleOpenChange}>
@@ -366,7 +441,7 @@ className={cn(selectedCity === getOfficeDisplayName(office) && "bg-primary/10")}
 {/* LISTA MED FRÅGOR */}
 <ScrollArea className="h-80">
 <div className="p-2">
-{getQuestions().map((cat, idx) => (
+{questionCategories.map((cat, idx) => (
 <div key={cat.category}>
 {idx > 0 && <DropdownMenuSeparator className="my-2" />}
 <p className="text-[10px] text-muted-foreground font-medium px-2 py-1 uppercase tracking-wide">{cat.category}</p>
@@ -380,6 +455,15 @@ q.includes("{{stad}}") && !effectiveSelectedCity && "opacity-50 cursor-not-allow
 )}
 >
 {effectiveSelectedCity ? q.replace(/\{\{stad\}\}/g, effectiveSelectedCity) : q.replace(/\{\{stad\}\}/g, "...")}
+</button>
+))}
+{(cat.actions ?? []).map((action) => (
+<button
+key={action.value}
+onClick={() => handleStandardActionClick(action.value)}
+className="w-full text-left px-2 py-2 text-xs rounded-md transition-colors hover:bg-accent hover:text-accent-foreground"
+>
+{action.label}
 </button>
 ))}
 </div>
