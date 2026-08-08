@@ -40,6 +40,7 @@ standardSelfserviceMenu?: StandardSelfserviceMenuItem[];
 standardUnitLabel?: string | null;
 standardUnitChoices?: { label: string; value: string }[];
 standardCategoryChoices?: { label: string; value: string }[];
+aiRepliesEnabled?: boolean;
 }
 
 // Kontorsspecifika frågor. Paket-/utbudsöversikten ligger numera i respektive
@@ -200,6 +201,7 @@ standardSelfserviceMenu?: StandardSelfserviceMenuItem[];
 standardUnitLabel?: string | null;
 standardUnitChoices?: { label: string; value: string }[];
 standardCategoryChoices?: { label: string; value: string }[];
+aiRepliesEnabled?: boolean;
 }
 
 export function buildQuickQuestionCategories({
@@ -213,6 +215,7 @@ standardSelfserviceMenu = [],
 standardUnitLabel = null,
 standardUnitChoices = [],
 standardCategoryChoices = [],
+aiRepliesEnabled = true,
 }: BuildQuickQuestionCategoriesInput): QuestionCategory[] {
 const selfserviceActions = standardSelfserviceMenu.length
 ? standardSelfserviceMenu.map(item => ({
@@ -248,6 +251,10 @@ const tenantCategory: QuestionCategory | null = tenantQuickQuestions.length
 // saknar tydliga tokens. Visa dem först när både plats och fordon är kända.
 const canShowTenantQuestions = Boolean(selectedCity && selectedVehicle);
 const prefix = selfserviceCategory ? [selfserviceCategory] : [];
+
+if (!aiRepliesEnabled) {
+return prefix;
+}
 
 // Om plats eller fordon saknas, visa bara bevisat generella frågor plus den
 // deterministiska självservicesektionen. Den måste byggas före denna retur.
@@ -292,6 +299,7 @@ standardSelfserviceMenu = [],
 standardUnitLabel = null,
 standardUnitChoices = [],
 standardCategoryChoices = [],
+aiRepliesEnabled = true,
 }: QuickQuestionsButtonProps) {
 const [open, setOpen] = useState(false);
 const singletonOffice = offices.length === 1 ? offices[0] : null;
@@ -363,6 +371,7 @@ standardSelfserviceMenu,
 standardUnitLabel,
 standardUnitChoices,
 standardCategoryChoices,
+aiRepliesEnabled,
 });
 
 return (

@@ -360,6 +360,7 @@ standardSelfserviceMenu={showStandardSelfserviceMenu ? standardSelfserviceMenu :
 standardUnitLabel={standardUnitLabel}
 standardUnitChoices={showStandardSelfserviceMenu ? standardUnitChoices : []}
 standardCategoryChoices={showStandardSelfserviceMenu ? standardCategoryChoices : []}
+aiRepliesEnabled={aiRepliesEnabled}
 />
 )}
 

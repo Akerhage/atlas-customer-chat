@@ -53,4 +53,26 @@ describe("QuickQuestionsButton category builder", () => {
     expect(tenant?.questions).toEqual(["Vad krävs för att få övningsköra privat?"]);
     expect(tenant?.actions).toBeUndefined();
   });
+
+  it("keeps deterministic selfservice actions but removes RAG questions when AI replies are disabled", () => {
+    const categories = buildQuickQuestionCategories({
+      selectedCity: "Göteborg - Ullevi",
+      selectedVehicle: "BIL",
+      generalMode: false,
+      selectedOffice: { city: "Göteborg", area: "Ullevi" },
+      availableVehicles: ["BIL"],
+      quickQuestions: ["Vad krävs för att få övningsköra privat?"],
+      standardSelfserviceMenu: standardItems,
+      aiRepliesEnabled: false,
+    } as Parameters<typeof buildQuickQuestionCategories>[0] & { aiRepliesEnabled: boolean });
+
+    expect(categories).toEqual([{
+      category: "Priser & tjänster",
+      questions: [],
+      actions: [{
+        label: "Vilka körkortspaket erbjuder ni i Göteborg - Ullevi?",
+        value: menuChoiceValue("offer-1"),
+      }],
+    }]);
+  });
 });
