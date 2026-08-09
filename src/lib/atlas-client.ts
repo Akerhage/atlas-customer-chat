@@ -739,7 +739,8 @@ export async function getPublicOffices(): Promise<any[]> {
 
 /**
  * Hamtar publik kundchatt-konfiguration.
- * Fail-safe: om servern inte svarar antar klienten att AI-svar ar pa.
+ * Ett serverat men trasigt driftvärde får inte bli AI på. Transienta fetchfel
+ * behåller befintlig fail-open så offline/legacy inte ändrar kundflöde här.
  */
 export async function getPublicConfig(): Promise<PublicConfig> {
   try {
@@ -749,7 +750,7 @@ export async function getPublicConfig(): Promise<PublicConfig> {
     if (!response.ok) throw new Error('Failed to fetch public config');
     const data = await response.json();
     return {
-      ai_replies_enabled: data?.ai_replies_enabled !== false,
+      ai_replies_enabled: typeof data?.ai_replies_enabled === 'boolean' ? data.ai_replies_enabled : false,
       chat_staffed: data?.chat_staffed !== false,
       chat_reopens_label: typeof data?.chat_reopens_label === 'string' ? data.chat_reopens_label : null
     };

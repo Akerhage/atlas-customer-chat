@@ -1,5 +1,5 @@
 import type { EffectiveCategory, TenantProfile } from "@/lib/tenant-capabilities";
-import { isStandardSelfserviceExclusive } from "@/lib/standard-selfservice-machine";
+import { isStandardSelfserviceAvailable, isStandardSelfserviceExclusive } from "@/lib/standard-selfservice-machine";
 
 export type IntakeMode = "category_first" | "legacy";
 export type IntakeOrderStep = "category" | "office" | "name" | "email" | "phone" | "vehicle" | "handoff";
@@ -44,6 +44,12 @@ Du kan också klicka på headsetikonen i menyn ovanför chatten.
 
 Vad kan jag hjälpa dig med idag?`;
 
+const HANDOFF_WELCOME_AI_ON = `Hej och välkommen till oss! 👋
+
+Har du frågor eller vill du skicka ett ärende till oss är du varmt välkommen.
+
+Skriv vad du behöver hjälp med här i chatten, så hjälper vi dig att skicka ett ärende till rätt mottagare hos oss.`;
+
 const LEGACY_TEXTS: WidgetTexts = {
   headerSubtitle: "Din körkortsguide",
   templatesTitle: "Vårt utbud",
@@ -86,11 +92,15 @@ Vad heter du?`,
 export function resolveWidgetTexts(profile: TenantProfile | null | undefined, companyName?: string | null): WidgetTexts {
   const greetingName = (companyName ?? "").trim() || "oss";
   const intakeMode = resolveIntakeMode(profile);
+  const selfserviceAvailable = isStandardSelfserviceAvailable(profile, intakeMode);
+  const selfserviceExclusive = isStandardSelfserviceExclusive(profile, intakeMode);
   if (intakeMode !== "category_first") {
     const greeting = `Hej och välkommen till ${greetingName}! 👋`;
     // L-019: när fritextfältet är dolt får välkomsttexten inte be om fritext.
-    const welcomeAiOn = isStandardSelfserviceExclusive(profile, intakeMode)
+    const welcomeAiOn = selfserviceExclusive
       ? TRAFIK_SELFSERVICE_WELCOME_AI_ON
+      : profile?.modules?.industry_rag === false
+        ? HANDOFF_WELCOME_AI_ON
       : LEGACY_TEXTS.welcomeAiOn;
     return {
       ...LEGACY_TEXTS,
@@ -98,7 +108,7 @@ export function resolveWidgetTexts(profile: TenantProfile | null | undefined, co
       welcomeAiOff: LEGACY_TEXTS.welcomeAiOff.replace("Hej och välkommen till oss! 👋", greeting),
     };
   }
-  return {
+  const standardTexts: WidgetTexts = {
     headerSubtitle: "Kundservice",
     templatesTitle: "Kundinformation",
     templatesSubtitle: "Här kan du läsa mer om våra tjänster, villkor och annat bra att veta — klicka för att visa i chatten",
@@ -124,6 +134,13 @@ Vill du hellre prata med en människa klickar du på headsetikonen i menyn ovanf
     seoTitle: "Atlas - Kundservice",
     seoDescription: "Atlas kundservice – ställ din fråga eller skicka ett ärende till oss.",
   };
+  if (!selfserviceAvailable) {
+    return {
+      ...standardTexts,
+      welcomeAiOn: HANDOFF_WELCOME_AI_ON.replace("Hej och välkommen till oss! 👋", `Hej och välkommen till ${greetingName}! 👋`),
+    };
+  }
+  return standardTexts;
 }
 
 export function resolveIntakeMode(profile: TenantProfile | null | undefined): IntakeMode {

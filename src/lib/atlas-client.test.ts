@@ -10,6 +10,11 @@ async function loadGetTenantConfig() {
   return (await import("./atlas-client")).getTenantConfig;
 }
 
+async function loadGetPublicConfig() {
+  vi.stubGlobal("window", { location: { origin: "https://box4.atlas-support.se" } });
+  return (await import("./atlas-client")).getPublicConfig;
+}
+
 function installStorage(initial: Array<[string, string]> = [
   ["chat_session_id", "session_test"],
   ["chat_owner_token", "owner_test"],
@@ -62,6 +67,39 @@ describe("getTenantConfig tenant capability wiring", () => {
       { id: "LASTBIL", label: "LASTBIL", icon: "LASTBIL", active: true },
       { id: "SLÄP", label: "SLÄP", icon: "SLÄP", active: true },
     ]);
+  });
+});
+
+describe("getPublicConfig AI runtime truth", () => {
+  it.each([
+    ["explicit false", { ai_replies_enabled: false }, false],
+    ["explicit true", { ai_replies_enabled: true }, true],
+    ["missing field", {}, false],
+    ["wrong typed field", { ai_replies_enabled: "true" }, false],
+  ])("maps %s to ai_replies_enabled=%s", async (_label, payload, expected) => {
+    const getPublicConfig = await loadGetPublicConfig();
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => payload,
+    }));
+
+    await expect(getPublicConfig()).resolves.toMatchObject({
+      ai_replies_enabled: expected,
+    });
+  });
+
+  it.each([
+    ["non-ok response", vi.fn().mockResolvedValue({ ok: false })],
+    ["fetch rejection", vi.fn().mockRejectedValue(new Error("offline"))],
+  ])("keeps the existing transient fail-open behavior on %s", async (_label, fetchMock) => {
+    const getPublicConfig = await loadGetPublicConfig();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(getPublicConfig()).resolves.toMatchObject({
+      ai_replies_enabled: true,
+      chat_staffed: true,
+      chat_reopens_label: null,
+    });
   });
 });
 

@@ -45,6 +45,11 @@ describe('standard selfservice machine', () => {
     const profileless = null;
 
     expect(isStandardSelfserviceAvailable(standard, 'category_first')).toBe(true);
+    expect(isStandardSelfserviceAvailable({ ...standard, intake: { mode: 'legacy' } }, 'legacy')).toBe(false);
+    expect(isStandardSelfserviceAvailable({
+      ...standard,
+      modules: { structured_answers: false },
+    }, 'category_first')).toBe(false);
     expect(isStandardSelfserviceAvailable(trafficRagOff, 'legacy')).toBe(true);
     expect(isStandardSelfserviceAvailable(trafficRagOn, 'legacy')).toBe(true);
     expect(isStandardSelfserviceAvailable(profileless, 'legacy')).toBe(false);

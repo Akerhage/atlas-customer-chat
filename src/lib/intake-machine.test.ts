@@ -5,6 +5,7 @@ import type { EffectiveCategory, TenantProfile } from "./tenant-capabilities";
 const standardProfile: TenantProfile = {
   schema_version: 1,
   edition: "standard",
+  modules: { structured_answers: true, industry_rag: false },
   intake: { mode: "category_first" },
 };
 
@@ -53,6 +54,19 @@ describe("resolveWidgetTexts — L-019 fritextlöftet", () => {
     expect(resolveWidgetTexts(ragOn, "Test Trafik").welcomeAiOn).toContain("Du kan fråga mig allt");
     // Profillös tenant (Box1-3) ska aldrig byta text.
     expect(resolveWidgetTexts(undefined, "MDA").welcomeAiOn).toContain("Du kan fråga mig allt");
+  });
+
+  it("uses honest handoff copy when traffic RAG and structured answers are both off", () => {
+    const texts = resolveWidgetTexts({
+      schema_version: 1,
+      edition: "trafikskola",
+      modules: { structured_answers: false, industry_rag: false },
+    }, "Test Trafik");
+
+    expect(texts.welcomeAiOn).toContain("skicka ett ärende");
+    expect(texts.welcomeAiOn).not.toContain("Du kan fråga mig allt");
+    expect(texts.welcomeAiOn).not.toContain("välj bland knapparna");
+    expect(texts.headerSubtitle).toBe("Din körkortsguide");
   });
 });
 
@@ -116,6 +130,18 @@ describe("resolveWidgetTexts", () => {
     expect(texts.welcomeAiOn).not.toMatch(/enhet/i);
     expect(texts.welcomeAiOff).not.toMatch(/enhet/i);
     expect(texts.officeQuestion).not.toMatch(/enhet/i);
+  });
+
+  it("does not promise buttons when Standard selfservice is disabled", () => {
+    const texts = resolveWidgetTexts({
+      ...standardProfile,
+      modules: { structured_answers: false, industry_rag: false },
+    }, "Bosses Skruvfabrik");
+
+    expect(texts.welcomeAiOn).toContain("skicka ett ärende");
+    expect(texts.welcomeAiOn).not.toContain("välj bland knapparna");
+    expect(texts.welcomeAiOn).not.toContain("smarta AI-assistent");
+    expect(texts.headerSubtitle).toBe("Kundservice");
   });
 
   it("falls back to oss for missing standard company names instead of Atlas", () => {
