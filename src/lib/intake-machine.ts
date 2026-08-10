@@ -48,7 +48,13 @@ const HANDOFF_WELCOME_AI_ON = `Hej och välkommen till oss! 👋
 
 Har du frågor eller vill du skicka ett ärende till oss är du varmt välkommen.
 
-Skriv vad du behöver hjälp med här i chatten, så hjälper vi dig att skicka ett ärende till rätt mottagare hos oss.`;
+Vill du skicka ett ärende kan du välja länken här:
+
+[Skapa ett ärende här i chatten](#atlas-human)
+
+Du kan också klicka på headsetikonen i menyn ovanför chatten.
+
+Skriv gärna kort vad du behöver hjälp med, så hjälper vi dig att skicka ärendet till rätt mottagare hos oss.`;
 
 const LEGACY_TEXTS: WidgetTexts = {
   headerSubtitle: "Din körkortsguide",

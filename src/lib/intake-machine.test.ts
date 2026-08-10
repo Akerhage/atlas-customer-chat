@@ -64,6 +64,8 @@ describe("resolveWidgetTexts — L-019 fritextlöftet", () => {
     }, "Test Trafik");
 
     expect(texts.welcomeAiOn).toContain("skicka ett ärende");
+    expect(texts.welcomeAiOn).toContain("[Skapa ett ärende här i chatten](#atlas-human)");
+    expect(texts.welcomeAiOn).toContain("headsetikonen i menyn ovanför chatten");
     expect(texts.welcomeAiOn).not.toContain("Du kan fråga mig allt");
     expect(texts.welcomeAiOn).not.toContain("välj bland knapparna");
     expect(texts.headerSubtitle).toBe("Din körkortsguide");
@@ -139,6 +141,8 @@ describe("resolveWidgetTexts", () => {
     }, "Bosses Skruvfabrik");
 
     expect(texts.welcomeAiOn).toContain("skicka ett ärende");
+    expect(texts.welcomeAiOn).toContain("[Skapa ett ärende här i chatten](#atlas-human)");
+    expect(texts.welcomeAiOn).toContain("headsetikonen i menyn ovanför chatten");
     expect(texts.welcomeAiOn).not.toContain("välj bland knapparna");
     expect(texts.welcomeAiOn).not.toContain("smarta AI-assistent");
     expect(texts.headerSubtitle).toBe("Kundservice");
