@@ -50,6 +50,14 @@ describe("AtlasChat intake-order contract", () => {
     expect(source).not.toContain("getWelcomeMessageContent");
   });
 
+  it("builds the office-hours notice from the shared copy helper, not a local constant", () => {
+    expect(source).toContain("import { buildOfficeHoursNoticeText } from \"../../lib/office-hours-notice\";");
+    expect(source).toContain("return buildOfficeHoursNoticeText({");
+    expect(source).toContain("quickQuestionsAvailable: intakeMode === 'legacy' && aiRepliesEnabled && quickQuestions.some((question) => question.trim().length > 0),");
+    expect(source).toContain("aiAssistantAvailable: aiRepliesEnabled && !selfserviceFreeTextBlocked,");
+    expect(source).not.toContain("Snabbfrågorna och AI-assistenten hjälper dig gärna under tiden.");
+  });
+
   it("keeps raw company names separate from Atlas display fallback", () => {
     expect(atlasClientSource).toContain("companyNameRaw: string | null;");
     expect(atlasClientSource).toContain("companyNameRaw: null");

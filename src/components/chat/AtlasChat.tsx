@@ -66,6 +66,7 @@ withEscalationValue,
 type StandardSelfserviceMenuItem,
 type StandardSelfserviceStage,
 } from "@/lib/standard-selfservice-machine";
+import { buildOfficeHoursNoticeText } from "../../lib/office-hours-notice";
 import { formatCityAreaLabel } from "@/lib/place-format";
 import { toast } from "sonner";
 
@@ -582,15 +583,22 @@ return id;
 
 // 🕒 Notis när chatten är obemannad. Informerar bara — inget flöde blockeras.
 const buildOfficeHoursNotice = () => {
-const reopens = chatReopensLabel ? ` — chatten är bemannad igen ${chatReopensLabel}` : '';
 // Patrik IRL 2026-07-31: länken låg mitt i löptexten. index.css:497 ger den
 // pill-formen via `p > a:only-child` (textnoder räknas inte som syskon), så den
 // blev en knapp med text som rann runt sig. Egna stycken före/efter ⇒ egen rad.
-return `👋 Just nu är personalen inte på plats${reopens}. Vill du inte vänta?
-
-[Skicka ett ärende via mailformuläret](#atlas-contact)
-
-Vi tar det så snart vi är tillbaka. Snabbfrågorna och AI-assistenten hjälper dig gärna under tiden.`;
+return buildOfficeHoursNoticeText({
+reopensLabel: chatReopensLabel,
+// AtlasChat.tsx:350-351 + standard-selfservice-machine.ts:46-68:
+// structured Standard-selfservice är en verklig klickbar yta även när Box4
+// är exclusive och bottenknappen inte visas.
+selfserviceMenuAvailable: standardSelfserviceAvailable,
+// AtlasChat.tsx:2103 + ChatInput.tsx:344: snabbfrågor visas bara i legacy
+// AI-läge här, och ett tomt quick_questions-array får aldrig bli ett löfte.
+quickQuestionsAvailable: intakeMode === 'legacy' && aiRepliesEnabled && quickQuestions.some((question) => question.trim().length > 0),
+// AtlasChat.tsx:1893 + ChatInput.tsx:381: AI-assistenten finns bara när
+// AI-svar är på och fritextfältet inte är dolt av selfservice-exklusivitet.
+aiAssistantAvailable: aiRepliesEnabled && !selfserviceFreeTextBlocked,
+});
 };
 
 // Lägger notisen DIREKT efter välkomstbubblan oavsett vad intake-/selfservice-
