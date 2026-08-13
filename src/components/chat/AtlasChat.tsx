@@ -278,6 +278,7 @@ const [messages, setMessages] = useState<ChatMessage[]>([]);
 const [offices, setOffices] = useState<Office[]>([]); // 🔥 Håller kontorslistan
 const [officesLoaded, setOfficesLoaded] = useState(false);
 const [aiRepliesEnabled, setAiRepliesEnabled] = useState(true);
+const [industryRagEnabled, setIndustryRagEnabled] = useState(true);
 const [publicConfigLoaded, setPublicConfigLoaded] = useState(false);
 // 🕒 Chattöppettider (Standard): servern skickar färdig bemanningsstatus.
 // Default = bemannad, så trafik-/legacyboxar aldrig får någon notis.
@@ -424,6 +425,7 @@ getPublicConfig()
 .then((config) => {
 if (cancelled) return;
 setAiRepliesEnabled(config.ai_replies_enabled);
+setIndustryRagEnabled(config.industry_rag_enabled);
 setChatStaffed(config.chat_staffed);
 setChatReopensLabel(config.chat_reopens_label);
 })
@@ -431,6 +433,7 @@ setChatReopensLabel(config.chat_reopens_label);
 if (cancelled) return;
 console.error("Kunde inte ladda publik konfiguration:", err);
 setAiRepliesEnabled(true);
+setIndustryRagEnabled(true);
 setChatStaffed(true);
 setChatReopensLabel(null);
 })
@@ -2129,6 +2132,7 @@ selectedCity={selectedCity}
 offices={offices}
 humanMode={humanMode}
 aiRepliesEnabled={aiRepliesEnabled}
+industryRagEnabled={industryRagEnabled}
 activeVehicles={activeVehicles}
 quickQuestions={quickQuestions}
 />

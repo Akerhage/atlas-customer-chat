@@ -78,6 +78,7 @@ minutesLeft: number;
 
 export interface PublicConfig {
   ai_replies_enabled: boolean;
+  industry_rag_enabled: boolean;
   // Chattöppettider (Standard-utgåvan). Servern räknar ut bemanningsstatusen i
   // svensk tid och skickar bara resultatet — widgeten har ingen egen klocka.
   // Saknas fälten (trafik-editionen eller funktionen avstängd) gäller legacy:
@@ -751,12 +752,15 @@ export async function getPublicConfig(): Promise<PublicConfig> {
     const data = await response.json();
     return {
       ai_replies_enabled: typeof data?.ai_replies_enabled === 'boolean' ? data.ai_replies_enabled : false,
+      // Modulgrinden är opt-out: endast ett serverat boolean false får dölja
+      // RAG-frågorna. Saknat/feltypat fält måste bevara Box1-3/legacy.
+      industry_rag_enabled: data?.industry_rag_enabled !== false,
       chat_staffed: data?.chat_staffed !== false,
       chat_reopens_label: typeof data?.chat_reopens_label === 'string' ? data.chat_reopens_label : null
     };
   } catch (err) {
     console.warn('[Atlas] Kunde inte hamta publik konfiguration:', err);
-    return { ai_replies_enabled: true, chat_staffed: true, chat_reopens_label: null };
+    return { ai_replies_enabled: true, industry_rag_enabled: true, chat_staffed: true, chat_reopens_label: null };
   }
 }
 

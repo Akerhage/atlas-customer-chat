@@ -51,6 +51,7 @@ onCityChange: (city: string | null) => void;
 offices: any[];
 humanMode: boolean;
 aiRepliesEnabled?: boolean;
+industryRagEnabled?: boolean;
 activeVehicles: ActiveVehicle[];
 quickQuestions: string[];
 }
@@ -83,6 +84,7 @@ onCityChange,
 offices,
 humanMode,
 aiRepliesEnabled = true,
+industryRagEnabled = true,
 activeVehicles,
 quickQuestions
 }: ChatInputProps) {
@@ -361,6 +363,7 @@ standardUnitLabel={standardUnitLabel}
 standardUnitChoices={showStandardSelfserviceMenu ? standardUnitChoices : []}
 standardCategoryChoices={showStandardSelfserviceMenu ? standardCategoryChoices : []}
 aiRepliesEnabled={aiRepliesEnabled}
+industryRagEnabled={industryRagEnabled}
 />
 )}
 

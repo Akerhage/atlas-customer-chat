@@ -75,4 +75,53 @@ describe("QuickQuestionsButton category builder", () => {
       }],
     }]);
   });
+
+  it.each([
+    { industryRagEnabled: true, aiRepliesEnabled: true, expectRag: true, expectTenant: true },
+    { industryRagEnabled: false, aiRepliesEnabled: true, expectRag: false, expectTenant: true },
+    { industryRagEnabled: true, aiRepliesEnabled: false, expectRag: false, expectTenant: false },
+    { industryRagEnabled: false, aiRepliesEnabled: false, expectRag: false, expectTenant: false },
+  ])(
+    "keeps deterministic selfservice while industry_rag=$industryRagEnabled and AI=$aiRepliesEnabled expose only valid question paths",
+    ({ industryRagEnabled, aiRepliesEnabled, expectRag, expectTenant }) => {
+      const categories = buildQuickQuestionCategories({
+        selectedCity: "Göteborg - Ullevi",
+        selectedVehicle: "BIL",
+        generalMode: false,
+        selectedOffice: { city: "Göteborg", area: "Ullevi" },
+        availableVehicles: ["BIL"],
+        quickQuestions: ["När stänger receptionen?"],
+        standardSelfserviceMenu: standardItems,
+        aiRepliesEnabled,
+        industryRagEnabled,
+      });
+
+      expect(categories.find(category => category.category === "Priser & tjänster")?.actions).toHaveLength(1);
+      expect(categories.some(category => category.category === "Kom igång med Bil")).toBe(expectRag);
+      expect(categories.some(category => category.category === "Om kontoret i Göteborg - Ullevi")).toBe(expectRag);
+      expect(categories.some(category => category.category === "Populära frågor")).toBe(expectRag);
+      expect(categories.some(category => category.category === "Vanliga frågor")).toBe(expectTenant);
+    }
+  );
+
+  it.each([
+    ["missing", {}],
+    ["undefined", { industryRagEnabled: undefined }],
+    ["wrong typed", { industryRagEnabled: "false" }],
+  ])("fails open for %s Branschkunskap input", (_label, override) => {
+    const categories = buildQuickQuestionCategories({
+      selectedCity: "Göteborg - Ullevi",
+      selectedVehicle: "BIL",
+      generalMode: false,
+      selectedOffice: { city: "Göteborg", area: "Ullevi" },
+      availableVehicles: ["BIL"],
+      quickQuestions: [],
+      standardSelfserviceMenu: standardItems,
+      aiRepliesEnabled: true,
+      ...override,
+    } as Parameters<typeof buildQuickQuestionCategories>[0]);
+
+    expect(categories.find(category => category.category === "Priser & tjänster")?.actions).toHaveLength(1);
+    expect(categories.some(category => category.category === "Kom igång med Bil")).toBe(true);
+  });
 });

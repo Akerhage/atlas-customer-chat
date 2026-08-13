@@ -41,6 +41,7 @@ standardUnitLabel?: string | null;
 standardUnitChoices?: { label: string; value: string }[];
 standardCategoryChoices?: { label: string; value: string }[];
 aiRepliesEnabled?: boolean;
+industryRagEnabled?: boolean;
 }
 
 // Kontorsspecifika frågor. Paket-/utbudsöversikten ligger numera i respektive
@@ -202,6 +203,7 @@ standardUnitLabel?: string | null;
 standardUnitChoices?: { label: string; value: string }[];
 standardCategoryChoices?: { label: string; value: string }[];
 aiRepliesEnabled?: boolean;
+industryRagEnabled?: boolean;
 }
 
 export function buildQuickQuestionCategories({
@@ -216,6 +218,7 @@ standardUnitLabel = null,
 standardUnitChoices = [],
 standardCategoryChoices = [],
 aiRepliesEnabled = true,
+industryRagEnabled = true,
 }: BuildQuickQuestionCategoriesInput): QuestionCategory[] {
 const selfserviceActions = standardSelfserviceMenu.length
 ? standardSelfserviceMenu.map(item => ({
@@ -254,6 +257,16 @@ const prefix = selfserviceCategory ? [selfserviceCategory] : [];
 
 if (!aiRepliesEnabled) {
 return prefix;
+}
+
+// #250: endast explicit false stänger widgetens inbyggda RAG-frågor.
+// Tenantens egna snabbfrågor och den deterministiska självservicen är egna
+// system och ska därför överleva Branschkunskap AV.
+const ragQuestionsEnabled = industryRagEnabled !== false;
+if (!ragQuestionsEnabled) {
+return canShowTenantQuestions && tenantCategory
+? [...prefix, tenantCategory]
+: prefix;
 }
 
 // Om plats eller fordon saknas, visa bara bevisat generella frågor plus den
@@ -300,6 +313,7 @@ standardUnitLabel = null,
 standardUnitChoices = [],
 standardCategoryChoices = [],
 aiRepliesEnabled = true,
+industryRagEnabled = true,
 }: QuickQuestionsButtonProps) {
 const [open, setOpen] = useState(false);
 const singletonOffice = offices.length === 1 ? offices[0] : null;
@@ -372,6 +386,7 @@ standardUnitLabel,
 standardUnitChoices,
 standardCategoryChoices,
 aiRepliesEnabled,
+industryRagEnabled,
 });
 
 return (

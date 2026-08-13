@@ -97,8 +97,27 @@ describe("getPublicConfig AI runtime truth", () => {
 
     await expect(getPublicConfig()).resolves.toMatchObject({
       ai_replies_enabled: true,
+      industry_rag_enabled: true,
       chat_staffed: true,
       chat_reopens_label: null,
+    });
+  });
+
+  it.each([
+    ["explicit false", { industry_rag_enabled: false }, false],
+    ["explicit true", { industry_rag_enabled: true }, true],
+    ["missing field", {}, true],
+    ["undefined field", { industry_rag_enabled: undefined }, true],
+    ["wrong typed field", { industry_rag_enabled: "false" }, true],
+  ])("maps %s to industry_rag_enabled=%s", async (_label, payload, expected) => {
+    const getPublicConfig = await loadGetPublicConfig();
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => payload,
+    }));
+
+    await expect(getPublicConfig()).resolves.toMatchObject({
+      industry_rag_enabled: expected,
     });
   });
 });
