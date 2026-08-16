@@ -1343,7 +1343,7 @@ cancelled = true;
 useEffect(() => {
 if (!publicConfigLoaded || !initialHistoryLoaded || !tenantConfigLoaded || !officesLoaded || humanMode || isArchived) return;
 
-if (standardSelfserviceExclusive) {
+if (selfserviceFreeTextBlocked) {
 if (standardSelfserviceStartedRef.current) return;
 setMessages([createWelcomeMessage(aiRepliesEnabled, widgetTexts)]);
 setContext({ city: null, area: null, vehicle: null });

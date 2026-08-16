@@ -159,6 +159,7 @@ describe("AtlasChat intake-order contract", () => {
     expect(source).toContain("exclusive: standardSelfserviceExclusive,");
     expect(source).toContain("aiRepliesEnabled,");
     expect(source).toContain("intakeActive: Boolean(intakeStep),");
+    expect(source).toContain("if (selfserviceFreeTextBlocked) {");
   });
 
   it("shows the shared quick-question button immediately in parallel selfservice mode", () => {
