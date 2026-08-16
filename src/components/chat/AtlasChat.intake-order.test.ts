@@ -164,7 +164,7 @@ describe("AtlasChat intake-order contract", () => {
 
   it("shows the shared quick-question button immediately in parallel selfservice mode", () => {
     expect(source).toContain(
-      "showQuickQuestions={(intakeMode === 'legacy' && aiRepliesEnabled && !humanMode && messages.length > 1) || (standardSelfserviceAvailable && !standardSelfserviceExclusive && !humanMode && !intakeStep && !isArchived)}",
+      "showQuickQuestions={(intakeMode === 'legacy' && aiRepliesEnabled && !humanMode && messages.length > 1 && !selfserviceFreeTextBlocked) || (standardSelfserviceAvailable && !standardSelfserviceExclusive && !humanMode && !intakeStep && !isArchived)}",
     );
     expect(source).toContain(
       "const standardSelfserviceMenuStage = standardSelfserviceAvailable && !standardSelfserviceExclusive && selfserviceStage === null",

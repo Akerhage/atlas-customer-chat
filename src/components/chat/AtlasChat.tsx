@@ -2118,7 +2118,7 @@ hideFreeText={selfserviceFreeTextBlocked}
 placeholder={selfserviceFreeTextBlocked
 ? "Välj ett alternativ ovan"
 : (!aiRepliesEnabled && !humanMode ? "Skriv ditt svar..." : (humanMode ? "Skriv till support..." : "Skriv ett meddelande..."))}
-showQuickQuestions={(intakeMode === 'legacy' && aiRepliesEnabled && !humanMode && messages.length > 1) || (standardSelfserviceAvailable && !standardSelfserviceExclusive && !humanMode && !intakeStep && !isArchived)}
+showQuickQuestions={(intakeMode === 'legacy' && aiRepliesEnabled && !humanMode && messages.length > 1 && !selfserviceFreeTextBlocked) || (standardSelfserviceAvailable && !standardSelfserviceExclusive && !humanMode && !intakeStep && !isArchived)}
 showStandardSelfserviceMenu={showStandardSelfserviceMenuButton}
 standardSelfserviceMenu={selfserviceMenu}
 // K7/C: 'Centralsupport' är en SENTINEL internt (jämförs mot intakeData.city
