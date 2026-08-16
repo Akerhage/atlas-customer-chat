@@ -154,9 +154,11 @@ describe("AtlasChat intake-order contract", () => {
     expect(source).toContain(
       "{' '}— {selfserviceFreeTextBlocked ? 'välj ett alternativ' : 'skriv något'} för att hålla den öppen.",
     );
-    expect(source).toContain(
-      "const selfserviceFreeTextBlocked = standardSelfserviceExclusive && !humanMode && !intakeStep;",
-    );
+    expect(source).toContain("shouldBlockSelfserviceFreeText({");
+    expect(source).toContain("available: standardSelfserviceAvailable,");
+    expect(source).toContain("exclusive: standardSelfserviceExclusive,");
+    expect(source).toContain("aiRepliesEnabled,");
+    expect(source).toContain("intakeActive: Boolean(intakeStep),");
   });
 
   it("shows the shared quick-question button immediately in parallel selfservice mode", () => {

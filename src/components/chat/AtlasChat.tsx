@@ -58,6 +58,7 @@ STANDARD_UNIT_PROMPT,
 categoryChoiceValue,
 isStandardSelfserviceAvailable,
 isStandardSelfserviceExclusive,
+shouldBlockSelfserviceFreeText,
 shouldShowStandardSelfserviceMenu,
 unitChoiceValue,
 valueAfterPrefix,
@@ -351,6 +352,13 @@ const singletonVehicle = activeVehicles.length === 1 ? activeVehicles[0] : null;
 const categoryFirstEnabled = isCategoryFirstIntake(intakeMode, categoryChoices.length);
 const standardSelfserviceAvailable = isStandardSelfserviceAvailable(tenantProfile, intakeMode);
 const standardSelfserviceExclusive = isStandardSelfserviceExclusive(tenantProfile, intakeMode);
+const selfserviceFreeTextBlocked = shouldBlockSelfserviceFreeText({
+available: standardSelfserviceAvailable,
+exclusive: standardSelfserviceExclusive,
+aiRepliesEnabled,
+humanMode,
+intakeActive: Boolean(intakeStep),
+});
 const atlasEdition = tenantProfile?.edition === 'standard' ? 'standard' : undefined;
 const bootstrapping = !publicConfigLoaded || !tenantConfigLoaded;
 const selfserviceCategoryLabel = categoryChoices.find(choice => choice.value === selectedCategoryId)?.label || null;
@@ -1901,7 +1909,6 @@ setMessages((prev) => [...prev, templateMessage]);
 
 const showWelcomeWidget = aiRepliesEnabled && messages.length === 1 && messages[0].id === 'welcome-msg' && !isTyping;
 const hasCustomerMessage = messages.some((message) => message.role === 'user');
-const selfserviceFreeTextBlocked = standardSelfserviceExclusive && !humanMode && !intakeStep;
 const standardSelfserviceMenuStage = standardSelfserviceAvailable && !standardSelfserviceExclusive && selfserviceStage === null
 ? 'menu'
 : selfserviceStage;

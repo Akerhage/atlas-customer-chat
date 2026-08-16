@@ -74,6 +74,27 @@ export function isStandardSelfserviceEnabled(
   return isStandardSelfserviceExclusive(profile, intakeMode);
 }
 
+// #285: tillgänglig självservice ska vara kundens första väg när ingen
+// fungerande fritextmotor finns. Håll detta skilt från
+// isStandardSelfserviceExclusive(): den funktionen beskriver edition/modul,
+// medan detta även behöver den aktuella AI-, human- och intake-state som bara
+// widgeten känner till.
+export function shouldBlockSelfserviceFreeText({
+  available,
+  exclusive,
+  aiRepliesEnabled,
+  humanMode,
+  intakeActive,
+}: {
+  available: boolean;
+  exclusive: boolean;
+  aiRepliesEnabled: boolean;
+  humanMode: boolean;
+  intakeActive: boolean;
+}): boolean {
+  return available && (exclusive || !aiRepliesEnabled) && !humanMode && !intakeActive;
+}
+
 export function withEscalationChoice(
   items: StandardSelfserviceMenuItem[]
 ): { label: string; value: string; fullWidth?: boolean }[] {

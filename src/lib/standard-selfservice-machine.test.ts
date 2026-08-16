@@ -8,6 +8,7 @@ import {
   isStandardSelfserviceAvailable,
   isStandardSelfserviceEnabled,
   isStandardSelfserviceExclusive,
+  shouldBlockSelfserviceFreeText,
   menuChoiceValue,
   shouldShowStandardSelfserviceMenu,
   unitChoiceValue,
@@ -60,6 +61,41 @@ describe('standard selfservice machine', () => {
     expect(isStandardSelfserviceExclusive(profileless, 'legacy')).toBe(false);
 
     expect(isStandardSelfserviceEnabled(trafficRagOn, 'legacy')).toBe(false);
+  });
+
+  it.each([
+    { available: true, exclusive: false, aiRepliesEnabled: true, expected: false },
+    { available: true, exclusive: false, aiRepliesEnabled: false, expected: true },
+    { available: true, exclusive: true, aiRepliesEnabled: true, expected: true },
+    { available: false, exclusive: false, aiRepliesEnabled: true, expected: false },
+  ])(
+    'blocks free text only for an available selfservice path without a valid answer engine %#',
+    ({ available, exclusive, aiRepliesEnabled, expected }) => {
+      expect(shouldBlockSelfserviceFreeText({
+        available,
+        exclusive,
+        aiRepliesEnabled,
+        humanMode: false,
+        intakeActive: false,
+      })).toBe(expected);
+    }
+  );
+
+  it('keeps free text available during escalation intake and human support', () => {
+    expect(shouldBlockSelfserviceFreeText({
+      available: true,
+      exclusive: false,
+      aiRepliesEnabled: false,
+      humanMode: true,
+      intakeActive: false,
+    })).toBe(false);
+    expect(shouldBlockSelfserviceFreeText({
+      available: true,
+      exclusive: false,
+      aiRepliesEnabled: false,
+      humanMode: false,
+      intakeActive: true,
+    })).toBe(false);
   });
 
   it('uses opaque prefixed values and keeps escalation last', () => {
