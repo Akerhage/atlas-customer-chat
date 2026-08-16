@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 const source = readFileSync(new URL("./AtlasChat.tsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const chatHeaderSource = readFileSync(new URL("./ChatHeader.tsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+const chatBubbleSource = readFileSync(new URL("./ChatBubble.tsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const contactFormSource = readFileSync(new URL("./ContactFormDialog.tsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const atlasClientSource = readFileSync(new URL("../../lib/atlas-client.ts", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const intakeMachineSource = readFileSync(new URL("../../lib/intake-machine.ts", import.meta.url), "utf8").replace(/\r\n/g, "\n");
@@ -63,6 +64,13 @@ describe("AtlasChat intake-order contract", () => {
     expect(atlasClientSource).toContain("companyNameRaw: null");
     expect(atlasClientSource).toContain("const companyNameRaw =");
     expect(atlasClientSource).toContain("companyNameRaw,");
+  });
+
+  it("renders the tenant company name in the header and assistant bubbles with an Atlas fallback", () => {
+    expect(chatHeaderSource).toContain('<h1 className="font-semibold leading-tight text-foreground">{displayName}</h1>');
+    expect(chatBubbleSource).toContain("companyName?: string | null;");
+    expect(chatBubbleSource).toContain("const displayName = isUser ? 'Du' : (senderName || companyName || 'Atlas');");
+    expect(source).toContain("senderName={message.senderName}\ncompanyName={companyName}");
   });
 
   it("plumbs the raw tenant support display name without an Atlas fallback", () => {

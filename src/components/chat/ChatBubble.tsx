@@ -26,15 +26,16 @@ isUser: boolean;
 timestamp?: Date;
 isLatest?: boolean;
 senderName?: string | null;
+companyName?: string | null;
 choices?: { label: string; value: string; icon?: string; fullWidth?: boolean }[];
 onChoiceSelect?: (value: string) => void;
 onRequestHuman?: () => void;
 onOpenContactForm?: () => void;
 }
 
-export function ChatBubble({ content, isUser, timestamp, isLatest, senderName, choices, onChoiceSelect, onRequestHuman, onOpenContactForm }: ChatBubbleProps) {
-// Visa agentens namn om angivet, annars "Atlas" för AI-svar
-const displayName = isUser ? 'Du' : (senderName || 'Atlas');
+export function ChatBubble({ content, isUser, timestamp, isLatest, senderName, companyName, choices, onChoiceSelect, onRequestHuman, onOpenContactForm }: ChatBubbleProps) {
+// Visa agentens namn om angivet, annars tenantnamnet för AI-svar.
+const displayName = isUser ? 'Du' : (senderName || companyName || 'Atlas');
 const hasLargeChoiceSet = (choices?.length ?? 0) > 12;
 
 return (

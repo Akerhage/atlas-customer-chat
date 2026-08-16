@@ -79,7 +79,7 @@ className="max-h-6 w-full object-contain sm:max-h-7"
 </div>
 
 <div className="hidden min-[440px]:block min-w-0">
-<h1 className="font-semibold leading-tight text-foreground">Atlas</h1>
+<h1 className="font-semibold leading-tight text-foreground">{displayName}</h1>
 <p className="hidden min-h-4 min-[360px]:block text-xs text-muted-foreground">{subtitleLoading ? '' : subtitle}</p>
 </div>
 </div>

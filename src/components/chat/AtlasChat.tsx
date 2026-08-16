@@ -2039,6 +2039,7 @@ isUser={message.role === 'user'}
 timestamp={message.timestamp}
 isLatest={index === messages.length - 1}
 senderName={message.senderName}
+companyName={companyName}
 choices={message.choices}
 onChoiceSelect={isArchived ? undefined : handleChoiceSelected}
 onRequestHuman={handleRequestHuman}
