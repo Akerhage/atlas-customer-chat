@@ -78,7 +78,7 @@ describe("QuickQuestionsButton category builder", () => {
 
   it.each([
     { industryRagEnabled: true, aiRepliesEnabled: true, expectRag: true, expectTenant: true },
-    { industryRagEnabled: false, aiRepliesEnabled: true, expectRag: false, expectTenant: true },
+    { industryRagEnabled: false, aiRepliesEnabled: true, expectRag: false, expectTenant: false },
     { industryRagEnabled: true, aiRepliesEnabled: false, expectRag: false, expectTenant: false },
     { industryRagEnabled: false, aiRepliesEnabled: false, expectRag: false, expectTenant: false },
   ])(

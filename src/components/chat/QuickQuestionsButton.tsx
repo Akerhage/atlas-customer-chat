@@ -259,14 +259,12 @@ if (!aiRepliesEnabled) {
 return prefix;
 }
 
-// #250: endast explicit false stänger widgetens inbyggda RAG-frågor.
-// Tenantens egna snabbfrågor och den deterministiska självservicen är egna
-// system och ska därför överleva Branschkunskap AV.
-const ragQuestionsEnabled = industryRagEnabled !== false;
-if (!ragQuestionsEnabled) {
-return canShowTenantQuestions && tenantCategory
-? [...prefix, tenantCategory]
-: prefix;
+// #295: #250 antog felaktigt att tenantens snabbfrågor kunde överleva
+// Branschkunskap AV. Föräldern äger nåbarheten och disablar knappen i exakt
+// detta läge; svarsmotorn kan dessutom inte besvara frågorna utan RAG.
+// Endast explicit false stänger, så saknad/feltypad profil förblir fail-open.
+if (industryRagEnabled === false) {
+return prefix;
 }
 
 // Om plats eller fordon saknas, visa bara bevisat generella frågor plus den
