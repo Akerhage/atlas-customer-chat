@@ -41,7 +41,7 @@ describe("resolveWidgetTexts — L-019 fritextlöftet", () => {
     expect(texts.welcomeAiOn).not.toContain('skriva *"jag vill prata med en människa"*');
     // Trafikidentiteten behålls — detta är inte en omställning till Standard.
     expect(texts.headerSubtitle).toBe("Din körkortsguide");
-    expect(texts.templatesTitle).toBe("Vårt utbud");
+    expect(texts.templatesTitle).toBe("Kundinformation");
     expect(texts.formCategoryLabel).toBe("Fordon");
     expect(texts.welcomeAiOn).toMatch(/^Hej och välkommen till Test Trafik! 👋/);
   });
@@ -79,7 +79,7 @@ describe("resolveWidgetTexts", () => {
     expect(texts.welcomeAiOn).toMatch(/^Hej och välkommen till My Driving Academy! 👋/);
     expect(texts.welcomeAiOff).toMatch(/^Hej och välkommen till My Driving Academy! 👋/);
     expect(texts.headerSubtitle).toBe("Din körkortsguide");
-    expect(texts.templatesTitle).toBe("Vårt utbud");
+    expect(texts.templatesTitle).toBe("Kundinformation");
     expect(texts.templatesSubtitle).toBe("Här kan du läsa mer om våra paket, vår policy, våra kurser, utbildningar och erbjudanden — klicka för att visa i chatten");
     expect(texts.officeQuestion).toBe("Vilket kontor vill du kontakta?");
     expect(texts.seoTitle).toBe("Atlas - Din Körkortsguide");
@@ -169,7 +169,7 @@ describe("resolveWidgetTexts", () => {
   it("forks the templates title and subtitle without changing the legacy defaults", () => {
     const legacy = resolveWidgetTexts(undefined);
     const standard = resolveWidgetTexts(standardProfile);
-    expect(legacy.templatesTitle).toBe("Vårt utbud");
+    expect(legacy.templatesTitle).toBe("Kundinformation");
     expect(legacy.templatesSubtitle).toContain("paket");
     expect(standard.templatesTitle).toBe("Kundinformation");
     expect(standard.templatesSubtitle).toBe("Här kan du läsa mer om våra tjänster, villkor och annat bra att veta — klicka för att visa i chatten");

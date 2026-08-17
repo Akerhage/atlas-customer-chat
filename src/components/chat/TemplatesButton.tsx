@@ -29,7 +29,7 @@ interface TemplateGroup {
 
 export function TemplatesButton({
   onSelect,
-  title = "Vårt utbud",
+  title = "Kundinformation",
   subtitle = "Här kan du läsa mer om våra paket, vår policy, våra kurser, utbildningar och erbjudanden — klicka för att visa i chatten",
 }: TemplatesButtonProps) {
   const [templates, setTemplates] = useState<CustomerTemplate[]>([]);

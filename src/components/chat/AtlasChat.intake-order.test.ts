@@ -30,9 +30,17 @@ describe("AtlasChat intake-order contract", () => {
   // välkomsttext, som inte får glida under Box4-arbete. Vakten är därför
   // FLYTTAD hit, inte struken — och täcker nu hela LEGACY_TEXTS, dvs. även
   // welcomeAiOn som den gamla vakten missade.
+  // #311/L-038 (2026-08-17): baslinjen flyttad från
+  // 5b4a91d7367ff721f5d73bcf1de9da0e0ed9d3ea5fbd1959e39a0208e2bdfa85 eftersom Patrik
+  // beslutat att templatesTitle heter "Kundinformation" i BÅDA verksamhetstyperna.
+  // 🔴 Vaktens OMFATTNING är oförändrad — den hashar fortfarande hela LEGACY_TEXTS,
+  // inte ett smalare block. Endast den godkända baslinjen är ny. Mätt inför bytet:
+  // diffen inne i blocket är EXAKT en rad (templatesTitle); welcomeAiOn, welcomeAiOff,
+  // templatesSubtitle och headerSubtitle är byte-identiska. Sänk aldrig vakten till ett
+  // mindre block för att slippa pinna om den.
   it("keeps the approved G6-8b legacy (trafik) widget texts byte-identical", () => {
     expect(blockHashIn(intakeMachineSource, "const LEGACY_TEXTS", "export function resolveWidgetTexts"))
-      .toBe("5b4a91d7367ff721f5d73bcf1de9da0e0ed9d3ea5fbd1959e39a0208e2bdfa85");
+      .toBe("1030e1e331bf8b03fc4bcef12853b7e2618576b2f14030ece5d3f02c9d84e1f3");
   });
 
   // Vakt över det som FAKTISKT renderas: välkomstbubblan läser widget-texterna,

@@ -58,7 +58,7 @@ Skriv gärna kort vad du behöver hjälp med, så hjälper vi dig att skicka är
 
 const LEGACY_TEXTS: WidgetTexts = {
   headerSubtitle: "Din körkortsguide",
-  templatesTitle: "Vårt utbud",
+  templatesTitle: "Kundinformation",
   templatesSubtitle: "Här kan du läsa mer om våra paket, vår policy, våra kurser, utbildningar och erbjudanden — klicka för att visa i chatten",
   welcomeAiOn: `Hej och välkommen till oss! 👋
 
