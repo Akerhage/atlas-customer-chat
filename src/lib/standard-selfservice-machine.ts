@@ -128,6 +128,20 @@ export function shouldShowStandardSelfserviceMenu({
   return stage === 'menu' && !humanMode && !intakeActive && !isArchived;
 }
 
+// #324 (Patriks IRL-fynd 2026-08-18): skiljer ett STEG från ett SLUTVAL.
+//
+// Enhets- och kategorivalet väljer bara vad frågorna ska handla om — de skickar
+// ingenting till chatten. Först en menyrad eller en eskalering producerar ett svar.
+// Snabbfrågepanelen stängde sig efter varje val, även efter ett steg, och lämnade då
+// kunden utan återkoppling och utan synligt nästa steg (mätt: inget chattmeddelande,
+// ingen kategoriknapp, panelen tom och stängd).
+//
+// 🔴 Predikatet bor HÄR och inte i komponenten, därför att prefixen bor här. Läggs det
+// i komponenten kan de två glida isär utan att något test märker det.
+export function isStandardStageChoice(value: string): boolean {
+  return value.startsWith(STANDARD_UNIT_PREFIX) || value.startsWith(STANDARD_CATEGORY_PREFIX);
+}
+
 export function unitChoiceValue(unitId: string): string {
   return `${STANDARD_UNIT_PREFIX}${unitId}`;
 }

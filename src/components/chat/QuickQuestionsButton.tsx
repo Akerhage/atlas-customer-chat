@@ -17,7 +17,7 @@ PopoverTrigger,
 import { cn } from "@/lib/utils";
 import type { ActiveVehicle } from "@/lib/atlas-client";
 import { COMMON_QUESTIONS, type QuestionCategory } from "@/lib/quick-questions-data";
-import { STANDARD_UNIT_PREFIX, menuChoiceValue, type StandardSelfserviceMenuItem } from "@/lib/standard-selfservice-machine";
+import { STANDARD_UNIT_PREFIX, isStandardStageChoice, menuChoiceValue, type StandardSelfserviceMenuItem } from "@/lib/standard-selfservice-machine";
 import { CANONICAL_VEHICLE_ORDER, VEHICLE_LABELS, officeOffersVehicle } from "@/lib/vehicle-utils";
 
 type VehicleType = ActiveVehicle | null;
@@ -363,13 +363,25 @@ city: effectiveSelectedCity || "",
 setOpen(false);
 };
 
+// #324 (Patriks IRL-fynd 2026-08-18): panelen stängde sig efter VARJE val, även när
+// valet bara tog kunden ett steg vidare i stegen enhet → kategori → frågor. Mätt läge
+// efter ett enhetsval: inget meddelande i chatten, ingen kategoriknapp någonstans,
+// panelen tom och stängd — kunden fick ingen återkoppling alls och inget synligt nästa
+// steg. Enda vägen vidare var att öppna panelen igen, vilket ingenting antydde.
+//
+// 🔴 Ett steg är INTE ett svar. Enhets- och kategorivalet väljer bara vad frågorna ska
+// handla om; först en menyrad (eller en vanlig snabbfråga) skickar något till chatten.
+// Panelen hålls därför öppen genom stegen och stängs på slutvalet.
+//
+// Innehållet behöver ingen egen omritning: questionCategories räknas om ur props vid
+// varje rendering, och AtlasChat uppdaterar dem när steget byts.
 const handleStandardActionClick = (value: string) => {
 if (value.startsWith(STANDARD_UNIT_PREFIX) && onStandardUnitChoice) {
 onStandardUnitChoice(value);
 } else {
 onStandardChoice?.(value);
 }
-setOpen(false);
+if (!isStandardStageChoice(value)) setOpen(false);
 };
 
 const questionCategories = buildQuickQuestionCategories({

@@ -6,6 +6,7 @@ import {
   STANDARD_MENU_PREFIX,
   categoryChoiceValue,
   isStandardSelfserviceAvailable,
+  isStandardStageChoice,
   isStandardSelfserviceEnabled,
   isStandardSelfserviceExclusive,
   shouldBlockSelfserviceFreeText,
@@ -157,5 +158,24 @@ describe('standard selfservice machine', () => {
     expect(shouldShowStandardSelfserviceMenu({
       stage: 'menu', humanMode: false, intakeActive: false, isArchived: true,
     })).toBe(false);
+  });
+
+  // #324 (Patriks IRL-fynd 2026-08-18): panelen stangde sig efter VARJE val, aven nar
+  // valet bara var ett STEG. Kunden fick da ingen aterkoppling och inget synligt nasta
+  // steg. Predikatet ar det som haller panelen oppen genom stegen.
+  it('behandlar enhet och kategori som STEG, men menyrad och eskalering som slutval', () => {
+    // Steg: valet bestammer bara vad fragorna ska handla om, inget skickas till chatten.
+    expect(isStandardStageChoice(unitChoiceValue('goteborg_basprodukt'))).toBe(true);
+    expect(isStandardStageChoice(categoryChoiceValue('BIL'))).toBe(true);
+
+    // Slutval: dessa producerar ett svar och ska stanga panelen.
+    expect(isStandardStageChoice(menuChoiceValue('standard:fact:x:BIL:1'))).toBe(false);
+    expect(isStandardStageChoice(STANDARD_ESCALATE_VALUE)).toBe(false);
+
+    // Okanda varden far aldrig rakna som steg - da hade panelen hangt kvar oppen
+    // efter ett svar, vilket ar samma fel fast at andra hallet.
+    expect(isStandardStageChoice('')).toBe(false);
+    expect(isStandardStageChoice('nagot-helt-annat')).toBe(false);
+    expect(isStandardStageChoice('standard:')).toBe(false);
   });
 });
