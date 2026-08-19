@@ -5,7 +5,8 @@ import { ChatInput } from "./ChatInput";
 import { TypingIndicator } from "./TypingIndicator";
 import { WelcomeMessage } from "./WelcomeMessage";
 import { EndSessionDialog } from "./EndSessionDialog";
-import { ContextIndicator } from "./ContextIndicator";
+// ContextIndicator renderas inte längre — ChatContextBar bär kontexten och kan
+// dessutom ÄNDRA den, vilket chipsen bara kunde för kontor. Filen är kvar orörd.
 import { HumanModeIndicator } from "./HumanModeIndicator";
 import {
 sendMessage,
@@ -33,7 +34,14 @@ createSessionStatusMachine,
 type ArchivedSessionStatus,
 type PersistentSessionStatus,
 } from "@/lib/session-status-machine";
-import type { TenantProfile } from "@/lib/tenant-capabilities";
+import {
+resolveChatCategoryWord,
+resolveChatUnitWord,
+type TenantProfile,
+} from "@/lib/tenant-capabilities";
+import { officeOffersVehicle } from "@/lib/vehicle-utils";
+import { ChatContextBar } from "./ChatContextBar";
+import { QuickQuestionsButton } from "./QuickQuestionsButton";
 import {
 buildCategoryChoices,
 buildIntakeOrder,
@@ -668,17 +676,28 @@ return { label: name, value: name };
 }),
 ];
 
-// K7/C: de riktiga enheterna först, utvägen SIST och i helbredd. fullWidth är
-// bundlens egen markör för ett chip som inte är ett likvärdigt alternativ i
-// raden (samma grepp som "Jag behöver mer hjälp – skapa ärende",
-// standard-selfservice-machine.ts:withEscalationValue) — ingen ny komponent.
-const getStandardUnitChoices = (): { label: string; value: string; fullWidth?: boolean }[] => [
-...offices.map((office) => ({
+// Utvägen för den som inte vet vilken enhet frågan hör till låg fram till
+// 2026-08-19 SIST i denna lista, som ett helbrett chip (K7/C, Patrik 2026-07-25).
+//
+// 🔴 Den är borttagen HÄRIFRÅN på Patriks beslut 2026-08-19 — funktionen är kvar,
+// platsen var fel. Hans ord: "den vet inte/allmän fråga är väldigt förvirrande för
+// mig". Mätt orsak: den låg i en lista över AVDELNINGAR och lästes därför som ännu
+// en avdelning, fast den är motsatsen — "ingen avdelning". Dessutom erbjöd den ett
+// kategoristeg som aldrig kunde ge något: loadAndShowStandardMenu returnerar tom
+// meny för sentinelen och kontaktar aldrig servern (#325 F1).
+//
+// Utvägen är i stället "Jag behöver mer hjälp – skapa ärende", som nu finns på
+// ALLA steg (withEscalationValue nedan). Den ger city='Centralsupport' ⇒ office
+// NULL ⇒ ärendet hamnar i Inkorgen precis som förut — verifierat mot
+// routes/team.js:388-390, som dessutom är märkt LOCK [2/3]: rör inte office-filtret.
+//
+// 🔴 STANDARD_CENTRAL_SUPPORT-vägen i handleStandardChoice står kvar med flit:
+// gamla sessioner kan ha valet i sin historik och måste fortsätta fungera.
+const getStandardUnitChoices = (): { label: string; value: string; fullWidth?: boolean }[] =>
+offices.map((office) => ({
 label: getOfficeDisplayName(office),
 value: unitChoiceValue(office.routing_tag),
-})),
-{ label: STANDARD_CENTRAL_SUPPORT_LABEL, value: unitChoiceValue(STANDARD_CENTRAL_SUPPORT), fullWidth: true },
-];
+}));
 
 const getCategoryChoicesForOffice = (office: Office | null | undefined) =>
 filterCategoryChoicesForOffice(categoryChoices, office?.categories_offered);
@@ -764,14 +783,20 @@ setSelfserviceUnitId(null);
 setSelfserviceUnitLabel(null);
 setSelfserviceMenu([]);
 setSelfserviceStage('unit');
-injectBotMessage(STANDARD_UNIT_PROMPT, getStandardUnitChoices());
+// Enhetssteget saknade tidigare eskalering helt — utvägen var chipet i listan.
+// Med chipet borttaget måste steget bära den riktiga utvägen, annars blir första
+// steget en återvändsgränd för den som inte vet vilken avdelning som gäller.
+injectBotMessage(STANDARD_UNIT_PROMPT, withEscalationValue(getStandardUnitChoices()));
 };
 
 const startStandardEscalation = () => {
+// 🔴 Fram till 2026-08-19 föll denna ur tyst (`if (!city) return`) när ingen enhet
+// var vald — vilket är exakt läget på enhetssteget, där knappen nu finns. Utan
+// vald enhet är 'Centralsupport' rätt värde: det ger office = NULL, och då hamnar
+// ärendet i Inkorgen (routes/team.js:388-390, LOCK [2/3]).
 const city = selfserviceUnitId === STANDARD_CENTRAL_SUPPORT
 ? 'Centralsupport'
-: selfserviceUnitLabel;
-if (!city) return;
+: (selfserviceUnitLabel || 'Centralsupport');
 setSelfserviceStage(null);
 setIntakeData({ city, vehicle: null });
 setIntakeStep('name');
@@ -796,21 +821,43 @@ const office = unitId === STANDARD_CENTRAL_SUPPORT
 : offices.find(candidate => candidate.routing_tag === unitId);
 if (unitId !== STANDARD_CENTRAL_SUPPORT && !office) return null;
 const label = office ? getOfficeDisplayName(office) : 'Centralsupport';
+
+// 🔴🔴 Enhetsbytet nollställde tidigare kategori OCH fordon ovillkorligt.
+// Livemätt på sandbox 2026-08-19, kundens egen väg: ett klick på enheten tog
+// panelen från 9 rubriker / 33 rader till 4 / 13 — fem rubriker försvann, bland
+// dem företagets 12 egna snabbfrågor, och fordonspillret hoppade tillbaka från
+// "Bil (B)" till "Fordon". Kunden fick alltså sin meny tömd av ett val som inte
+// handlade om menyn. Det var mekanismen bakom Patriks "vad är det egentligen
+// jag väljer?".
+//
+// Rätt regel är den som ContextIndicator redan använde: behåll valet när den nya
+// enheten erbjuder det, rensa bara när den inte gör det.
+const offeredCategories = getCategoryChoicesForOffice(office);
+const keptCategoryId = selectedCategoryId
+&& offeredCategories.some(choice => choice.value === selectedCategoryId)
+? selectedCategoryId
+: null;
+const keptVehicle = selectedVehicle && (!office || officeOffersVehicle(office, selectedVehicle))
+? selectedVehicle
+: null;
+
 setSelfserviceUnitId(unitId);
 setSelfserviceUnitLabel(label);
 setSelectedCity(label);
 window.selectedCity = label;
+setSelectedCategoryId(keptCategoryId);
+setSelectedVehicle(keptVehicle);
+window.selectedVehicle = keptVehicle;
 setContext(prev => ({
 ...prev,
 city: office?.city || null,
 area: office?.area || null,
 unit_id: office?.routing_tag || null,
-vehicle: null,
-vehicle_choice: 'OVRIGT',
-clear_vehicle: true,
-category_id: null,
+vehicle: keptVehicle,
+...(keptVehicle ? {} : { vehicle_choice: 'OVRIGT', clear_vehicle: true }),
+category_id: keptCategoryId,
 }));
-return { label };
+return { label, keptCategoryId };
 };
 
 if (requestedUnitId && selfserviceStage === 'category' && !selectedCategoryId && !intakeStep) {
@@ -835,12 +882,14 @@ if (!selection) return true;
 setIntakeStep(null);
 setIntakeData({});
 setGeneralMode(false);
-setSelectedCategoryId(null);
-setSelectedVehicle(null);
-window.selectedVehicle = null;
 setSelfserviceMenu([]);
 if (fromQuickMenuUnitChoice) {
 setSelfserviceStage('menu');
+// Behölls kategorin ska menyn fyllas direkt — annars hade kunden bytt avdelning
+// och fått en tom lista trots att kategorin fortfarande gäller på den nya enheten.
+if (selection.keptCategoryId) {
+await loadAndShowStandardMenu(requestedUnitId, selection.keptCategoryId);
+}
 return true;
 }
 setSelfserviceStage('category');
@@ -1918,6 +1967,73 @@ humanMode,
 intakeActive: Boolean(intakeStep),
 isArchived,
 });
+
+// ── Kontrollraden (ChatContextBar) — EN modell på alla boxar, Patriks beslut 2026-08-19 ──
+//
+// Raden visas genom HELA samtalet, inte bara i välkomstläget, och även när det bara
+// finns ett alternativ. Den ersätter välkomstpillren, snabbfrågepanelens eget huvud
+// och Box4-panelens Byt avdelning/Byt kategori.
+//
+// 🔴 Vilken väg ett val tar beror på om boxen har den deterministiska självservicen.
+// Mätt 2026-08-19 mot /api/tenant-name på alla fem boxar: Box1 och Box2 saknar
+// tenant_profile helt ⇒ structured_answers är inte true ⇒ de har BARA AI-vägen.
+// Raden ser likadan ut där, men enheten sätter kontext åt AI:n i stället.
+const LEGACY_UNIT_PREFIX = 'legacy:unit:';
+const LEGACY_CATEGORY_PREFIX = 'legacy:category:';
+const LEGACY_CATEGORY_GENERAL = `${LEGACY_CATEGORY_PREFIX}__general__`;
+
+const showContextBar = !isArchived && !humanMode && !intakeStep;
+const contextBarUnitWord = resolveChatUnitWord(tenantProfile);
+const contextBarCategoryWord = resolveChatCategoryWord(tenantProfile);
+
+const contextBarUnitChoices = standardSelfserviceAvailable
+? getStandardUnitChoices()
+: offices.map((office) => {
+const label = getOfficeDisplayName(office);
+return { label, value: `${LEGACY_UNIT_PREFIX}${label}` };
+});
+
+const contextBarUnitLabel = standardSelfserviceAvailable
+? (selfserviceUnitId === STANDARD_CENTRAL_SUPPORT ? STANDARD_CENTRAL_SUPPORT_LABEL : selfserviceUnitLabel)
+: selectedCity;
+
+const contextBarCategoryChoices = standardSelfserviceAvailable
+? getStandardCategoryChoices(selfserviceUnitId)
+: [
+...categoryChoices.map(choice => ({
+label: choice.label,
+value: `${LEGACY_CATEGORY_PREFIX}${choice.value}`,
+})),
+// Motsvarar den gamla "Övrigt / Allmän fråga" i fordonsrullgardinen. Utan den
+// finns ingen väg tillbaka till ett allmänt läge när raden ersatt chipsens ✕.
+{ label: 'Övrigt / Allmän fråga', value: LEGACY_CATEGORY_GENERAL },
+];
+
+const contextBarCategoryLabel = standardSelfserviceAvailable
+? selfserviceCategoryLabel
+: (generalMode
+? 'Övrigt'
+: (categoryChoices.find(choice => choice.value === selectedVehicle)?.label || null));
+
+const handleContextBarUnitChoice = (value: string) => {
+if (standardSelfserviceAvailable) {
+void handleStandardChoice(value, true);
+return;
+}
+handleCityChange(value.slice(LEGACY_UNIT_PREFIX.length) || null);
+};
+
+const handleContextBarCategoryChoice = (value: string) => {
+if (standardSelfserviceAvailable) {
+void handleStandardChoice(value);
+return;
+}
+if (value === LEGACY_CATEGORY_GENERAL) {
+handleGeneralVehicleSelect();
+return;
+}
+handleVehicleChange(getSafeActiveVehicle(value.slice(LEGACY_CATEGORY_PREFIX.length)));
+};
 const handleInputSend = (message: string, contextData?: QuickContextPayload) => {
 if (standardSelfserviceExclusive && !humanMode && !intakeStep) {
 return;
@@ -2056,41 +2172,34 @@ onOpenContactForm={() => setContactFormOpen(true)}
 </div>
 </div>
 
-{/* Context indicator - interactive */}
-{intakeMode === 'legacy' && aiRepliesEnabled && !humanMode && (
-<ContextIndicator 
-context={context}
-offices={offices} // 🚀 NY: Dynamisk lista tillagd
-onUpdateContext={(updates) => {
-// 1. Uppdatera Huvud-Context (Backend)
-const safeUpdates = updates.vehicle !== undefined
-? { ...updates, vehicle: getSafeActiveVehicle(updates.vehicle as string | null) }
-: updates;
-setContext(prev => ({ ...prev, ...safeUpdates }));
-
-// 2. Uppdatera UI-State (Knapparna/ChatInput) - DETTA SAKNADES (BEVARAT)
-if (updates.vehicle !== undefined) {
-const v = getSafeActiveVehicle(updates.vehicle as string | null);
-if (v) setGeneralMode(false);
-setSelectedVehicle(v); 
-window.selectedVehicle = v;
-}
-
-if (updates.vehicle_choice !== undefined) {
-setGeneralMode(updates.vehicle_choice === 'OVRIGT');
-if (updates.vehicle_choice === 'OVRIGT') {
-setSelectedVehicle(null);
-window.selectedVehicle = null;
-}
-}
-
-if (updates.city !== undefined) {
-const c = formatCityAreaLabel(updates.city as string | null, updates.area as string | null);
-setSelectedCity(c); 
-window.selectedCity = c;
-}
-}}
+{/* Kontrollraden — ersätter kontext-chipsen (ContextIndicator), välkomstpillren
+    och snabbfrågepanelens eget huvud. EN modell på alla boxar. */}
+{showContextBar && (
+<ChatContextBar
+unitWord={contextBarUnitWord}
+categoryWord={contextBarCategoryWord}
+unitLabel={contextBarUnitLabel}
+unitChoices={contextBarUnitChoices}
+onUnitChoice={handleContextBarUnitChoice}
+categoryLabel={contextBarCategoryLabel}
+categoryChoices={contextBarCategoryChoices}
+onCategoryChoice={handleContextBarCategoryChoice}
+questionsControl={(
+<QuickQuestionsButton
+onSendMessage={handleQuickAction}
+onStandardChoice={(value) => { void handleStandardChoice(value); }}
+selectedVehicle={selectedVehicle}
+selectedCity={selectedCity}
+generalMode={generalMode}
+disabled={isTyping}
+offices={offices}
 activeVehicles={activeVehicles}
+quickQuestions={quickQuestions}
+standardSelfserviceMenu={showStandardSelfserviceMenuButton ? selfserviceMenu : []}
+aiRepliesEnabled={aiRepliesEnabled}
+industryRagEnabled={industryRagEnabled}
+/>
+)}
 />
 )}
 
@@ -2119,30 +2228,8 @@ hideFreeText={selfserviceFreeTextBlocked}
 placeholder={selfserviceFreeTextBlocked
 ? "Välj ett alternativ ovan"
 : (!aiRepliesEnabled && !humanMode ? "Skriv ditt svar..." : (humanMode ? "Skriv till support..." : "Skriv ett meddelande..."))}
-showQuickQuestions={(intakeMode === 'legacy' && aiRepliesEnabled && !humanMode && messages.length > 1 && !selfserviceFreeTextBlocked) || (standardSelfserviceAvailable && !standardSelfserviceExclusive && !humanMode && !intakeStep && !isArchived)}
-showStandardSelfserviceMenu={showStandardSelfserviceMenuButton}
-standardSelfserviceMenu={selfserviceMenu}
-// K7/C: 'Centralsupport' är en SENTINEL internt (jämförs mot intakeData.city
-// och selectedCity på flera ställen, t.ex. rad 979 och 575) — den byts inte.
-// Kunden ska däremot aldrig läsa ordet, så vi mappar först vid renderingen.
-standardUnitLabel={selfserviceUnitId === STANDARD_CENTRAL_SUPPORT ? STANDARD_CENTRAL_SUPPORT_LABEL : selfserviceUnitLabel}
-standardCategoryLabel={selfserviceCategoryLabel}
-standardUnitChoices={getStandardUnitChoices()}
-standardCategoryChoices={getStandardCategoryChoices(selfserviceUnitId)}
-onStandardMenuChoice={(value) => { void handleStandardChoice(value); }}
-onStandardMenuUnitChoice={(value) => { void handleStandardChoice(value, true); }}
-selectedVehicle={selectedVehicle}
-onVehicleChange={handleVehicleChange}
-onGeneralVehicleSelect={handleGeneralVehicleSelect}
-generalMode={generalMode}
-onCityChange={handleCityChange}
-selectedCity={selectedCity}
-offices={offices}
 humanMode={humanMode}
 aiRepliesEnabled={aiRepliesEnabled}
-industryRagEnabled={industryRagEnabled}
-activeVehicles={activeVehicles}
-quickQuestions={quickQuestions}
 />
 )}
 

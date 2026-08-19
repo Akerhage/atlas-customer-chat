@@ -17,7 +17,7 @@ PopoverTrigger,
 import { cn } from "@/lib/utils";
 import type { ActiveVehicle } from "@/lib/atlas-client";
 import { COMMON_QUESTIONS, type QuestionCategory } from "@/lib/quick-questions-data";
-import { STANDARD_UNIT_PREFIX, isStandardStageChoice, menuChoiceValue, type StandardSelfserviceMenuItem } from "@/lib/standard-selfservice-machine";
+import { menuChoiceValue, type StandardSelfserviceMenuItem } from "@/lib/standard-selfservice-machine";
 import { CANONICAL_VEHICLE_ORDER, VEHICLE_LABELS, officeOffersVehicle } from "@/lib/vehicle-utils";
 
 type VehicleType = ActiveVehicle | null;
@@ -25,23 +25,18 @@ type VehicleType = ActiveVehicle | null;
 interface QuickQuestionsButtonProps {
 onSendMessage: (message: string, context?: { vehicle: string | null; city: string; vehicle_choice?: string | null; clear_vehicle?: boolean }) => void;
 onStandardChoice?: (value: string) => void;
-onStandardUnitChoice?: (value: string) => void;
 selectedVehicle: VehicleType;
 selectedCity: string | null;
-onVehicleChange: (vehicle: VehicleType) => void;
-onGeneralVehicleSelect: () => void;
 generalMode: boolean;
-onCityChange: (city: string | null) => void;
 disabled?: boolean;
 offices: any[]; // 🔥 TILLAGD
 activeVehicles: ActiveVehicle[];
 quickQuestions: string[];
 standardSelfserviceMenu?: StandardSelfserviceMenuItem[];
-standardUnitLabel?: string | null;
-standardUnitChoices?: { label: string; value: string }[];
-standardCategoryChoices?: { label: string; value: string }[];
 aiRepliesEnabled?: boolean;
 industryRagEnabled?: boolean;
+/** Ordet för frågekontrollen i kontrollraden. */
+triggerLabel?: string;
 }
 
 // Kontorsspecifika frågor. Paket-/utbudsöversikten ligger numera i respektive
@@ -199,9 +194,6 @@ selectedOffice: any | null;
 availableVehicles: ActiveVehicle[];
 quickQuestions: string[];
 standardSelfserviceMenu?: StandardSelfserviceMenuItem[];
-standardUnitLabel?: string | null;
-standardUnitChoices?: { label: string; value: string }[];
-standardCategoryChoices?: { label: string; value: string }[];
 aiRepliesEnabled?: boolean;
 industryRagEnabled?: boolean;
 }
@@ -214,20 +206,23 @@ selectedOffice,
 availableVehicles,
 quickQuestions,
 standardSelfserviceMenu = [],
-standardUnitLabel = null,
-standardUnitChoices = [],
-standardCategoryChoices = [],
 aiRepliesEnabled = true,
 industryRagEnabled = true,
 }: BuildQuickQuestionCategoriesInput): QuestionCategory[] {
-const selfserviceActions = standardSelfserviceMenu.length
-? standardSelfserviceMenu.map(item => ({
+// #324/Patriks beslut 2026-08-19: listan är en LISTA, inte en väljare i förklädnad.
+//
+// Tidigare föll sektionen tillbaka på enhets- respektive kategorivalen när menyn var
+// tom, så samma sektion var ibland "här är tjänsterna" och ibland "välj avdelning".
+// Det var den ena halvan av de två väljare som inte kände till varandra — mätt på
+// sandbox 2026-08-19: ett klick på enhetsraden här nollställde fordonet och raderade
+// 5 rubriker / 21 frågor ur listan kunden tittade på, inklusive företagets egna.
+//
+// 🔴 Enhet och kategori väljs numera ENBART i kontrollraden (ChatContextBar).
+// Lägg inte tillbaka dem här.
+const selfserviceActions = standardSelfserviceMenu.map(item => ({
 label: item.label,
 value: menuChoiceValue(item.id),
-}))
-: standardUnitLabel
-? standardCategoryChoices
-: standardUnitChoices;
+}));
 const selfserviceCategory: QuestionCategory | null = selfserviceActions.length
 ? {
 category: "Priser & tjänster",
@@ -295,23 +290,17 @@ return String(office?.display_name || (city ? (area ? `${city} - ${area}` : city
 export function QuickQuestionsButton({
 onSendMessage,
 onStandardChoice,
-onStandardUnitChoice,
 selectedVehicle,
 selectedCity,
-onVehicleChange,
-onGeneralVehicleSelect,
 generalMode,
-onCityChange,
 disabled = false,
 offices, // 🔥 TILLAGD
 activeVehicles,
 quickQuestions,
 standardSelfserviceMenu = [],
-standardUnitLabel = null,
-standardUnitChoices = [],
-standardCategoryChoices = [],
 aiRepliesEnabled = true,
 industryRagEnabled = true,
+triggerLabel = "Frågor & tjänster",
 }: QuickQuestionsButtonProps) {
 const [open, setOpen] = useState(false);
 const singletonOffice = offices.length === 1 ? offices[0] : null;
@@ -363,25 +352,13 @@ city: effectiveSelectedCity || "",
 setOpen(false);
 };
 
-// #324 (Patriks IRL-fynd 2026-08-18): panelen stängde sig efter VARJE val, även när
-// valet bara tog kunden ett steg vidare i stegen enhet → kategori → frågor. Mätt läge
-// efter ett enhetsval: inget meddelande i chatten, ingen kategoriknapp någonstans,
-// panelen tom och stängd — kunden fick ingen återkoppling alls och inget synligt nästa
-// steg. Enda vägen vidare var att öppna panelen igen, vilket ingenting antydde.
-//
-// 🔴 Ett steg är INTE ett svar. Enhets- och kategorivalet väljer bara vad frågorna ska
-// handla om; först en menyrad (eller en vanlig snabbfråga) skickar något till chatten.
-// Panelen hålls därför öppen genom stegen och stängs på slutvalet.
-//
-// Innehållet behöver ingen egen omritning: questionCategories räknas om ur props vid
-// varje rendering, och AtlasChat uppdaterar dem när steget byts.
+// #324 steg 1 (2026-08-18) höll panelen öppen genom stegen enhet → kategori → frågor,
+// eftersom ett steg inte är ett svar. Patriks beslut 2026-08-19 gick ett steg längre:
+// stegen ligger inte längre i listan alls utan i kontrollraden ovanför skrivfältet.
+// Här återstår bara SLUTVAL — en menyrad eller en eskalering — och de stänger panelen.
 const handleStandardActionClick = (value: string) => {
-if (value.startsWith(STANDARD_UNIT_PREFIX) && onStandardUnitChoice) {
-onStandardUnitChoice(value);
-} else {
 onStandardChoice?.(value);
-}
-if (!isStandardStageChoice(value)) setOpen(false);
+setOpen(false);
 };
 
 const questionCategories = buildQuickQuestionCategories({
@@ -392,85 +369,36 @@ selectedOffice,
 availableVehicles,
 quickQuestions,
 standardSelfserviceMenu,
-standardUnitLabel,
-standardUnitChoices,
-standardCategoryChoices,
 aiRepliesEnabled,
 industryRagEnabled,
 });
+
+// 🔴 Enhets- och fordonsväljarna som låg här är BORTTAGNA (Patriks beslut 2026-08-19).
+// De bor i ChatContextBar tillsammans med denna knapp, så att kunden ser alla tre
+// valen samtidigt och kan ändra sig när som helst. Att ha dem både här och i raden
+// vore just den "meny-i-menyn" som var hela invändningen.
+const hasContent = questionCategories.length > 0;
 
 return (
 <Popover open={open} onOpenChange={handleOpenChange}>
 <PopoverTrigger asChild>
 <button
-disabled={disabled}
+type="button"
+disabled={disabled || !hasContent}
+data-testid="chat-context-questions"
+title={triggerLabel}
 className={cn(
-"flex-shrink-0 w-9 h-9 rounded-xl",
-"flex items-center justify-center",
-"transition-all duration-200",
-"bg-secondary/70 text-muted-foreground hover:bg-secondary hover:text-foreground",
-disabled && "opacity-50 cursor-not-allowed"
+"group flex min-w-0 max-w-[min(11rem,44vw)] items-center gap-1 rounded-full border px-2 py-1 text-xs transition-colors",
+"bg-secondary text-muted-foreground border-transparent hover:bg-secondary/80",
+(disabled || !hasContent) && "opacity-50 cursor-not-allowed hover:bg-secondary"
 )}
-title="Snabbfrågor"
 >
-<ListTodo className="w-4 h-4" />
+<ListTodo className="w-3 h-3 shrink-0" />
+<span className="min-w-0 truncate">{triggerLabel}</span>
+<ChevronDown className="w-3 h-3 shrink-0 opacity-50 group-hover:opacity-100" />
 </button>
 </PopoverTrigger>
 <PopoverContent className="w-80 p-0 bg-popover text-popover-foreground border border-border shadow-xl mb-2" align="start" side="top" sideOffset={8}>
-
-{/* TOPP: VAL AV STAD & FORDON */}
-<div className="p-3 border-b border-border">
-<p className="text-sm font-medium mb-2">Snabbfrågor</p>
-{(!singletonOffice || !singletonVehicle || singletonVehicle || generalMode) && (
-<div className="flex gap-2">
-{!singletonOffice && (
-<DropdownMenu>
-<DropdownMenuTrigger asChild>
-<button className={cn("flex items-center gap-1 px-2 py-1 text-xs rounded-full transition-colors border", effectiveSelectedCity ? "bg-primary/10 text-primary border-primary/30" : "bg-secondary hover:bg-secondary/80")}>
-<MapPin className="w-3 h-3" />
-<span className="max-w-[80px] truncate">{effectiveSelectedCity || "Välj stad"}</span>
-<ChevronDown className="w-3 h-3" />
-</button>
-</DropdownMenuTrigger>
-<DropdownMenuContent className="max-h-60 overflow-y-auto">
-{/* 🚀 Dynamisk loop: Renderar kontoren direkt från databasen */}
-{availableOffices.map((office) => (
-<DropdownMenuItem 
-key={office.id} 
-onClick={() => onCityChange(getOfficeDisplayName(office))}
-className={cn(selectedCity === getOfficeDisplayName(office) && "bg-primary/10")}
->
-{getOfficeDisplayName(office)}
-</DropdownMenuItem>
-))}
-</DropdownMenuContent>
-</DropdownMenu>
-)}
-
-{(
-<DropdownMenu>
-<DropdownMenuTrigger asChild>
-<button className={cn("flex items-center gap-1 px-2 py-1 text-xs rounded-full transition-colors border", effectiveSelectedVehicle || generalMode ? "bg-primary/10 text-primary border-primary/30" : "bg-secondary hover:bg-secondary/80")}>
-{generalMode ? <><HelpCircle className="w-3 h-3" /><span>Övrigt</span></> : effectiveSelectedVehicle ? <><Car className="w-3 h-3" /><span className="max-w-[6.5rem] truncate">{VEHICLE_LABELS[effectiveSelectedVehicle]}</span></> : <><span>Fordon</span></>}
-<ChevronDown className="w-3 h-3" />
-</button>
-</DropdownMenuTrigger>
-<DropdownMenuContent>
-<DropdownMenuItem onClick={onGeneralVehicleSelect} className={cn(generalMode && "bg-primary/10")}>
-<span className="inline-flex items-center gap-2"><HelpCircle className="w-3 h-3" />Övrigt / Allmän fråga</span>
-</DropdownMenuItem>
-<DropdownMenuSeparator />
-{availableVehicles.map((type) => (
-<DropdownMenuItem key={type} onClick={() => onVehicleChange(type)} className={cn(selectedVehicle === type && "bg-primary/10")}>
-{VEHICLE_LABELS[type]}
-</DropdownMenuItem>
-))}
-</DropdownMenuContent>
-</DropdownMenu>
-)}
-</div>
-)}
-</div>
 
 {/* LISTA MED FRÅGOR */}
 <ScrollArea className="h-80">

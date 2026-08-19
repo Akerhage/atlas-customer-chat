@@ -90,12 +90,36 @@ describe("resolveEffectiveCategories", () => {
     }
   );
 
-  it("uses the vehicle adapter for the fallback profile regardless of registry", () => {
+  it("uses the vehicle adapter for the fallback profile when the registry knows no vehicle id", () => {
     expect(resolveEffectiveCategories(fallbackProfile, [
       { id: "MUTTRAR", label: "Muttrar", icon: "NUT", active: true },
     ], vehicles)).toEqual([
       { id: "BIL", label: "BIL", icon: "BIL", active: true },
       { id: "MC", label: "MC", icon: "MC", active: true },
+    ]);
+  });
+
+  // #323: kunden läste `BIL` i stället för `Bil` i allt utom Standard.
+  it("takes label and icon from the registry outside standard, but keeps active_vehicles as the active set", () => {
+    expect(resolveEffectiveCategories(fallbackProfile, [
+      { id: "BIL", label: "Bil", icon: "CAR", active: true },
+      { id: "MC", label: "Motorcykel", icon: "BIKE", active: true },
+      // LASTBIL står i registret men saknas i active_vehicles och ska INTE dyka upp:
+      // vilka kategorier som är aktiva ägs av active_vehicles utanför Standard.
+      { id: "LASTBIL", label: "Lastbil", icon: "TRUCK", active: true },
+    ], vehicles)).toEqual([
+      { id: "BIL", label: "Bil", icon: "CAR", active: true },
+      { id: "MC", label: "Motorcykel", icon: "BIKE", active: true },
+    ]);
+  });
+
+  // En inaktiv registerpost får ge etikett, men får inte styra aktiv-mängden:
+  // den ägaren är active_vehicles utanför Standard (L-011/#313).
+  it("still shows a vehicle whose registry entry is inactive, using its label", () => {
+    expect(resolveEffectiveCategories(fallbackProfile, [
+      { id: "BIL", label: "Bil", icon: "CAR", active: false },
+    ], ["BIL"])).toEqual([
+      { id: "BIL", label: "Bil", icon: "CAR", active: true },
     ]);
   });
 

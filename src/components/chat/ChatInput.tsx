@@ -3,9 +3,6 @@ import { Send, Paperclip, Loader2, X, FileText, Image } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { emitTyping, getOwnerToken, getSessionId } from "@/lib/atlas-client";
 import type { ActiveVehicle } from "@/lib/atlas-client";
-import { QuickQuestionsButton } from "./QuickQuestionsButton";
-import { StandardSelfserviceMenuButton } from "./StandardSelfserviceMenuButton";
-import type { StandardSelfserviceMenuItem } from "@/lib/standard-selfservice-machine";
 import { toast } from "sonner";
 import {
 AI_ATTACHMENT_BLOCKED_MESSAGE,
@@ -33,27 +30,8 @@ placeholder?: string;
 // L-019: döljer textarean OCH skicka-knappen helt. Inmatningsraden står kvar och
 // bär självservicemenyn — annars blir chatten en återvändsgränd för besökaren.
 hideFreeText?: boolean;
-showQuickQuestions?: boolean;
-showStandardSelfserviceMenu?: boolean;
-  standardSelfserviceMenu?: StandardSelfserviceMenuItem[];
-  standardUnitLabel?: string | null;
-  standardCategoryLabel?: string | null;
-  standardUnitChoices?: { label: string; value: string }[];
-  standardCategoryChoices?: { label: string; value: string }[];
-  onStandardMenuChoice?: (value: string) => void;
-  onStandardMenuUnitChoice?: (value: string) => void;
-selectedVehicle?: VehicleType;
-selectedCity?: string | null;
-onVehicleChange: (vehicle: VehicleType) => void;
-onGeneralVehicleSelect: () => void;
-generalMode: boolean;
-onCityChange: (city: string | null) => void;
-offices: any[];
 humanMode: boolean;
 aiRepliesEnabled?: boolean;
-industryRagEnabled?: boolean;
-activeVehicles: ActiveVehicle[];
-quickQuestions: string[];
 }
 
 const TYPING_THROTTLE_MS = 2000;
@@ -66,27 +44,8 @@ onSend,
 disabled = false,
 placeholder = "Skriv ett meddelande...",
 hideFreeText = false,
-showQuickQuestions = false,
-showStandardSelfserviceMenu = false,
-  standardSelfserviceMenu = [],
-  standardUnitLabel = null,
-  standardCategoryLabel = null,
-  standardUnitChoices = [],
-  standardCategoryChoices = [],
-  onStandardMenuChoice,
-  onStandardMenuUnitChoice,
-selectedVehicle = null,
-selectedCity = null,
-onVehicleChange,
-onGeneralVehicleSelect,
-generalMode,
-onCityChange,
-offices,
 humanMode,
 aiRepliesEnabled = true,
-industryRagEnabled = true,
-activeVehicles,
-quickQuestions
 }: ChatInputProps) {
 const [message, setMessage] = useState("");
 const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -331,41 +290,13 @@ className="flex-1 resize-none bg-transparent text-sm py-2 text-foreground placeh
 </div>
 )}
 
-{showStandardSelfserviceMenu && !showQuickQuestions && onStandardMenuChoice && !isUploading && (
-<StandardSelfserviceMenuButton
-items={standardSelfserviceMenu}
-unitLabel={standardUnitLabel}
-categoryLabel={standardCategoryLabel}
-unitChoices={standardUnitChoices}
-categoryChoices={standardCategoryChoices}
-onChoice={onStandardMenuChoice}
-onUnitChoice={onStandardMenuUnitChoice}
-/>
-)}
+{/* 🔴 Frågeknappen och självservicemenyn låg HÄR fram till 2026-08-19. De bor nu i
+    ChatContextBar ovanför inmatningsraden, tillsammans med enhets- och kategorivalet,
+    så att kunden ser alla tre valen samtidigt (Patriks beslut, fråga 1).
 
-{showQuickQuestions && !isUploading && (
-<QuickQuestionsButton
-onSendMessage={onSend}
-onStandardChoice={onStandardMenuChoice}
-onStandardUnitChoice={onStandardMenuUnitChoice}
-selectedVehicle={selectedVehicle}
-selectedCity={selectedCity}
-onVehicleChange={onVehicleChange}
-onGeneralVehicleSelect={onGeneralVehicleSelect}
-generalMode={generalMode}
-onCityChange={onCityChange}
-disabled={disabled}
-offices={offices}
-activeVehicles={activeVehicles}
-quickQuestions={quickQuestions}
-standardSelfserviceMenu={showStandardSelfserviceMenu ? standardSelfserviceMenu : []}
-standardUnitLabel={standardUnitLabel}
-standardUnitChoices={showStandardSelfserviceMenu ? standardUnitChoices : []}
-standardCategoryChoices={showStandardSelfserviceMenu ? standardCategoryChoices : []}
-aiRepliesEnabled={aiRepliesEnabled}
-industryRagEnabled={industryRagEnabled}
-/>
-)}
+    L-019 gäller oförändrat: när fritexten är dold får chatten inte bli en
+    återvändsgränd. Garantin bärs nu av kontrollraden, som renderas ALLTID och
+    dessutom ovanför fältet — alltså syns den även när textarean är borta. */}
 
 {!hideFreeText && (
 <button

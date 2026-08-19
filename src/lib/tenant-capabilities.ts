@@ -90,13 +90,42 @@ export function resolveEffectiveCategories(
     }
     if (!Array.isArray(activeVehicles)) return [];
 
+    // #323 (Patriks IRL-fynd 2026-08-18, livebevisat på Box3 OCH sandbox): utanför
+    // Standard kastades registret bort helt och etiketten sattes till kategorins ID,
+    // så kunden läste `BIL` i stället för `Bil`. Det motsäger L-011/#313, som gav en
+    // trafikskola rätt att döpa om sina kategorier.
+    //
+    // 🔴 Vilka kategorier som är AKTIVA ägs fortfarande av `activeVehicles` här —
+    // det är den editionsgrenade skrivaren (L-011/#313: Trafik läser active_vehicles,
+    // Standard läser category_registry.active). Endast ETIKETTEN och IKONEN hämtas ur
+    // registret, och bara när registret faktiskt känner till id:t. Saknas posten
+    // faller vi tillbaka på id:t precis som förut.
+    const registryById = new Map(registry.map((entry) => [entry.id, entry]));
     return activeVehicles.map((vehicle) => {
       const id = String(vehicle);
-      return { id, label: id, icon: id, active: true };
+      const known = registryById.get(id);
+      return { id, label: known?.label || id, icon: known?.icon || id, active: true };
     });
   } catch {
     return [];
   }
+}
+
+// Kundvända ord i chattens kontrollrad. Tenantens egna labels vinner när de finns
+// — Box4 levererar {unit:"Avdelning", category:"Kategori"} — men Box3 och sandbox
+// levererar INGA labels alls (mätt 2026-08-19 mot /api/tenant-name på alla fem
+// boxar). Trafikskolornas ord måste därför komma härifrån och inte från profilen,
+// annars står det "Avdelning" hos en trafikskola som alltid sagt "Kontor".
+export function resolveChatUnitWord(profile: TenantProfile | null | undefined): string {
+  const own = normalizeRequiredString(profile?.labels?.unit);
+  if (own) return own;
+  return profile?.edition === "standard" ? "Avdelning" : "Kontor";
+}
+
+export function resolveChatCategoryWord(profile: TenantProfile | null | undefined): string {
+  const own = normalizeRequiredString(profile?.labels?.category);
+  if (own) return own;
+  return profile?.edition === "standard" ? "Kategori" : "Fordonstyp";
 }
 
 function warnOmitted(field: string, reason: string): void {

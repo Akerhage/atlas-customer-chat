@@ -6,6 +6,8 @@ const source = readFileSync(new URL("./AtlasChat.tsx", import.meta.url), "utf8")
 const chatHeaderSource = readFileSync(new URL("./ChatHeader.tsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const chatBubbleSource = readFileSync(new URL("./ChatBubble.tsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const contactFormSource = readFileSync(new URL("./ContactFormDialog.tsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+const contextBarSource = readFileSync(new URL("./ChatContextBar.tsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+const quickQuestionsSource = readFileSync(new URL("./QuickQuestionsButton.tsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const atlasClientSource = readFileSync(new URL("../../lib/atlas-client.ts", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const intakeMachineSource = readFileSync(new URL("../../lib/intake-machine.ts", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 
@@ -144,7 +146,11 @@ describe("AtlasChat intake-order contract", () => {
   });
 
   it("consumes the shared Standard unit and contact-recipient copy", () => {
-    expect(source).toContain("injectBotMessage(STANDARD_UNIT_PROMPT, getStandardUnitChoices())");
+    // Kravet är att copyn kommer från den DELADE konstanten, inte att anropet ser ut
+    // på ett visst sätt. Enhetssteget bär sedan Patriks beslut 2026-08-19 dessutom
+    // eskaleringen (se kontraktet om utvägen nedan), så argumentet är inlindat.
+    expect(source).toContain("injectBotMessage(STANDARD_UNIT_PROMPT,");
+    expect(source).toContain("getStandardUnitChoices()");
     expect(contactFormSource).toContain('{!categoryFormMode && <SelectLabel');
   });
 
@@ -179,12 +185,41 @@ describe("AtlasChat intake-order contract", () => {
   });
 
   it("shows the shared quick-question button immediately in parallel selfservice mode", () => {
+    // Kravet är oförändrat: frågeknappen ska finnas DIREKT, inte först efter kundens
+    // första meddelande. Mekanismen bytte 2026-08-19 (Patriks beslut) — knappen bor nu
+    // i kontrollraden i stället för bakom ett showQuickQuestions-villkor i ChatInput.
+    //
+    // 🔴 Negativ + positiv kontroll i par: att det gamla villkoret är borta bevisar
+    // ingenting på egen hand, så vi kräver också att knappen faktiskt renderas.
+    expect(source).not.toContain("showQuickQuestions=");
+    expect(source).toContain("questionsControl={(");
+    expect(source).toContain("<QuickQuestionsButton");
+    // Raden — och därmed knappen — får inte villkoras på antal meddelanden.
     expect(source).toContain(
-      "showQuickQuestions={(intakeMode === 'legacy' && aiRepliesEnabled && !humanMode && messages.length > 1 && !selfserviceFreeTextBlocked) || (standardSelfserviceAvailable && !standardSelfserviceExclusive && !humanMode && !intakeStep && !isArchived)}",
+      "const showContextBar = !isArchived && !humanMode && !intakeStep;",
     );
     expect(source).toContain(
       "const standardSelfserviceMenuStage = standardSelfserviceAvailable && !standardSelfserviceExclusive && selfserviceStage === null",
     );
+  });
+
+  it("keeps the always-visible context bar as the single writer per context field", () => {
+    // Patriks beslut 2026-08-19: EN väljare per sak. Mätt orsak (sandbox, live):
+    // två väljare i samma panel kände inte till varandra, och ett enhetsklick
+    // nollställde fordonet så att 5 rubriker / 21 frågor försvann ur listan.
+    expect(source).toContain("<ChatContextBar");
+    // Enhetsbytet ska BEHÅLLA kategori/fordon som den nya enheten erbjuder.
+    expect(source).toContain("const keptCategoryId = selectedCategoryId");
+    expect(source).toContain("officeOffersVehicle(office, selectedVehicle)");
+    // Väljaren får inte döljas vid singleton — det var orsaken till att boxarna
+    // såg olika ut. ChatContextBar renderar kontrollen även utan alternativ.
+    expect(contextBarSource).toContain("const isDisabled = disabled || choices.length === 0;");
+    expect(contextBarSource).not.toContain("singletonOffice");
+    // Listan är en LISTA: enhets-/kategorival får inte krypa tillbaka in i den.
+    expect(quickQuestionsSource).toContain(
+      "const selfserviceActions = standardSelfserviceMenu.map(item => ({",
+    );
+    expect(quickQuestionsSource).not.toContain("standardUnitChoices");
   });
 
   it("only permits selfservice session recovery outside human mode and intake", () => {
@@ -233,25 +268,40 @@ describe("AtlasChat intake-order contract", () => {
 
   // K7/C (Patrik-beslut 2026-07-25): utvägen heter "Vet inte / allmän fråga",
   // ligger SIST och är visuellt skild — men MEKANIKEN är oförändrad.
-  it("puts the standard escape-hatch unit last, full width, without touching the office=NULL value", () => {
+  it("keeps the escape hatch reachable outside the unit list, still on the office=NULL value", () => {
+    // 🔴 ERSÄTTER kontraktet som pinnade utvägen SIST I ENHETSLISTAN (K7/C 2026-07-25).
+    // Patriks beslut 2026-08-19 flyttade den: "den vet inte/allmän fråga är väldigt
+    // förvirrande för mig". Den låg i en lista över AVDELNINGAR och lästes som ännu en
+    // avdelning, fast den betyder "ingen avdelning" — och dess kategoristeg kunde
+    // aldrig ge något svar (#325 F1).
+    //
+    // Vad som ändrades: PLATSEN. Vad som INTE fick ändras: mekaniken som ger
+    // office = NULL ⇒ Inkorgen (routes/team.js:388-390, LOCK [2/3]).
     const start = source.indexOf("const getStandardUnitChoices");
     const end = source.indexOf("const getCategoryChoicesForOffice", start);
     expect(start).toBeGreaterThanOrEqual(0);
     expect(end).toBeGreaterThan(start);
     const block = source.slice(start, end);
 
-    // De riktiga enheterna först, utvägen sist.
-    expect(block.indexOf("...offices.map")).toBeLessThan(block.indexOf("STANDARD_CENTRAL_SUPPORT_LABEL"));
-    // Visuellt skild via bundlens egen fullWidth-markör.
-    expect(block).toContain("value: unitChoiceValue(STANDARD_CENTRAL_SUPPORT), fullWidth: true");
-    // Kunden ska aldrig läsa det interna ordet i chippet.
-    expect(block).not.toContain("label: 'Centralsupport'");
-    // MEKANIKVAKT: värdet som ger office = NULL får inte ha bytts.
-    expect(block).toContain("unitChoiceValue(STANDARD_CENTRAL_SUPPORT)");
-    expect(source).toContain("export");
-    // Sentinelen lever kvar där den JÄMFÖRS — etiketten byttes bara i renderingen.
+    // Enhetslistan bär bara riktiga enheter.
+    expect(block).toContain("offices.map((office) => ({");
+    expect(block).not.toContain("STANDARD_CENTRAL_SUPPORT_LABEL");
+    expect(block).not.toContain("fullWidth: true");
+
+    // POSITIV KONTROLL: utvägen finns i stället på enhetssteget, som eskalering.
+    expect(source).toContain("withEscalationValue(getStandardUnitChoices())");
+    // ...och den får inte falla ur tyst när ingen enhet är vald — det är just det
+    // läge knappen nu står i. 'Centralsupport' är värdet som ger office = NULL.
+    expect(source).toContain("(selfserviceUnitLabel || 'Centralsupport')");
+    expect(source).not.toContain("if (!city) return;");
+
+    // MEKANIKVAKT, oförändrad: sentinelen lever kvar där den JÄMFÖRS, och gamla
+    // sessioner som redan valt den måste fortsätta fungera.
+    expect(source).toContain("unitId === STANDARD_CENTRAL_SUPPORT");
     expect(source).toContain("intakeData.city === 'Centralsupport'");
     expect(source).toContain("selfserviceUnitId === STANDARD_CENTRAL_SUPPORT ? STANDARD_CENTRAL_SUPPORT_LABEL : selfserviceUnitLabel");
+    // Kunden ska aldrig läsa det interna ordet.
+    expect(block).not.toContain("label: 'Centralsupport'");
   });
 
   it("shows the tenant support label in legacy intake without changing the office=NULL sentinel", () => {
