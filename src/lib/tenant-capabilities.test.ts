@@ -90,12 +90,17 @@ describe("resolveEffectiveCategories", () => {
     }
   );
 
-  it("uses the vehicle adapter for the fallback profile when the registry knows no vehicle id", () => {
+  // 🔴 REGELN ÄNDRAD 2026-08-19 (`#331`): registerposter som INTE är fordonsnycklar
+  // läggs numera till efter fordonen — en trafikskola ska nå kunden med sina egna
+  // kategorier. Fordonen använder fortfarande ID:t som etikett när registret inte
+  // känner till dem, vilket är vad detta kontrakt ursprungligen vaktade.
+  it("uses the vehicle adapter when the registry knows no vehicle id, and appends the own category", () => {
     expect(resolveEffectiveCategories(fallbackProfile, [
       { id: "MUTTRAR", label: "Muttrar", icon: "NUT", active: true },
     ], vehicles)).toEqual([
       { id: "BIL", label: "BIL", icon: "BIL", active: true },
       { id: "MC", label: "MC", icon: "MC", active: true },
+      { id: "MUTTRAR", label: "Muttrar", icon: "NUT", active: true },
     ]);
   });
 
@@ -111,6 +116,31 @@ describe("resolveEffectiveCategories", () => {
       { id: "BIL", label: "Bil", icon: "CAR", active: true },
       { id: "MC", label: "Motorcykel", icon: "BIKE", active: true },
     ]);
+  });
+
+  // #331: en trafikskolas EGNA kategorier ska nå kunden, utan att fordonsnycklarnas
+  // ägarskap ändras. Livemätt orsak: servern släppte igenom EKONOMI men widgeten
+  // härledde listan ur active_vehicles och visade den aldrig.
+  it("appends own non-vehicle registry categories outside standard, after the vehicles", () => {
+    expect(resolveEffectiveCategories(fallbackProfile, [
+      { id: "BIL", label: "Bil", icon: "CAR", active: true },
+      { id: "EKONOMI", label: "Ekonomi", icon: "COIN", active: true },
+      { id: "PENSIONERAD", label: "Pensionerad", icon: "X", active: false },
+    ], ["BIL", "MC"])).toEqual([
+      { id: "BIL", label: "Bil", icon: "CAR", active: true },
+      { id: "MC", label: "MC", icon: "MC", active: true },
+      { id: "EKONOMI", label: "Ekonomi", icon: "COIN", active: true },
+    ]);
+  });
+
+  // 🔴 Ägarskapet får inte kastas om: en fordonsnyckel som INTE står i active_vehicles
+  // ska förbli dold även om registret säger active — det är L-011/#313:s regel.
+  it("never lets the registry re-activate a vehicle that active_vehicles omits", () => {
+    const result = resolveEffectiveCategories(fallbackProfile, [
+      { id: "BIL", label: "Bil", icon: "CAR", active: true },
+      { id: "LASTBIL", label: "Lastbil", icon: "TRUCK", active: true },
+    ], ["BIL"]);
+    expect(result.map(category => category.id)).toEqual(["BIL"]);
   });
 
   // En inaktiv registerpost får ge etikett, men får inte styra aktiv-mängden:

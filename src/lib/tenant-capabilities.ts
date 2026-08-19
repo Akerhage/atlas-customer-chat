@@ -37,6 +37,12 @@ export interface TenantProfile {
   intake?: TenantProfileIntake;
 }
 
+// De fem motornycklarna. Deras synlighet ägs av `active_vehicles` (L-011/#313) och
+// får ALDRIG kunna återaktiveras via kategoriregistret — därför är listan komplett här
+// och inte härledd ur de just nu aktiva. Speglar `CANONICAL_VEHICLE_ORDER` i
+// vehicle-utils.ts; hålls som egen konstant för att undvika en cirkulär import.
+const MOTOR_VEHICLE_KEYS = new Set(["AM", "BIL", "MC", "LASTBIL", "SLÄP"]);
+
 const SUPPORTED_TENANT_PROFILE_SCHEMA_VERSION = 1;
 const FALLBACK_TENANT_PROFILE: TenantProfile = {
   schema_version: SUPPORTED_TENANT_PROFILE_SCHEMA_VERSION,
@@ -101,11 +107,34 @@ export function resolveEffectiveCategories(
     // registret, och bara när registret faktiskt känner till id:t. Saknas posten
     // faller vi tillbaka på id:t precis som förut.
     const registryById = new Map(registry.map((entry) => [entry.id, entry]));
-    return activeVehicles.map((vehicle) => {
+    const vehicleCategories = activeVehicles.map((vehicle) => {
       const id = String(vehicle);
       const known = registryById.get(id);
       return { id, label: known?.label || id, icon: known?.icon || id, active: true };
     });
+
+    // #331 (Patriks beslut 2026-08-19): en trafikskola ska kunna skapa EGNA kategorier
+    // och nå kunden med dem — *"oavsett standard eller trafik så skall det inte vara
+    // problem att skapa egna nya kategorier"*.
+    //
+    // 🔴 Ägarskapet delas, det byts INTE: de fem fordonsnycklarna ägs fortfarande av
+    // `activeVehicles` (L-011/#313), medan en EGEN kategori äger sin egen `active`.
+    // Det är den enda uppdelning som fungerar — en fri kategori står inte i
+    // `active_vehicles` och skulle annars aldrig kunna visas.
+    //
+    // Livemätt varför raden behövs: efter att servern släppte igenom `EKONOMI` på Box3
+    // gav `categories_offered` `["BIL","MC","EKONOMI"]` och menyn 3 rader, men kundens
+    // kategoriväljare visade bara `["Bil","MC"]` — widgeten härledde listan ur
+    // `activeVehicles` och kände inte till kategorin alls.
+    // 🔴🔴 Uteslutningen måste gå på ALLA FEM motornycklarna, inte bara de aktiva.
+    // Första versionen filtrerade på `vehicleCategories` — då kom en AVAKTIVERAD
+    // fordonstyp tillbaka som "egen kategori", vilket river L-011/#313:s regel.
+    // Fångat av kontraktet `never lets the registry re-activate a vehicle that
+    // active_vehicles omits` innan det nådde någon box.
+    const ownCategories = registry.filter(
+      (entry) => !MOTOR_VEHICLE_KEYS.has(entry.id) && entry.active !== false
+    );
+    return [...vehicleCategories, ...ownCategories];
   } catch {
     return [];
   }
