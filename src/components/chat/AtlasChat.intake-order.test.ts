@@ -226,8 +226,15 @@ describe("AtlasChat intake-order contract", () => {
     // köras i Standard. Livemätt fel 2026-08-19: window.selectedVehicle blev `MC` på
     // en skruvfabrik. getSafeActiveVehicle skyddar inte — `MC` är ett giltigt aktivt
     // fordon även där. Grinden måste läsa editionen.
-    expect(source).toContain("const asVehicle = tenantProfile?.edition === 'standard'");
+    expect(source).toContain("const isStandardEditionTenant = tenantProfile?.edition === 'standard';");
     expect(source).toContain(": getSafeActiveVehicle(requestedCategoryId);");
+
+    // 🔴 F1: att SÄTTA fordonet räcker inte — det gamla måste RENSAS när kunden väljer
+    // en egen kategori i Trafik. Den oberoende granskningen påpekade att pinnen ovan
+    // inte kunde fånga det, och den fångade det inte heller. Detta är den saknade halvan.
+    expect(source).toContain("const clearsVehicle = !isStandardEditionTenant && !asVehicle;");
+    expect(source).toContain("} else if (clearsVehicle) {");
+    expect(source).toContain("...(clearsVehicle ? { vehicle: null, vehicle_choice: 'OVRIGT', clear_vehicle: true } : {}),");
 
     // Pillret och listan måste läsa SAMMA enhet, annars filtrerar listan inte förrän
     // kunden klickat på den enhet pillret redan visar som vald (mätt på Box3: `Bil`

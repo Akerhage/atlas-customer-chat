@@ -2075,18 +2075,41 @@ if (!requestedCategoryId || requestedCategoryId === selectedCategoryId) return;
 // fordon även på Box4.
 const applyCategoryToBothSystems = () => {
 setSelectedCategoryId(requestedCategoryId);
-const asVehicle = tenantProfile?.edition === 'standard'
+const isStandardEditionTenant = tenantProfile?.edition === 'standard';
+const asVehicle = isStandardEditionTenant
 ? null
 : getSafeActiveVehicle(requestedCategoryId);
+
+// 🔴🔴 F1 (oberoende granskning 2026-08-19, livebevisad på Box3): att SÄTTA fordonet
+// räckte inte — det gamla fordonet måste också RENSAS.
+//
+// `#331` gav en trafikskola rätt att skapa egna kategorier samma dag. Väljer kunden
+// `Ekonomi` ger getSafeActiveVehicle `null`, och då hoppades hela if-satsen bara över:
+// `selectedVehicle` stod kvar på `BIL`. Mätt utfall före denna rad — kategoripillret
+// visade `Ekonomi` medan panelen samtidigt visade `Kom igång med Bil`, `Paket &
+// Intensiv` och `Risk & Teori`, och `context.vehicle` bar `BIL` vidare till servern.
+//
+// 🔴 Rensningen gäller BARA utanför Standard. Där är `asVehicle` alltid `null` by
+// design (ID-rymden är delad, `MC` = "Muttrar och Skruvar"), och en rensning där hade
+// varit meningslös brus. Utanför Standard betyder `null` däremot exakt en sak:
+// kunden valde en kategori som inte är en fordonstyp.
+//
+// Samma rensning som enhetsbytet redan gör i `applyStandardUnitSelection`.
+const clearsVehicle = !isStandardEditionTenant && !asVehicle;
+
 if (asVehicle) {
 setGeneralMode(false);
 setSelectedVehicle(asVehicle);
 window.selectedVehicle = asVehicle;
+} else if (clearsVehicle) {
+setSelectedVehicle(null);
+window.selectedVehicle = null;
 }
 setContext(prev => ({
 ...prev,
 category_id: requestedCategoryId,
 ...(asVehicle ? { vehicle: asVehicle, vehicle_choice: null, clear_vehicle: false } : {}),
+...(clearsVehicle ? { vehicle: null, vehicle_choice: 'OVRIGT', clear_vehicle: true } : {}),
 }));
 };
 
