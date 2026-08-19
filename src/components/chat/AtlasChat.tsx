@@ -2004,8 +2004,17 @@ const contextBarUnitLabel = standardSelfserviceAvailable
 : (selfserviceUnitLabel || singletonUnitLabel))
 : (selectedCity || singletonUnitLabel);
 
+// 🔴 Samma enhet ska ge samma lista före och efter klicket. Enhetspillret visar
+// singletonenheten som vald (regel 2 i ChatContextBar), men selfserviceUnitId är
+// null tills kunden faktiskt klickat — och då filtrerade listan INTE på enhetens
+// utbud. Livemätt på Box3 2026-08-19: `["Bil","MC"]` före enhetsvalet och `["MC"]`
+// efter, på en box med EN enhet. Pillret sa alltså en sak och listan en annan.
+// Listan läser därför samma effektiva enhet som pillret visar.
+const effectiveContextUnitId = selfserviceUnitId
+|| (offices.length === 1 ? offices[0].routing_tag : null);
+
 const contextBarCategoryChoices = standardSelfserviceAvailable
-? getStandardCategoryChoices(selfserviceUnitId)
+? getStandardCategoryChoices(effectiveContextUnitId)
 : [
 ...categoryChoices.map(choice => ({
 label: choice.label,
@@ -2053,12 +2062,22 @@ if (!requestedCategoryId || requestedCategoryId === selectedCategoryId) return;
 // INGA fordonsfrågor — den deterministiska vägen läser selectedCategoryId medan
 // RAG-vägen läser selectedVehicle (buildQuickQuestionCategories). I Trafik är de
 // samma sak: resolveEffectiveCategories härleder kategorierna UR active_vehicles,
-// så kategori-id === fordons-id per konstruktion. getSafeActiveVehicle ger null
-// för en kategori som inte är ett aktivt fordon (t.ex. Standards SKRUVAR), och då
-// rör vi inte fordonet.
+// så kategori-id === fordons-id per konstruktion.
+//
+// 🔴🔴 MEN ALDRIG I STANDARD. ID-rymden är delad, och Box4 återanvänder
+// fordonsnycklarna som slugar för helt andra saker: `MC` = "Muttrar och Skruvar 🔩",
+// `BIL` = "Spikar och järn 🔨". Utan editionsgrenen satte ett klick på
+// "Muttrar och Skruvar" fordonet till MC på en skruvfabrik — livemätt på Box4
+// 2026-08-19: window.selectedVehicle blev `MC`, och värdet följde med i kontexten
+// till servern. Patrik hittade premissen ("mina kategorier är i bakgrunden kopplade
+// till MC, AM osv — påverkar det något negativt?"); felet var Claudes, infört samma
+// morgon. getSafeActiveVehicle räcker INTE som skydd: `MC` ÄR ett giltigt aktivt
+// fordon även på Box4.
 const applyCategoryToBothSystems = () => {
 setSelectedCategoryId(requestedCategoryId);
-const asVehicle = getSafeActiveVehicle(requestedCategoryId);
+const asVehicle = tenantProfile?.edition === 'standard'
+? null
+: getSafeActiveVehicle(requestedCategoryId);
 if (asVehicle) {
 setGeneralMode(false);
 setSelectedVehicle(asVehicle);

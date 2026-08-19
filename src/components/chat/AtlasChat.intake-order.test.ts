@@ -220,6 +220,20 @@ describe("AtlasChat intake-order contract", () => {
       "const selfserviceActions = standardSelfserviceMenu.map(item => ({",
     );
     expect(quickQuestionsSource).not.toContain("standardUnitChoices");
+
+    // 🔴🔴 ID-rymden är DELAD: Box4 använder `MC` som slug för "Muttrar och Skruvar"
+    // och `BIL` för "Spikar och järn". Kategori→fordon-speglingen får därför ALDRIG
+    // köras i Standard. Livemätt fel 2026-08-19: window.selectedVehicle blev `MC` på
+    // en skruvfabrik. getSafeActiveVehicle skyddar inte — `MC` är ett giltigt aktivt
+    // fordon även där. Grinden måste läsa editionen.
+    expect(source).toContain("const asVehicle = tenantProfile?.edition === 'standard'");
+    expect(source).toContain(": getSafeActiveVehicle(requestedCategoryId);");
+
+    // Pillret och listan måste läsa SAMMA enhet, annars filtrerar listan inte förrän
+    // kunden klickat på den enhet pillret redan visar som vald (mätt på Box3: `Bil`
+    // försvann först efter klicket).
+    expect(source).toContain("const effectiveContextUnitId = selfserviceUnitId");
+    expect(source).toContain("getStandardCategoryChoices(effectiveContextUnitId)");
   });
 
   it("only permits selfservice session recovery outside human mode and intake", () => {
