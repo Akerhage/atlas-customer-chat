@@ -1993,9 +1993,16 @@ const label = getOfficeDisplayName(office);
 return { label, value: `${LEGACY_UNIT_PREFIX}${label}` };
 });
 
+// Patriks beslut fråga 4: väljaren visas alltid OCH är FÖRVALD när det bara finns
+// ett alternativ. Widgeten behandlar redan singletonenheten som vald på andra ställen
+// (QuickQuestionsButton: effectiveSelectedCity = selectedCity || singletonOfficeLabel),
+// så att visa "Välj kontor" var det missvisande läget, inte tvärtom.
+const singletonUnitLabel = offices.length === 1 ? getOfficeDisplayName(offices[0]) : null;
 const contextBarUnitLabel = standardSelfserviceAvailable
-? (selfserviceUnitId === STANDARD_CENTRAL_SUPPORT ? STANDARD_CENTRAL_SUPPORT_LABEL : selfserviceUnitLabel)
-: selectedCity;
+? (selfserviceUnitId === STANDARD_CENTRAL_SUPPORT
+? STANDARD_CENTRAL_SUPPORT_LABEL
+: (selfserviceUnitLabel || singletonUnitLabel))
+: (selectedCity || singletonUnitLabel);
 
 const contextBarCategoryChoices = standardSelfserviceAvailable
 ? getStandardCategoryChoices(selfserviceUnitId)
@@ -2025,7 +2032,59 @@ handleCityChange(value.slice(LEGACY_UNIT_PREFIX.length) || null);
 
 const handleContextBarCategoryChoice = (value: string) => {
 if (standardSelfserviceAvailable) {
-void handleStandardChoice(value);
+// 🔴🔴 Kontrollraden är en EXPLICIT skrivare och går INTE via handleStandardChoice.
+//
+// Två mätta skäl (sandbox 2026-08-19, kundens egen väg):
+// 1. handleStandardChoice ignorerar ett kategorival så länge selfserviceUnitId är
+//    null, och kräver dessutom selfserviceStage === 'menu'. I raden går det att
+//    välja i valfri ordning, så båda villkoren var falska vid första klicket —
+//    pillret stod kvar på "Välj fordonstyp" och ingenting hände.
+// 2. Att först kalla enhetsvalet och sedan kategorivalet löser det INTE: React
+//    har inte hunnit skriva selfserviceUnitId inom samma tick, så andra anropet
+//    läser fortfarande null. Det var precis vad andra mätningen visade.
+//
+// Därför sätts kategorin här och menyn laddas med enhets-id:t vi redan HAR i
+// handen, inte med det state vi hoppas ha om ett ögonblick.
+const requestedCategoryId = valueAfterPrefix(value, STANDARD_CATEGORY_PREFIX);
+if (!requestedCategoryId || requestedCategoryId === selectedCategoryId) return;
+
+// 🔴 Kategorin måste sättas i BÅDA svarssystemen, annars tänds bara det ena.
+// Livemätt 2026-08-19: efter "Bil" i raden visade listan `Priser & tjänster` men
+// INGA fordonsfrågor — den deterministiska vägen läser selectedCategoryId medan
+// RAG-vägen läser selectedVehicle (buildQuickQuestionCategories). I Trafik är de
+// samma sak: resolveEffectiveCategories härleder kategorierna UR active_vehicles,
+// så kategori-id === fordons-id per konstruktion. getSafeActiveVehicle ger null
+// för en kategori som inte är ett aktivt fordon (t.ex. Standards SKRUVAR), och då
+// rör vi inte fordonet.
+const applyCategoryToBothSystems = () => {
+setSelectedCategoryId(requestedCategoryId);
+const asVehicle = getSafeActiveVehicle(requestedCategoryId);
+if (asVehicle) {
+setGeneralMode(false);
+setSelectedVehicle(asVehicle);
+window.selectedVehicle = asVehicle;
+}
+setContext(prev => ({
+...prev,
+category_id: requestedCategoryId,
+...(asVehicle ? { vehicle: asVehicle, vehicle_choice: null, clear_vehicle: false } : {}),
+}));
+};
+
+const unitId = selfserviceUnitId || (offices.length === 1 ? offices[0].routing_tag : null);
+if (!unitId) {
+// Flera enheter och ingen vald ännu: spara kategorin så länge. Den överlever
+// enhetsvalet via keptCategoryId i applyStandardUnitSelection, och menyn
+// laddas då automatiskt.
+applyCategoryToBothSystems();
+return;
+}
+void (async () => {
+// Ett enda alternativ är inget val: knyt den enda enheten först.
+if (!selfserviceUnitId) await handleStandardChoice(unitChoiceValue(unitId), true);
+applyCategoryToBothSystems();
+await loadAndShowStandardMenu(unitId, requestedCategoryId);
+})();
 return;
 }
 if (value === LEGACY_CATEGORY_GENERAL) {

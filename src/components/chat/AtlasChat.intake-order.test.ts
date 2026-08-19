@@ -299,7 +299,11 @@ describe("AtlasChat intake-order contract", () => {
     // sessioner som redan valt den måste fortsätta fungera.
     expect(source).toContain("unitId === STANDARD_CENTRAL_SUPPORT");
     expect(source).toContain("intakeData.city === 'Centralsupport'");
-    expect(source).toContain("selfserviceUnitId === STANDARD_CENTRAL_SUPPORT ? STANDARD_CENTRAL_SUPPORT_LABEL : selfserviceUnitLabel");
+    // Etiketten mappas fortfarande vid RENDERINGEN, inte i värdet. Pinnas på
+    // mekanismen och inte på radbrytningen — uttrycket flyttade in i kontrollradens
+    // label när raden byggdes 2026-08-19.
+    expect(source).toContain("selfserviceUnitId === STANDARD_CENTRAL_SUPPORT");
+    expect(source).toContain("? STANDARD_CENTRAL_SUPPORT_LABEL");
     // Kunden ska aldrig läsa det interna ordet.
     expect(block).not.toContain("label: 'Centralsupport'");
   });
