@@ -77,7 +77,12 @@ describe("AtlasChat intake-order contract", () => {
   });
 
   it("renders the tenant company name in the header and assistant bubbles with an Atlas fallback", () => {
-    expect(chatHeaderSource).toContain('<h1 className="font-semibold leading-tight text-foreground">{displayName}</h1>');
+    // KAN-112: assertionen pinnade hela klasslistan och gick röd när headern fick
+    // `truncate`. Testets avsikt är att FÖRETAGSNAMNET renderas som rubrik — inte vilka
+    // utility-klasser rubriken bär. Regeln är därför omskriven mot avsikten: h1:n ska
+    // fortfarande vara en rubrik (`font-semibold`) och bära `{displayName}`, men nya
+    // layoutklasser ska inte ge falskt rött.
+    expect(chatHeaderSource).toContain('font-semibold leading-tight text-foreground">{displayName}</h1>');
     expect(chatBubbleSource).toContain("companyName?: string | null;");
     expect(chatBubbleSource).toContain("const displayName = isUser ? 'Du' : (senderName || companyName || 'Atlas');");
     expect(source).toContain("senderName={message.senderName}\ncompanyName={companyName}");

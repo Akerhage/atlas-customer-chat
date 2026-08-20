@@ -6,7 +6,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
 export interface ChatContextChoice {
@@ -143,11 +142,16 @@ function ChatContextSelect({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
+      {/* KAN-117: listan måste kunna scrollas när en tenant har många enheter (Box1: 47).
+          ScrollArea gav aldrig scroll här — dess viewport är `h-full` (ui/scroll-area.tsx:11),
+          och mot en förälder med enbart `max-height` beräknas `h-full` till `auto`. Innehållet
+          växte alltså fritt och roten `overflow-hidden` klippte det. Native max-height +
+          overflow-y-auto på själva menyn scrollar, och kollapsar fortfarande för korta listor. */}
       <DropdownMenuContent
         align="start"
-        className="bg-popover border border-border shadow-lg z-50 max-w-[calc(100vw-2rem)]"
+        className="bg-popover border border-border shadow-lg z-50 max-w-[calc(100vw-2rem)] max-h-64 overflow-y-auto chat-scrollbar"
       >
-        <ScrollArea className="max-h-64">
+        <div>
           {choices.map((choice) => (
             <DropdownMenuItem
               key={choice.value}
@@ -160,7 +164,7 @@ function ChatContextSelect({
               {choice.label}
             </DropdownMenuItem>
           ))}
-        </ScrollArea>
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   );
