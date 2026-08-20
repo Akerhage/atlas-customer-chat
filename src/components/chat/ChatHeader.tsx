@@ -78,15 +78,15 @@ className="max-h-6 w-full object-contain sm:max-h-7"
 <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-500 border-2 border-chat-header" />
 </div>
 
-{/* KAN-119: blocket var dolt under 440px, och den inbäddade widgeten är 380px bred —
-    företagsnamnet syntes därför ALDRIG för en besökare på kundens webbplats. Namnet visas
-    nu även i widgetbredd och får brytas över två rader i stället för att kapas med "…".
-    Underrubriken viker undan i de smala lägena så headerhöjden inte växer; mätt 61->65px.
-    Brytpunkten 380px är MÄTT, inte vald på känsla: vid 400px och 380px ryms hela namnet på
-    två rader, vid 360px kapas det till "My Dr…" — och ett namn som ändå inte går att läsa
-    är sämre än logotypen ensam. Widgetramen är exakt 380px (widget.js:112). */}
-<div className="hidden min-[380px]:block min-w-0">
-<h1 className="line-clamp-2 font-semibold leading-tight text-foreground">{displayName}</h1>
+{/* KAN-121: widgeten är fullbredd under 480px, så 380px-gränsen dolde namnet på
+    vanliga 360/375px-telefoner. Prototypmätt på alla fem boxnamn: min-360 +
+    break-words gav noll horisontell kapning och 65px header vid 360/375/380px;
+    320px behåller logotypen ensam. Tvåraders-clampen ger en riktig ellips när
+    längre namn behöver en tredje rad, och title bär alltid hela namnet.
+    Underrubriken ligger kvar på 560px: tvingad visning gav 81px header vid
+    440/441px och vid 470px med fem åtgärdsknappar, över widgettaket 72px. */}
+<div className="hidden min-[360px]:block min-w-0">
+<h1 className="line-clamp-2 break-words font-semibold leading-tight text-foreground" title={displayName}>{displayName}</h1>
 <p className="hidden min-h-4 min-[560px]:block truncate text-xs text-muted-foreground">{subtitleLoading ? '' : subtitle}</p>
 </div>
 </div>

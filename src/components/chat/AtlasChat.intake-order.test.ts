@@ -82,7 +82,8 @@ describe("AtlasChat intake-order contract", () => {
     // utility-klasser rubriken bär. Regeln är därför omskriven mot avsikten: h1:n ska
     // fortfarande vara en rubrik (`font-semibold`) och bära `{displayName}`, men nya
     // layoutklasser ska inte ge falskt rött.
-    expect(chatHeaderSource).toContain('font-semibold leading-tight text-foreground">{displayName}</h1>');
+    expect(chatHeaderSource).toContain('font-semibold leading-tight text-foreground"');
+    expect(chatHeaderSource).toContain('>{displayName}</h1>');
     expect(chatBubbleSource).toContain("companyName?: string | null;");
     expect(chatBubbleSource).toContain("const displayName = isUser ? 'Du' : (senderName || companyName || 'Atlas');");
     expect(source).toContain("senderName={message.senderName}\ncompanyName={companyName}");
@@ -120,6 +121,16 @@ describe("AtlasChat intake-order contract", () => {
     expect(chatHeaderSource).toContain("subtitleLoading?: boolean;");
     expect(chatHeaderSource).toContain("subtitleLoading ? '' : subtitle");
     expect(chatHeaderSource).toContain("min-h-4");
+  });
+
+  it("keeps the tenant name visible and recoverable on common mobile widget widths", () => {
+    expect(chatHeaderSource).toContain('className="hidden min-[360px]:block min-w-0"');
+    expect(chatHeaderSource).not.toContain('className="hidden min-[380px]:block min-w-0"');
+    expect(chatHeaderSource).toContain('className="line-clamp-2 break-words font-semibold leading-tight text-foreground"');
+    expect(chatHeaderSource).toContain('title={displayName}');
+    // Tvingad underrubrik gav 81px header vid 440/441px och vid 470px med
+    // fem åtgärdsknappar. Behåll 560px-gränsen så widgetens 72px-tak står.
+    expect(chatHeaderSource).toContain("min-[560px]:block");
   });
 
   it("keeps the slice-24 handoff implementation byte-identical", () => {
