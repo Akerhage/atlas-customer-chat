@@ -388,14 +388,17 @@ disabled={disabled || !hasContent}
 data-testid="chat-context-questions"
 title={triggerLabel}
 className={cn(
-"group flex min-w-0 max-w-[min(11rem,44vw)] items-center gap-1 rounded-full border px-2 py-1 text-xs transition-colors",
+// KAN-119: måtten hålls medvetet identiska med ChatContextSelect i ChatContextBar.tsx —
+// de tre pillarna delar en rad och måste krympa likadant i widgetbredd.
+"group flex min-w-0 max-w-[min(11rem,44vw)] items-center gap-0.5 min-[440px]:gap-1 rounded-full border px-1.5 min-[440px]:px-2 py-1 text-xs transition-colors",
 "bg-secondary text-muted-foreground border-transparent hover:bg-secondary/80",
 (disabled || !hasContent) && "opacity-50 cursor-not-allowed hover:bg-secondary"
 )}
 >
 <ListTodo className="w-3 h-3 shrink-0" />
 <span className="min-w-0 truncate">{triggerLabel}</span>
-<ChevronDown className="w-3 h-3 shrink-0 opacity-50 group-hover:opacity-100" />
+{/* KAN-119: döljs under 440px, se ChatContextBar.tsx */}
+<ChevronDown className="hidden min-[440px]:block w-3 h-3 shrink-0 opacity-50 group-hover:opacity-100" />
 </button>
 </PopoverTrigger>
 <PopoverContent className="w-80 p-0 bg-popover text-popover-foreground border border-border shadow-xl mb-2" align="start" side="top" sideOffset={8}>

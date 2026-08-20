@@ -65,7 +65,11 @@ export function ChatContextBar({
       className="px-3 sm:px-4 py-2 bg-secondary/30 border-t border-border/50"
       data-testid="chat-context-bar"
     >
-      <div className="flex flex-wrap items-center gap-1.5 text-xs">
+      {/* KAN-119: raden bröt till två rader i den inbäddade widgeten (380px) — i ALLA
+          lägen, även det tomma. Mätt: pillarna behövde 381px mot radens 356px. nowrap
+          plus snävare mellanrum i widgetbredd håller dem på en rad; flexbox krymper dem
+          via min-w-0 och de har redan title + truncate om texten inte får plats. */}
+      <div className="flex flex-nowrap items-center gap-1 min-[440px]:gap-1.5 text-xs">
         <ChatContextSelect
           icon={<MapPin className="w-3 h-3 shrink-0" />}
           word={unitWord}
@@ -124,7 +128,7 @@ function ChatContextSelect({
       data-testid={testId}
       title={buttonText}
       className={cn(
-        "group flex min-w-0 max-w-[min(11rem,44vw)] items-center gap-1 rounded-full border px-2 py-1 transition-colors",
+        "group flex min-w-0 max-w-[min(11rem,44vw)] items-center gap-0.5 min-[440px]:gap-1 rounded-full border px-1.5 min-[440px]:px-2 py-1 transition-colors",
         hasSelection
           ? "bg-primary/10 text-primary border-primary/30 hover:bg-primary/20"
           : "bg-secondary text-muted-foreground border-transparent hover:bg-secondary/80",
@@ -133,7 +137,10 @@ function ChatContextSelect({
     >
       {icon}
       <span className="min-w-0 truncate">{buttonText}</span>
-      <ChevronDown className="w-3 h-3 shrink-0 opacity-50 group-hover:opacity-100" />
+      {/* KAN-119: chevronen är det som inte får plats i widgetbredd. Den döljs under
+          440px så alla tre pillarna ryms otruncerade på en rad; i den bredare vyn står
+          den kvar och signalerar att pillret öppnar en meny. */}
+      <ChevronDown className="hidden min-[440px]:block w-3 h-3 shrink-0 opacity-50 group-hover:opacity-100" />
     </button>
   );
 

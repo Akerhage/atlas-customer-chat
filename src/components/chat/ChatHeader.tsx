@@ -78,9 +78,16 @@ className="max-h-6 w-full object-contain sm:max-h-7"
 <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-500 border-2 border-chat-header" />
 </div>
 
-<div className="hidden min-[440px]:block min-w-0">
-<h1 className="truncate font-semibold leading-tight text-foreground">{displayName}</h1>
-<p className="hidden min-h-4 min-[360px]:block truncate text-xs text-muted-foreground">{subtitleLoading ? '' : subtitle}</p>
+{/* KAN-119: blocket var dolt under 440px, och den inbäddade widgeten är 380px bred —
+    företagsnamnet syntes därför ALDRIG för en besökare på kundens webbplats. Namnet visas
+    nu även i widgetbredd och får brytas över två rader i stället för att kapas med "…".
+    Underrubriken viker undan i de smala lägena så headerhöjden inte växer; mätt 61->65px.
+    Brytpunkten 380px är MÄTT, inte vald på känsla: vid 400px och 380px ryms hela namnet på
+    två rader, vid 360px kapas det till "My Dr…" — och ett namn som ändå inte går att läsa
+    är sämre än logotypen ensam. Widgetramen är exakt 380px (widget.js:112). */}
+<div className="hidden min-[380px]:block min-w-0">
+<h1 className="line-clamp-2 font-semibold leading-tight text-foreground">{displayName}</h1>
+<p className="hidden min-h-4 min-[560px]:block truncate text-xs text-muted-foreground">{subtitleLoading ? '' : subtitle}</p>
 </div>
 </div>
 
