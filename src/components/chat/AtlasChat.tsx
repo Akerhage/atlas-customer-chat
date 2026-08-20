@@ -39,12 +39,13 @@ resolveChatCategoryWord,
 resolveChatUnitWord,
 type TenantProfile,
 } from "@/lib/tenant-capabilities";
-import { officeOffersVehicle } from "@/lib/vehicle-utils";
+import { officeOffersVehicle, resolveVehicleForOffice } from "@/lib/vehicle-utils";
 import { ChatContextBar } from "./ChatContextBar";
 import { QuickQuestionsButton } from "./QuickQuestionsButton";
 import {
 buildCategoryChoices,
 buildIntakeOrder,
+buildLegacyContextBarCategoryChoices,
 filterCategoryChoicesForOffice,
 isCategoryFirstIntake,
 resolveIntakeMode,
@@ -487,11 +488,20 @@ window.selectedVehicle = null;
 };
 
 const handleCityChange = (locationLabel: string | null) => {
+const nextOffice = locationLabel
+? (findSafeOfficeFromLiveContext(offices, locationLabel, context) || singletonOffice)
+: null;
+const nextVehicle = resolveVehicleForOffice(nextOffice, selectedVehicle);
 setSelectedCity(locationLabel);
+setSelectedVehicle(nextVehicle);
+window.selectedVehicle = nextVehicle;
 setContext((prev) => {
-if (!locationLabel) return { ...prev, city: null, area: null };
+// Ett enhetsbyte som rensar fordon är inte kundens val "Övrigt / Allmän
+// fråga". vehicle:null räcker för konsumenten; sätt därför aldrig
+// vehicle_choice:OVRIGT eller clear_vehicle här.
+if (!locationLabel) return { ...prev, city: null, area: null, vehicle: nextVehicle };
 const { city, area } = getContextFromOfficeSelection(offices, locationLabel);
-return { ...prev, city, area };
+return { ...prev, city, area, vehicle: nextVehicle };
 });
 };
 const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -704,7 +714,7 @@ filterCategoryChoicesForOffice(categoryChoices, office?.categories_offered);
 
 const getCategoryChoicesForOfficeLabel = (value: string | null | undefined) => {
 if (normalizeOfficeLabel(value) === normalizeOfficeLabel('Centralsupport')) return categoryChoices;
-const office = findSafeOfficeFromLiveContext(offices, value, context) || undefined;
+const office = findSafeOfficeFromLiveContext(offices, value, context) || singletonOffice || undefined;
 return getCategoryChoicesForOffice(office);
 };
 
@@ -2015,15 +2025,11 @@ const effectiveContextUnitId = selfserviceUnitId
 
 const contextBarCategoryChoices = standardSelfserviceAvailable
 ? getStandardCategoryChoices(effectiveContextUnitId)
-: [
-...categoryChoices.map(choice => ({
-label: choice.label,
-value: `${LEGACY_CATEGORY_PREFIX}${choice.value}`,
-})),
-// Motsvarar den gamla "Övrigt / Allmän fråga" i fordonsrullgardinen. Utan den
-// finns ingen väg tillbaka till ett allmänt läge när raden ersatt chipsens ✕.
-{ label: 'Övrigt / Allmän fråga', value: LEGACY_CATEGORY_GENERAL },
-];
+: buildLegacyContextBarCategoryChoices(
+getCategoryChoicesForOfficeLabel(selectedCity || context.city),
+LEGACY_CATEGORY_PREFIX,
+LEGACY_CATEGORY_GENERAL,
+);
 
 const contextBarCategoryLabel = standardSelfserviceAvailable
 ? selfserviceCategoryLabel

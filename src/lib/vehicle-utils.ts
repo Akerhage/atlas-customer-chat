@@ -27,3 +27,11 @@ const token = VEHICLE_TO_SERVICE_LABEL[vehicle];
 const re = new RegExp(`(^|[\\s\\-/])${token}($|[\\s\\-/])`, 'i');
 return so.some((s: string) => s === token || re.test(s));
 }
+
+export function resolveVehicleForOffice(
+office: any,
+vehicle: ActiveVehicle | null | undefined,
+): ActiveVehicle | null {
+if (!vehicle) return null;
+return officeOffersVehicle(office, vehicle) ? vehicle : null;
+}

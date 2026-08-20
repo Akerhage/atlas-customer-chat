@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCategoryChoices, buildIntakeOrder, filterCategoryChoicesForOffice, resolveIntakeMode, resolveOptionalPhone, resolveWidgetTexts } from "./intake-machine";
+import { buildCategoryChoices, buildIntakeOrder, buildLegacyContextBarCategoryChoices, filterCategoryChoicesForOffice, resolveIntakeMode, resolveOptionalPhone, resolveWidgetTexts } from "./intake-machine";
 import type { EffectiveCategory, TenantProfile } from "./tenant-capabilities";
 
 const standardProfile: TenantProfile = {
@@ -223,7 +223,11 @@ describe("buildCategoryChoices", () => {
     ]);
   });
 
-  it.each([undefined, null, []])("returns an empty list for %j", (categories) => {
+  it.each([
+    { categories: undefined },
+    { categories: null },
+    { categories: [] },
+  ])("returns an empty list for $categories", ({ categories }) => {
     expect(buildCategoryChoices(categories)).toEqual([]);
   });
 
@@ -266,5 +270,28 @@ describe("filterCategoryChoicesForOffice", () => {
       { label: "Muttrar", value: "MUTTRAR" },
     ]);
     expect(choices).toEqual(snapshot);
+  });
+
+  it("builds the legacy context row from the selected office and keeps the general escape hatch", () => {
+    const trafficChoices = [
+      { label: "Bil", value: "BIL" },
+      { label: "Motorcykel", value: "MC" },
+    ];
+    const buildForOffice = (categoriesOffered?: string[]) =>
+      buildLegacyContextBarCategoryChoices(
+        filterCategoryChoicesForOffice(trafficChoices, categoriesOffered),
+        "legacy-category:",
+        "legacy-category:general",
+      );
+
+    expect(buildForOffice(["BIL"])).toEqual([
+      { label: "Bil", value: "legacy-category:BIL" },
+      { label: "Övrigt / Allmän fråga", value: "legacy-category:general" },
+    ]);
+    expect(buildForOffice(undefined)).toEqual([
+      { label: "Bil", value: "legacy-category:BIL" },
+      { label: "Motorcykel", value: "legacy-category:MC" },
+      { label: "Övrigt / Allmän fråga", value: "legacy-category:general" },
+    ]);
   });
 });

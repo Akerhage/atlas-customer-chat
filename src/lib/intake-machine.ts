@@ -185,6 +185,20 @@ export function filterCategoryChoicesForOffice<T extends { value: string }>(
   return categoryChoices.filter((choice) => allowedCategories.has(choice.value));
 }
 
+export function buildLegacyContextBarCategoryChoices<T extends { label: string; value: string }>(
+  categoryChoices: readonly T[],
+  categoryPrefix: string,
+  generalValue: string,
+): { label: string; value: string }[] {
+  return [
+    ...categoryChoices.map((choice) => ({
+      label: choice.label,
+      value: `${categoryPrefix}${choice.value}`,
+    })),
+    { label: "Övrigt / Allmän fråga", value: generalValue },
+  ];
+}
+
 export function isCategoryFirstIntake(mode: IntakeMode, _categoryChoiceCount: number): boolean {
   return mode === "category_first";
 }

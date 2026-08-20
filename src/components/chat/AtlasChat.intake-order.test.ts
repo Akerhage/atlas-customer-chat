@@ -241,6 +241,24 @@ describe("AtlasChat intake-order contract", () => {
     // försvann först efter klicket).
     expect(source).toContain("const effectiveContextUnitId = selfserviceUnitId");
     expect(source).toContain("getStandardCategoryChoices(effectiveContextUnitId)");
+    expect(source).toContain("getCategoryChoicesForOfficeLabel(selectedCity || context.city)");
+    expect(source).toContain("buildLegacyContextBarCategoryChoices(");
+    expect(source).toContain("findSafeOfficeFromLiveContext(offices, value, context) || singletonOffice");
+  });
+
+  it("clears all three legacy vehicle holders on an incompatible office change without marking a general choice", () => {
+    const start = source.indexOf("const handleCityChange");
+    const end = source.indexOf("const messagesEndRef", start);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    const block = source.slice(start, end);
+
+    expect(block).toContain("resolveVehicleForOffice(nextOffice, selectedVehicle)");
+    expect(block).toContain("setSelectedVehicle(nextVehicle)");
+    expect(block).toContain("window.selectedVehicle = nextVehicle");
+    expect(block).toContain("vehicle: nextVehicle");
+    expect(block).not.toContain("vehicle_choice: 'OVRIGT'");
+    expect(block).not.toContain("clear_vehicle: true");
   });
 
   it("only permits selfservice session recovery outside human mode and intake", () => {

@@ -119,7 +119,7 @@ describe("QuickQuestionsButton category builder", () => {
       standardSelfserviceMenu: standardItems,
       aiRepliesEnabled: true,
       ...override,
-    } as Parameters<typeof buildQuickQuestionCategories>[0]);
+    } as unknown as Parameters<typeof buildQuickQuestionCategories>[0]);
 
     expect(categories.find(category => category.category === "Priser & tjänster")?.actions).toHaveLength(1);
     expect(categories.some(category => category.category === "Kom igång med Bil")).toBe(true);
