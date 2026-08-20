@@ -250,6 +250,53 @@ describe("AtlasChat intake-order contract", () => {
     expect(source).toContain("buildLegacyContextBarCategoryChoices(");
     expect(source).toContain("findSafeOfficeFromLiveContext(offices, value, context) || singletonOffice");
   });
+  it("holds the three context pills to identical widget-width measurements", () => {
+    // KAN-119 (2026-08-20): kontrollraden bröt till TVÅ rader i den 380px breda
+    // inbäddade widgeten. Fixen krympte gap/padding under 440px och dolde
+    // chevronen — men måtten skrevs för hand i TVÅ filer: ChatContextSelect här
+    // i ChatContextBar.tsx och triggern i QuickQuestionsButton.tsx. De tre
+    // pillarna delar EN rad; glider måtten isär vid nästa ändring bryts raden
+    // igen, och inget test fångade det. Mätt live 2026-08-20: inre radhöjd 26px
+    // och EN rad på alla fem boxar — den mätningen är det denna vakt skyddar.
+    const pillClasses = (src: string): string[] => {
+      const line = src
+        .split("\n")
+        .find((row) => row.includes("max-w-[min(11rem,44vw)]"));
+      expect(line, "hittade ingen pill-klassrad").toBeTruthy();
+      return (line as string)
+        .replace(/^[^"]*"/, "")
+        .replace(/",?\s*$/, "")
+        .split(/\s+/)
+        // text-xs bärs av radens container i ChatContextBar och inline i
+        // QuickQuestionsButton — samma renderade storlek, olika plats.
+        .filter((token) => token !== "text-xs")
+        .sort();
+    };
+
+    const barPill = pillClasses(contextBarSource);
+    const questionsPill = pillClasses(quickQuestionsSource);
+
+    // 🔴 Positiv kontroll först: en ren jämförelse mellan två listor är grön även
+    // om BÅDA tappat de mått som håller raden på en rad.
+    for (const token of [
+      "min-w-0",
+      "gap-0.5",
+      "min-[440px]:gap-1",
+      "px-1.5",
+      "min-[440px]:px-2",
+    ]) {
+      expect(barPill).toContain(token);
+    }
+    expect(questionsPill).toEqual(barPill);
+
+    // Chevronen döljs under 440px i BÅDA — det var den som inte fick plats.
+    for (const src of [contextBarSource, quickQuestionsSource]) {
+      expect(src).toContain('className="hidden min-[440px]:block w-3 h-3 shrink-0');
+    }
+    // Raden får inte brytas: flex-wrap var själva orsaken till tvåradersfelet.
+    expect(contextBarSource).toContain("flex flex-nowrap items-center");
+    expect(contextBarSource).not.toContain("flex flex-wrap items-center");
+  });
 
   it("clears all three legacy vehicle holders on an incompatible office change without marking a general choice", () => {
     const start = source.indexOf("const handleCityChange");
