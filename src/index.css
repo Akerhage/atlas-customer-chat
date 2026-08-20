@@ -310,8 +310,7 @@ animation-delay: 0.3s;
 animation: atlasChatShellIn var(--atlas-motion-short) var(--atlas-motion-ease) both;
 }
 
-[data-testid="welcome-message"],
-[data-testid="quick-context-selector"] {
+[data-testid="welcome-message"] {
 animation: atlasChatPanelIn var(--atlas-motion-medium) var(--atlas-motion-ease) both;
 will-change: transform, opacity;
 }
@@ -331,7 +330,6 @@ animation-duration: 140ms;
 }
 
 [data-testid="welcome-message"],
-[data-testid="quick-context-selector"],
 .animate-fade-in-up {
 animation-duration: 180ms;
 }

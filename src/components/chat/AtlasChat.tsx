@@ -2238,18 +2238,8 @@ data-atlas-edition={atlasEdition}
 {/* Välkomst-widget (logga + snabbknappar) visas bara innan kunden skickat något */}
 {showWelcomeWidget && (
 <WelcomeMessage
-onQuickAction={intakeMode === 'legacy' ? handleQuickAction : undefined}
-selectedVehicle={selectedVehicle}
-selectedCity={selectedCity}
-onVehicleChange={handleVehicleChange}
-onGeneralVehicleSelect={handleGeneralVehicleSelect}
-generalMode={generalMode}
-onCityChange={handleCityChange}
-offices={offices}
 companyName={companyName}
 companyLogoUrl={companyLogoUrl}
-activeVehicles={activeVehicles}
-quickQuestions={quickQuestions}
 />
 )}
 

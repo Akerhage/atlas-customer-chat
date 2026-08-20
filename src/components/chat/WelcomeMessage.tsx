@@ -1,34 +1,14 @@
 import atlasLogo from "@/assets/atlas-logo.png";
-import { resolveTenantAssetUrl, type ActiveVehicle } from "@/lib/atlas-client";
+import { resolveTenantAssetUrl } from "@/lib/atlas-client";
 
 interface WelcomeMessageProps {
-onQuickAction?: (message: string, context?: { vehicle: string | null; city: string; vehicle_choice?: string | null; clear_vehicle?: boolean }) => void;
-selectedVehicle: ActiveVehicle | null;
-selectedCity: string | null;
-onVehicleChange: (vehicle: ActiveVehicle | null) => void;
-onGeneralVehicleSelect: () => void;
-generalMode: boolean;
-onCityChange: (city: string | null) => void;
-offices: any[];
 companyName?: string | null;
 companyLogoUrl?: string | null;
-activeVehicles: ActiveVehicle[];
-quickQuestions: string[];
 }
 
 export function WelcomeMessage({
-onQuickAction,
-selectedVehicle,
-selectedCity,
-onVehicleChange,
-onGeneralVehicleSelect,
-generalMode,
-onCityChange,
-offices,
 companyName,
 companyLogoUrl,
-activeVehicles,
-quickQuestions,
 }: WelcomeMessageProps) {
 const displayName = companyName || "Atlas";
 const logoSrc = resolveTenantAssetUrl(companyLogoUrl) || atlasLogo;
@@ -51,16 +31,14 @@ Välkommen till Atlas!
 Chatta med {displayName}. Vi hjälper dig hitta rätt svar eller rätt kontor.
 </p>
 
-{/* 🔴 Pillerraden (QuickContextSelector) låg HÄR fram till 2026-08-19.
+{/* 🔴 Den tidigare pillerraden låg HÄR fram till 2026-08-19.
     Den togs bort på Patriks beslut: kontrollraden ovanför skrivfältet bär samma
     val, men genom HELA samtalet. Mätt: denna rad krävde messages.length === 1
     (AtlasChat: showWelcomeWidget) och försvann alltså så fort kunden skickat sitt
     första meddelande — "man får alltid valen" gällde aldrig ens på Box1.
 
-    Komponentfilen är kvar men renderas inte längre. Den bär den ena av de två
-    hårdkodade frågelistorna (33 frågor mot panelens 39, bara 19 identiska —
-    mätt 2026-08-19). Sammanslagningen är Patriks beslut en EGEN post, inte denna
-    runda: "om designen tar bort den ena ytan löser divergensen sig själv." */}
+    Den döda komponentfilen och dess hårdkodade frågelista raderades i #356 när
+    testsviten flyttades till den levande kontrollraden. */}
 </div>
 );
 }
