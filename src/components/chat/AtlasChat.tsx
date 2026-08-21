@@ -2404,6 +2404,7 @@ industryRagEnabled={industryRagEnabled}
 ) : (
 <ChatInput
 onSend={handleInputSend}
+onRequestHuman={handleRequestHuman}
 
 disabled={isTyping || selfserviceFreeTextBlocked}
 // L-019 (Patrik 2026-08-06): när branschkunskapen är AV ska besökaren inte

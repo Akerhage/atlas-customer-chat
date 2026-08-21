@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Paperclip, Loader2, X, FileText, Image } from "lucide-react";
+import { Send, Paperclip, Loader2, X, FileText, Image, Headset } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { emitTyping, getOwnerToken, getSessionId } from "@/lib/atlas-client";
 import type { ActiveVehicle } from "@/lib/atlas-client";
@@ -25,6 +25,7 @@ type VehicleType = ActiveVehicle | null;
 
 interface ChatInputProps {
 onSend: (message: string, context?: { vehicle: string | null; city: string; vehicle_choice?: string | null; clear_vehicle?: boolean }) => void;
+onRequestHuman: () => void;
 disabled?: boolean;
 placeholder?: string;
 // L-019: döljer textarean OCH skicka-knappen helt. Inmatningsraden står kvar och
@@ -41,6 +42,7 @@ const MESSAGE_TOO_LONG_TOAST_ID = "atlas-msg-too-long";
 
 export function ChatInput({
 onSend,
+onRequestHuman,
 disabled = false,
 placeholder = "Skriv ett meddelande...",
 hideFreeText = false,
@@ -288,6 +290,18 @@ className="flex-1 resize-none bg-transparent text-sm py-2 text-foreground placeh
 <div className="flex-1 min-h-[40px] flex items-center text-sm text-help select-none">
 {placeholder}
 </div>
+)}
+
+{hideFreeText && (
+<button
+type="button"
+onClick={onRequestHuman}
+className="flex-shrink-0 w-9 h-9 rounded-xl mb-0.5 flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 shadow-glow transition-all duration-200"
+aria-label="Prata med människa"
+title="Prata med människa"
+>
+<Headset className="w-4 h-4" />
+</button>
 )}
 
 {/* 🔴 Frågeknappen och självservicemenyn låg HÄR fram till 2026-08-19. De bor nu i

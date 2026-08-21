@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 const source = readFileSync(new URL("./AtlasChat.tsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const chatHeaderSource = readFileSync(new URL("./ChatHeader.tsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+const chatInputSource = readFileSync(new URL("./ChatInput.tsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const chatBubbleSource = readFileSync(new URL("./ChatBubble.tsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const contactFormSource = readFileSync(new URL("./ContactFormDialog.tsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const contextBarSource = readFileSync(new URL("./ChatContextBar.tsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
@@ -308,6 +309,16 @@ describe("AtlasChat intake-order contract", () => {
     // Raden får inte brytas: flex-wrap var själva orsaken till tvåradersfelet.
     expect(contextBarSource).toContain("flex flex-nowrap items-center");
     expect(contextBarSource).not.toContain("flex flex-wrap items-center");
+  });
+
+  it("keeps human support reachable when exclusive selfservice hides free text", () => {
+    expect(source).toContain("onRequestHuman={handleRequestHuman}");
+    expect(chatInputSource).toContain("onRequestHuman: () => void;");
+    expect(chatInputSource).toContain('aria-label="Prata med människa"');
+    expect(chatInputSource).toContain('title="Prata med människa"');
+    expect(chatInputSource).toContain("{hideFreeText && (");
+    expect(chatInputSource).toContain("onClick={onRequestHuman}");
+    expect(chatInputSource).toContain("flex-shrink-0");
   });
 
   it("keeps the Standard welcome steps but moves final subject questions exclusively to the footer panel", () => {
