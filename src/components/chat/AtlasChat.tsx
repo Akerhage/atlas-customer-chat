@@ -750,13 +750,16 @@ return choices.length
 
 const showStandardMenu = (
 items: StandardSelfserviceMenuItem[],
-  message = 'Välj en snabbfråga eller skapa ett ärende så hjälper vi dig. Du hittar också frågorna i menyn nere vid skrivfältet.'
+  message = 'Välj en fråga i Frågor & tjänster nere vid skrivfältet, eller skapa ett ärende så hjälper vi dig.'
 ) => {
 setSelfserviceMenu(items);
 setSelfserviceStage('menu');
 injectBotMessage(
 items.length ? message : STANDARD_EMPTY_MESSAGE,
-withEscalationChoice(items)
+// L-098: sakfrågorna finns redan 1:1 i kontrollradens selfserviceMenu.
+// Slutbubblan behåller bara eskaleringsutvägen; enhets- och kategoristegen ovan
+// använder fortsatt sina egna choices och är den beslutade välkomststegen.
+withEscalationChoice([])
 );
 };
 

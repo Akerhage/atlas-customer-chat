@@ -401,10 +401,13 @@ className={cn(
 <ChevronDown className="hidden min-[440px]:block w-3 h-3 shrink-0 opacity-50 group-hover:opacity-100" />
 </button>
 </PopoverTrigger>
-<PopoverContent className="w-80 p-0 bg-popover text-popover-foreground border border-border shadow-xl mb-2" align="start" side="top" sideOffset={8}>
+<PopoverContent className="w-80 p-0 bg-popover text-popover-foreground border border-border shadow-xl" align="start" side="top" sideOffset={8}>
 
 {/* LISTA MED FRÅGOR */}
-<ScrollArea className="h-80">
+{/* 60dvh håller hela panelen inom även den 498px höga iPhone-widgeten. Fast höjd
+    20rem klipptes 4px utanför och gjorde sista posten onåbar. ScrollArea får en
+    faktisk höjd (inte bara max-height), så Radix viewport + touch/hjul kan rulla. */}
+<ScrollArea className="h-[min(20rem,60dvh)]">
 <div className="p-2">
 {questionCategories.map((cat, idx) => (
 <div key={cat.category}>

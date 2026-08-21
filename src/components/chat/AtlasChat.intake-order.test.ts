@@ -309,6 +309,34 @@ describe("AtlasChat intake-order contract", () => {
     expect(contextBarSource).not.toContain("flex flex-wrap items-center");
   });
 
+  it("keeps the Standard welcome steps but moves final subject questions exclusively to the footer panel", () => {
+    expect(source).toContain("injectBotMessage(STANDARD_UNIT_PROMPT,");
+    expect(source).toContain("? { content: 'Välj kategori.', choices }");
+
+    const menuStart = source.indexOf("const showStandardMenu = (");
+    const menuEnd = source.indexOf("const showCompactStandardMenuFollowup", menuStart);
+    expect(menuStart).toBeGreaterThanOrEqual(0);
+    expect(menuEnd).toBeGreaterThan(menuStart);
+    const menuSource = source.slice(menuStart, menuEnd);
+
+    // L-098: samma API-array ska fortfarande mata Frågor & tjänster, men inte
+    // dupliceras som stora choice-knappar i den sista chattbubblan.
+    expect(menuSource).toContain("setSelfserviceMenu(items);");
+    expect(menuSource).toContain("withEscalationChoice([])");
+    expect(menuSource).not.toContain("withEscalationChoice(items)");
+    expect(menuSource).toContain("Välj en fråga i Frågor & tjänster nere vid skrivfältet");
+    expect(quickQuestionsSource).toContain(
+      "const selfserviceActions = standardSelfserviceMenu.map(item => ({",
+    );
+  });
+
+  it("opens all footer controls upward and caps the question list to a scrollable mobile viewport", () => {
+    expect(contextBarSource).toContain('side="top"');
+    expect(contextBarSource).toContain("sideOffset={8}");
+    expect(quickQuestionsSource).toContain('side="top" sideOffset={8}');
+    expect(quickQuestionsSource).toContain('className="h-[min(20rem,60dvh)]"');
+  });
+
   it("clears all three legacy vehicle holders on an incompatible office change without marking a general choice", () => {
     const start = source.indexOf("const handleCityChange");
     const end = source.indexOf("const messagesEndRef", start);

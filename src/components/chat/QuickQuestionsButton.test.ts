@@ -13,7 +13,50 @@ const standardItems: StandardSelfserviceMenuItem[] = [{
   },
 }];
 
+const allStandardItems: StandardSelfserviceMenuItem[] = [
+  standardItems[0],
+  {
+    id: "offer-2",
+    label: "Vad kostar Riskettan i Göteborg - Ullevi?",
+    action: {
+      type: "offering",
+      unit_id: "goteborg_ullevi",
+      category_id: "BIL",
+      offering_id: "riskettan",
+    },
+  },
+  {
+    id: "fact-1",
+    label: "Hur avbokar jag min lektion?",
+    action: {
+      type: "fact",
+      unit_id: "goteborg_ullevi",
+      category_id: "BIL",
+      fact_id: 1,
+    },
+  },
+];
+
 describe("QuickQuestionsButton category builder", () => {
+  it("maps every Standard menu source to exactly one footer-panel action", () => {
+    const categories = buildQuickQuestionCategories({
+      selectedCity: "Göteborg - Ullevi",
+      selectedVehicle: "BIL",
+      generalMode: false,
+      selectedOffice: { city: "Göteborg", area: "Ullevi" },
+      availableVehicles: ["BIL"],
+      quickQuestions: [],
+      standardSelfserviceMenu: allStandardItems,
+    });
+
+    const actions = categories.find(category => category.category === "Priser & tjänster")?.actions;
+    expect(actions).toEqual(allStandardItems.map(item => ({
+      label: item.label,
+      value: menuChoiceValue(item.id),
+    })));
+    expect(actions).toHaveLength(allStandardItems.length);
+  });
+
   it("keeps the deterministic selfservice section before the empty-context return", () => {
     const categories = buildQuickQuestionCategories({
       selectedCity: "",

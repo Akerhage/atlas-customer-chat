@@ -156,6 +156,8 @@ function ChatContextSelect({
           overflow-y-auto på själva menyn scrollar, och kollapsar fortfarande för korta listor. */}
       <DropdownMenuContent
         align="start"
+        side="top"
+        sideOffset={8}
         className="bg-popover border border-border shadow-lg z-50 max-w-[calc(100vw-2rem)] max-h-64 overflow-y-auto chat-scrollbar"
       >
         <div>
