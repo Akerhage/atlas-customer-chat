@@ -21,6 +21,7 @@ attributes: {
 };
 
 interface ChatBubbleProps {
+messageId: string;
 content: string;
 isUser: boolean;
 timestamp?: Date;
@@ -33,7 +34,7 @@ onRequestHuman?: () => void;
 onOpenContactForm?: () => void;
 }
 
-export function ChatBubble({ content, isUser, timestamp, isLatest, senderName, companyName, choices, onChoiceSelect, onRequestHuman, onOpenContactForm }: ChatBubbleProps) {
+export function ChatBubble({ messageId, content, isUser, timestamp, isLatest, senderName, companyName, choices, onChoiceSelect, onRequestHuman, onOpenContactForm }: ChatBubbleProps) {
 // Visa agentens namn om angivet, annars tenantnamnet för AI-svar.
 const displayName = isUser ? 'Du' : (senderName || companyName || 'Atlas');
 const hasLargeChoiceSet = (choices?.length ?? 0) > 12;
@@ -41,6 +42,7 @@ const hasLargeChoiceSet = (choices?.length ?? 0) > 12;
 return (
 <div
 data-chat-message
+data-chat-message-id={messageId}
 className={cn(
 "flex w-full",
 isUser ? "justify-end" : "justify-start",

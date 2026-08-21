@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ListTodo } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { MenuScrollArea } from "./MenuScrollArea";
 import { cn } from "@/lib/utils";
 import {
   STANDARD_EMPTY_MESSAGE,
@@ -107,7 +107,7 @@ export function StandardSelfserviceMenuButton({
           </button>
         </div>
 
-        <ScrollArea className="h-64">
+        <MenuScrollArea reservedPanelChrome>
           <div className="p-2">
             {view === 'unit' && unitChoices.map((choice) => (
               <button
@@ -152,7 +152,7 @@ export function StandardSelfserviceMenuButton({
               </>
             )}
           </div>
-        </ScrollArea>
+        </MenuScrollArea>
 
         <div className="border-t border-border p-2">
           <button

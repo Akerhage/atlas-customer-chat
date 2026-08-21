@@ -512,6 +512,7 @@ return { ...prev, city, area, vehicle: nextVehicle };
 };
 const messagesEndRef = useRef<HTMLDivElement>(null);
 const scrollContainerRef = useRef<HTMLDivElement>(null);
+const pendingAssistantScrollRef = useRef<string | null>(null);
 const [chatTextSize, setChatTextSize] = useState<ChatTextSize>(() => readChatTextSize());
 const lastMessageCountRef = useRef<number>(0);
 const agentTypingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -588,6 +589,7 @@ const generateMessageId = () => `msg_${Date.now()}_${Math.random().toString(36).
 // polling aktiveras ersätts de automatiskt av serverns historik.
 const injectBotMessage = (content: string, choices?: { label: string; value: string; fullWidth?: boolean }[]) => {
 const id = generateMessageId();
+pendingAssistantScrollRef.current = id;
 setMessages((prev) => [
 ...prev,
 {
@@ -1029,6 +1031,38 @@ const scrollToBottom = useCallback(() => {
 messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
 }, []);
 
+const scrollToAssistantStart = useCallback((assistantId: string) => {
+const scrollEl = scrollContainerRef.current;
+if (!scrollEl) return;
+const messageElements = Array.from(scrollEl.querySelectorAll<HTMLElement>('[data-chat-message]'));
+const assistantEl = messageElements.find(element => element.dataset.chatMessageId === assistantId);
+if (!assistantEl) {
+scrollToBottom();
+return;
+}
+
+// KAN-132: korta svar ska fortsatt landa i botten. Ett svar som är högre än
+// hela läsvyn kan däremot aldrig läsas därifrån utan att kunden scrollar bakåt.
+if (assistantEl.getBoundingClientRect().height <= scrollEl.clientHeight) {
+scrollToBottom();
+return;
+}
+
+const assistantIndex = messages.findIndex(message => message.id === assistantId);
+const question = assistantIndex > 0
+? messages.slice(0, assistantIndex).reverse().find(message => message.role === 'user')
+: null;
+const questionEl = question
+? messageElements.find(element => element.dataset.chatMessageId === question.id) ?? null
+: null;
+const minimumAnswerPreview = 96;
+const anchorEl = questionEl && questionEl.getBoundingClientRect().height + minimumAnswerPreview <= scrollEl.clientHeight
+? questionEl
+: assistantEl;
+const viewportTop = scrollEl.getBoundingClientRect().top;
+scrollEl.scrollTop += anchorEl.getBoundingClientRect().top - viewportTop;
+}, [messages, scrollToBottom]);
+
 const handleChatTextSizeChange = useCallback((nextSize: ChatTextSize) => {
 const scrollEl = scrollContainerRef.current;
 const viewportRect = scrollEl?.getBoundingClientRect();
@@ -1062,8 +1096,14 @@ window.setTimeout(restore, 220);
 }, []);
 
 useEffect(() => {
+const pendingAssistantId = pendingAssistantScrollRef.current;
+pendingAssistantScrollRef.current = null;
+if (humanMode || !pendingAssistantId) {
 scrollToBottom();
-}, [messages, isTyping, scrollToBottom]);
+return;
+}
+scrollToAssistantStart(pendingAssistantId);
+}, [messages, humanMode, scrollToAssistantStart, scrollToBottom]);
 
 // Socket.io connection for real-time agent replies
 const handleAgentReply = useCallback((event: CustomerReplyEvent) => {
@@ -1636,6 +1676,7 @@ content: response.answer,
 timestamp: new Date(),
 choices: response.choices,
 };
+pendingAssistantScrollRef.current = assistantMessage.id;
 setMessages((prev) => [...prev, assistantMessage]);
 }
 } catch (error) {
@@ -2270,16 +2311,19 @@ Chatten stängs automatiskt pga inaktivitet om{' '}
 </div>
 )}
 
-{/* #353: egen verktygsrad så textkontrollen aldrig täcker meddelanden eller
-    tränger ihop den redan fulla mobilheadern. */}
-<div className="flex shrink-0 justify-end border-b border-border/50 bg-chat-bg px-4 py-1.5">
+{/* KAN-120: kontrollen ligger kvar visuellt överst till höger men tar ingen
+    egen flexrad och tränger inte ihop den redan fulla mobilheadern. */}
+<div className="relative min-h-0 flex-1">
+<div className="pointer-events-none absolute right-4 top-3 z-20">
+<div className="pointer-events-auto">
 <TextSizeControl value={chatTextSize} onChange={handleChatTextSizeChange} />
+</div>
 </div>
 
 {/* Messages area */}
 <div
 ref={scrollContainerRef}
-className="flex-1 overflow-y-auto chat-scrollbar px-4 py-4"
+className="h-full overflow-y-auto chat-scrollbar px-4 pb-4 pt-16"
 data-atlas-edition={atlasEdition}
 data-testid="chat-messages-scroll"
 style={{ '--atlas-chat-message-size': `${chatTextSize}px` } as CSSProperties}
@@ -2297,6 +2341,7 @@ companyLogoUrl={companyLogoUrl}
 {messages.map((message, index) => (
 <ChatBubble
 key={message.id}
+messageId={message.id}
 content={message.content}
 isUser={message.role === 'user'}
 timestamp={message.timestamp}
@@ -2316,6 +2361,7 @@ onOpenContactForm={() => setContactFormOpen(true)}
 </div>
 </div>
 <div ref={messagesEndRef} />
+</div>
 </div>
 </div>
 

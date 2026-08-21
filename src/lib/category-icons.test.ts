@@ -30,6 +30,7 @@ describe("category icons", () => {
 
   it("renders no icon for a legacy choice without an icon key", () => {
     const markup = renderToStaticMarkup(createElement(ChatBubble, {
+      messageId: "category-icons-test",
       content: "Välj ett alternativ",
       isUser: false,
       choices: [{ label: "Bil", value: "BIL" }],

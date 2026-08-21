@@ -8,6 +8,7 @@ const chatBubbleSource = readFileSync(new URL("./ChatBubble.tsx", import.meta.ur
 const contactFormSource = readFileSync(new URL("./ContactFormDialog.tsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const contextBarSource = readFileSync(new URL("./ChatContextBar.tsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const quickQuestionsSource = readFileSync(new URL("./QuickQuestionsButton.tsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+const menuScrollAreaSource = readFileSync(new URL("./MenuScrollArea.tsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const atlasClientSource = readFileSync(new URL("../../lib/atlas-client.ts", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const intakeMachineSource = readFileSync(new URL("../../lib/intake-machine.ts", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 
@@ -334,7 +335,9 @@ describe("AtlasChat intake-order contract", () => {
     expect(contextBarSource).toContain('side="top"');
     expect(contextBarSource).toContain("sideOffset={8}");
     expect(quickQuestionsSource).toContain('side="top" sideOffset={8}');
-    expect(quickQuestionsSource).toContain('className="h-[min(20rem,60dvh)]"');
+    expect(quickQuestionsSource).toContain("<MenuScrollArea>");
+    expect(menuScrollAreaSource).toContain("max-h-[min(20rem,60dvh)]");
+    expect(menuScrollAreaSource).toContain("[&>[data-radix-scroll-area-viewport]]:max-h-[min(20rem,60dvh)]");
   });
 
   it("clears all three legacy vehicle holders on an incompatible office change without marking a general choice", () => {

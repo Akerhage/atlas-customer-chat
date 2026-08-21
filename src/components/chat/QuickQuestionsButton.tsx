@@ -8,7 +8,7 @@ DropdownMenuTrigger,
 DropdownMenuLabel,
 DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { MenuScrollArea } from "./MenuScrollArea";
 import {
 Popover,
 PopoverContent,
@@ -404,10 +404,9 @@ className={cn(
 <PopoverContent className="w-80 p-0 bg-popover text-popover-foreground border border-border shadow-xl" align="start" side="top" sideOffset={8}>
 
 {/* LISTA MED FRÅGOR */}
-{/* 60dvh håller hela panelen inom även den 498px höga iPhone-widgeten. Fast höjd
-    20rem klipptes 4px utanför och gjorde sista posten onåbar. ScrollArea får en
-    faktisk höjd (inte bara max-height), så Radix viewport + touch/hjul kan rulla. */}
-<ScrollArea className="h-[min(20rem,60dvh)]">
+{/* Den delade scrollkomponenten innehållsanpassar korta listor och behåller
+    60dvh-taket, Radix-viewporten samt hjul/touch-scroll för långa listor. */}
+<MenuScrollArea>
 <div className="p-2">
 {questionCategories.map((cat, idx) => (
 <div key={cat.category}>
@@ -437,7 +436,7 @@ className="w-full text-left px-2 py-2 text-xs rounded-md transition-colors hover
 </div>
 ))}
 </div>
-</ScrollArea>
+</MenuScrollArea>
 </PopoverContent>
 </Popover>
 );
