@@ -407,6 +407,18 @@ border-radius: 999px;
 background: hsl(var(--primary) / 0.5);
 }
 
+/* #353: kundens textpreferens skalar bara konversationens innehåll. Header,
+   kontrollrad och input behåller sina träffytor och kan därför inte tryckas ut. */
+.atlas-message-content {
+font-size: var(--atlas-chat-message-size, 13px);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+.atlas-message-content {
+transition: font-size 0.16s ease;
+}
+}
+
 .atlas-user-message .atlas-message-content,
 .atlas-user-message .atlas-message-content > * {
 border: 0;

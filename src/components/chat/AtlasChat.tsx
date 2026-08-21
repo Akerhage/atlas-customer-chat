@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, type CSSProperties } from "react";
 import { ChatHeader } from "./ChatHeader";
 import { ChatBubble } from "./ChatBubble";
 import { ChatInput } from "./ChatInput";
@@ -42,6 +42,12 @@ type TenantProfile,
 import { officeOffersVehicle, resolveVehicleForOffice } from "@/lib/vehicle-utils";
 import { ChatContextBar } from "./ChatContextBar";
 import { QuickQuestionsButton } from "./QuickQuestionsButton";
+import { TextSizeControl } from "./TextSizeControl";
+import {
+readChatTextSize,
+saveChatTextSize,
+type ChatTextSize,
+} from "@/lib/chat-text-size";
 import {
 buildCategoryChoices,
 buildIntakeOrder,
@@ -506,6 +512,7 @@ return { ...prev, city, area, vehicle: nextVehicle };
 };
 const messagesEndRef = useRef<HTMLDivElement>(null);
 const scrollContainerRef = useRef<HTMLDivElement>(null);
+const [chatTextSize, setChatTextSize] = useState<ChatTextSize>(() => readChatTextSize());
 const lastMessageCountRef = useRef<number>(0);
 const agentTypingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 const tabIdRef = useRef<string>(createCrossTabId());
@@ -1020,6 +1027,38 @@ injectBotMessage(legacyMessage);
 
 const scrollToBottom = useCallback(() => {
 messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+}, []);
+
+const handleChatTextSizeChange = useCallback((nextSize: ChatTextSize) => {
+const scrollEl = scrollContainerRef.current;
+const viewportRect = scrollEl?.getBoundingClientRect();
+const anchorEl = scrollEl && viewportRect
+? Array.from(scrollEl.querySelectorAll<HTMLElement>('[data-chat-message]')).find((message) => {
+const rect = message.getBoundingClientRect();
+return rect.bottom > viewportRect.top && rect.top < viewportRect.bottom;
+}) ?? null
+: null;
+const anchorTop = anchorEl?.getBoundingClientRect().top ?? 0;
+const nearBottom = scrollEl
+? (scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight) < 4
+: false;
+
+saveChatTextSize(nextSize);
+setChatTextSize(nextSize);
+
+if (!scrollEl) return;
+const restore = () => {
+if (nearBottom) {
+scrollEl.scrollTop = scrollEl.scrollHeight;
+return;
+}
+if (!anchorEl) return;
+scrollEl.scrollTop += anchorEl.getBoundingClientRect().top - anchorTop;
+};
+window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+restore();
+window.setTimeout(restore, 220);
+}));
 }, []);
 
 useEffect(() => {
@@ -2231,11 +2270,19 @@ Chatten stängs automatiskt pga inaktivitet om{' '}
 </div>
 )}
 
+{/* #353: egen verktygsrad så textkontrollen aldrig täcker meddelanden eller
+    tränger ihop den redan fulla mobilheadern. */}
+<div className="flex shrink-0 justify-end border-b border-border/50 bg-chat-bg px-4 py-1.5">
+<TextSizeControl value={chatTextSize} onChange={handleChatTextSizeChange} />
+</div>
+
 {/* Messages area */}
 <div
 ref={scrollContainerRef}
 className="flex-1 overflow-y-auto chat-scrollbar px-4 py-4"
 data-atlas-edition={atlasEdition}
+data-testid="chat-messages-scroll"
+style={{ '--atlas-chat-message-size': `${chatTextSize}px` } as CSSProperties}
 >
 <div className="flex flex-col gap-3">
 {/* Välkomst-widget (logga + snabbknappar) visas bara innan kunden skickat något */}

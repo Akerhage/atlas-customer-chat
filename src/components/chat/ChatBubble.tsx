@@ -40,6 +40,7 @@ const hasLargeChoiceSet = (choices?.length ?? 0) > 12;
 
 return (
 <div
+data-chat-message
 className={cn(
 "flex w-full",
 isUser ? "justify-end" : "justify-start",
