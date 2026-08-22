@@ -31,10 +31,11 @@ companyName?: string | null;
 choices?: { label: string; value: string; icon?: string; fullWidth?: boolean }[];
 onChoiceSelect?: (value: string) => void;
 onRequestHuman?: () => void;
+humanMode?: boolean;
 onOpenContactForm?: () => void;
 }
 
-export function ChatBubble({ messageId, content, isUser, timestamp, isLatest, senderName, companyName, choices, onChoiceSelect, onRequestHuman, onOpenContactForm }: ChatBubbleProps) {
+export function ChatBubble({ messageId, content, isUser, timestamp, isLatest, senderName, companyName, choices, onChoiceSelect, onRequestHuman, humanMode = false, onOpenContactForm }: ChatBubbleProps) {
 // Visa agentens namn om angivet, annars tenantnamnet för AI-svar.
 const displayName = isUser ? 'Du' : (senderName || companyName || 'Atlas');
 const hasLargeChoiceSet = (choices?.length ?? 0) > 12;
@@ -92,6 +93,7 @@ components={{
 a: ({ node, ...props }) => {
 const href = typeof props.href === 'string' ? props.href : '';
 if (href === '#atlas-human') {
+if (humanMode) return <span>{props.children}</span>;
 return (
 <a
 {...props}

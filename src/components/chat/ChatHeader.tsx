@@ -13,6 +13,7 @@ import type { IntakeMode } from "@/lib/intake-machine";
 interface ChatHeaderProps {
 onEndSession?: () => void;
 onRequestHuman: () => void;
+humanMode: boolean;
 isDark: boolean;
 onToggleTheme: () => void;
 selectedCity?: string | null;
@@ -39,6 +40,7 @@ onContactFormOpenChange?: (open: boolean) => void;
 export function ChatHeader({
 onEndSession,
 onRequestHuman,
+humanMode,
 isDark,
 onToggleTheme,
 selectedCity,
@@ -112,6 +114,7 @@ onOpenChange={onContactFormOpenChange}
 />
 
 {/* Prata med människa */}
+{!humanMode && (
 <Tooltip>
 <TooltipTrigger asChild>
 <button
@@ -126,6 +129,7 @@ className="p-1.5 sm:p-2 rounded-lg text-muted-foreground hover:text-primary hove
 <p>Prata med människa</p>
 </TooltipContent>
 </Tooltip>
+)}
 
 {/* Tema-växlare */}
 {onToggleTheme && (

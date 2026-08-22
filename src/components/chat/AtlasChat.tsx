@@ -8,6 +8,7 @@ import { EndSessionDialog } from "./EndSessionDialog";
 // ContextIndicator renderas inte längre — ChatContextBar bär kontexten och kan
 // dessutom ÄNDRA den, vilket chipsen bara kunde för kontor. Filen är kvar orörd.
 import { HumanModeIndicator } from "./HumanModeIndicator";
+import { shouldStartNewChatAtTop } from "@/lib/chat-scroll-machine";
 import {
 sendMessage,
 getStandardSelfserviceMenu,
@@ -513,6 +514,8 @@ return { ...prev, city, area, vehicle: nextVehicle };
 const messagesEndRef = useRef<HTMLDivElement>(null);
 const scrollContainerRef = useRef<HTMLDivElement>(null);
 const pendingAssistantScrollRef = useRef<string | null>(null);
+const initialScrollHandledRef = useRef(false);
+const initialHistoryHadMessagesRef = useRef<boolean | null>(null);
 const [chatTextSize, setChatTextSize] = useState<ChatTextSize>(() => readChatTextSize());
 const lastMessageCountRef = useRef<number>(0);
 const agentTypingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1096,14 +1099,27 @@ window.setTimeout(restore, 220);
 }, []);
 
 useEffect(() => {
+if (!initialHistoryLoaded || messages.length === 0) return;
 const pendingAssistantId = pendingAssistantScrollRef.current;
 pendingAssistantScrollRef.current = null;
+const startAtTop = shouldStartNewChatAtTop({
+initialHistoryLoaded,
+initialScrollHandled: initialScrollHandledRef.current,
+initialHistoryHadMessages: initialHistoryHadMessagesRef.current,
+humanMode,
+messageCount: messages.length,
+});
+if (!initialScrollHandledRef.current) initialScrollHandledRef.current = true;
+if (startAtTop) {
+if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0;
+return;
+}
 if (humanMode || !pendingAssistantId) {
 scrollToBottom();
 return;
 }
 scrollToAssistantStart(pendingAssistantId);
-}, [messages, humanMode, scrollToAssistantStart, scrollToBottom]);
+}, [messages, humanMode, initialHistoryLoaded, scrollToAssistantStart, scrollToBottom]);
 
 // Socket.io connection for real-time agent replies
 const handleAgentReply = useCallback((event: CustomerReplyEvent) => {
@@ -1472,8 +1488,10 @@ broadcastChannelRef.current = null;
 useEffect(() => {
 let cancelled = false;
 
-pollHistory().finally(() => {
-if (!cancelled) setInitialHistoryLoaded(true);
+pollHistory().then((history) => {
+if (cancelled) return;
+initialHistoryHadMessagesRef.current = history ? history.messages.length > 0 : null;
+setInitialHistoryLoaded(true);
 });
 
 return () => {
@@ -1690,6 +1708,8 @@ setIsTyping(false);
 };
 
 const handleReset = () => {
+initialScrollHandledRef.current = false;
+initialHistoryHadMessagesRef.current = false;
 setMessages([createWelcomeMessage(aiRepliesEnabled, widgetTexts)]);
 setContext({ city: null, area: null, vehicle: null });
 setSelectedVehicle(null);
@@ -2246,6 +2266,7 @@ return (
 <ChatHeader
 onEndSession={hasCustomerMessage ? handleEndSession : undefined}
 onRequestHuman={handleRequestHuman}
+humanMode={humanMode && !isArchived}
 isDark={isDark}
 onToggleTheme={handleToggleTheme}
 selectedCity={selectedCity}
@@ -2351,6 +2372,7 @@ companyName={companyName}
 choices={message.choices}
 onChoiceSelect={isArchived ? undefined : handleChoiceSelected}
 onRequestHuman={handleRequestHuman}
+humanMode={humanMode}
 onOpenContactForm={() => setContactFormOpen(true)}
 />
 ))}
