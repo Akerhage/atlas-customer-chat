@@ -69,7 +69,7 @@ return (
 {/* Brand */}
 <div className="flex min-w-0 shrink items-center gap-2 sm:gap-3">
 <div className="relative shrink-0">
-<div className="flex h-9 w-[116px] items-center rounded-lg border border-border/70 bg-card/80 px-2 shadow-sm sm:h-10 sm:w-[128px]" data-testid="chat-header-logo">
+<div className="flex h-9 w-[116px] items-center rounded-lg border border-slate-900/15 bg-slate-950 px-2 shadow-sm dark:border-border/70 dark:bg-card/80 sm:h-10 sm:w-[128px]" data-testid="chat-header-logo">
 <img
 src={logoSrc}
 alt={displayName}

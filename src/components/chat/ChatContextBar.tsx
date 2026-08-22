@@ -130,7 +130,7 @@ function ChatContextSelect({
       className={cn(
         "group flex min-w-0 max-w-[min(11rem,44vw)] items-center gap-0.5 min-[440px]:gap-1 rounded-full border px-1.5 min-[440px]:px-2 py-1 transition-colors",
         hasSelection
-          ? "bg-primary/10 text-primary border-primary/30 hover:bg-primary/20"
+          ? "bg-primary/20 text-primary-ink border-primary/55 shadow-sm hover:bg-primary/25"
           : "bg-secondary text-muted-foreground border-transparent hover:bg-secondary/80",
         isDisabled && "opacity-50 cursor-not-allowed hover:bg-secondary"
       )}
@@ -167,7 +167,7 @@ function ChatContextSelect({
               onSelect={() => onChoice(choice.value)}
               className={cn(
                 "cursor-pointer text-sm",
-                choice.label === selectedLabel && "bg-primary/10"
+                choice.label === selectedLabel && "bg-primary/20 text-primary-ink"
               )}
             >
               {choice.label}

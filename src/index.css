@@ -12,7 +12,7 @@ Baserat på chrome-light estetik.
 @layer base {
 :root {
 /* === CORE BACKGROUNDS === */
---background: 147 36% 95%;
+--background: 147 36% 83%;
 --foreground: 150 20% 14%;
 
 /* === CARD/SURFACE === */
@@ -64,13 +64,13 @@ Baserat på chrome-light estetik.
 --radius: 1rem;
 
 /* === ATLAS CHAT SPECIFIC TOKENS === */
---chat-bg: 147 36% 95%;
+--chat-bg: 147 36% 83%;
 --chat-header-bg: 144 34% 93%;
 --chat-input-bg: 144 34% 93%;
 
 /* Bubble tokens - Atlas style */
 --bubble-atlas-bg: 142 42% 97%;
---bubble-atlas-border: 146 25% 82%;
+--bubble-atlas-border: 146 28% 70%;
 --bubble-atlas-text: 150 20% 14%;
 --bubble-atlas-shadow: 144 30% 75%;
 

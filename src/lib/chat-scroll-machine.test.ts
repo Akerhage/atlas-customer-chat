@@ -3,6 +3,15 @@ import { describe, expect, it } from "vitest";
 import { shouldStartNewChatAtTop } from "./chat-scroll-machine";
 
 describe("initial chat scroll", () => {
+  it("treats a failed initial history lookup without an owner token as an empty new chat", async () => {
+    const module = await import("./chat-scroll-machine");
+    expect(module).toHaveProperty("resolveInitialHistoryHadMessages");
+    expect(module.resolveInitialHistoryHadMessages(null, false)).toBe(false);
+    expect(module.resolveInitialHistoryHadMessages(null, true)).toBe(null);
+    expect(module.resolveInitialHistoryHadMessages(0, false)).toBe(false);
+    expect(module.resolveInitialHistoryHadMessages(2, true)).toBe(true);
+  });
+
   it("starts a new chat at the welcome heading only after history has been measured", () => {
     expect(shouldStartNewChatAtTop({
       initialHistoryLoaded: false,

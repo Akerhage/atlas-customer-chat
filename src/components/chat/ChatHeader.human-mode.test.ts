@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
@@ -9,6 +10,8 @@ vi.mock("@/lib/atlas-client", () => ({
 
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ChatHeader } from "./ChatHeader";
+
+const atlasChatSource = readFileSync(new URL("./AtlasChat.tsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 
 const renderHeader = (humanMode: boolean) => renderToStaticMarkup(
   createElement(
@@ -34,5 +37,10 @@ describe("ChatHeader human-mode action", () => {
     expect(renderHeader(false)).toContain('aria-label="Prata med människa"');
     expect(renderHeader(true)).not.toContain('aria-label="Prata med människa"');
     expect(renderHeader(false)).toContain('aria-label="Prata med människa"');
+  });
+
+  it("receives raw human mode from AtlasChat so archived human sessions do not revive a dead action", () => {
+    expect(atlasChatSource).toContain("humanMode={humanMode}");
+    expect(atlasChatSource).not.toContain("humanMode={humanMode && !isArchived}");
   });
 });

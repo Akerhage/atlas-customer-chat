@@ -8,8 +8,11 @@ AlertDialogFooter,
 AlertDialogHeader,
 AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useEffect } from "react";
 import { Download, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+const AUTO_CLOSE_MS = 60_000;
 
 interface ChatMessage {
 id: string;
@@ -40,6 +43,11 @@ return 'Konversationen är avslutad. Vill du spara en kopia innan du stänger?';
 }
 
 export function EndSessionDialog({ open, onOpenChange, messages, onConfirm, closeReason = null }: EndSessionDialogProps) {
+useEffect(() => {
+if (!open) return;
+const timeoutId = window.setTimeout(() => onOpenChange(false), AUTO_CLOSE_MS);
+return () => window.clearTimeout(timeoutId);
+}, [open, onOpenChange]);
 
 const generateChatLog = (): string => {
 const header = `Atlas Chattlogg

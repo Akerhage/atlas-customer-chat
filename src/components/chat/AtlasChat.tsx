@@ -8,7 +8,7 @@ import { EndSessionDialog } from "./EndSessionDialog";
 // ContextIndicator renderas inte längre — ChatContextBar bär kontexten och kan
 // dessutom ÄNDRA den, vilket chipsen bara kunde för kontor. Filen är kvar orörd.
 import { HumanModeIndicator } from "./HumanModeIndicator";
-import { shouldStartNewChatAtTop } from "@/lib/chat-scroll-machine";
+import { resolveInitialHistoryHadMessages, shouldStartNewChatAtTop } from "@/lib/chat-scroll-machine";
 import {
 sendMessage,
 getStandardSelfserviceMenu,
@@ -16,6 +16,7 @@ answerStandardSelfservice,
 isArchivedStandardSelfserviceAnswerError,
 resetSession,
 getHistory,
+getOwnerToken,
 connectSocket,
 disconnectSocket,
 getSessionId,
@@ -1490,7 +1491,10 @@ let cancelled = false;
 
 pollHistory().then((history) => {
 if (cancelled) return;
-initialHistoryHadMessagesRef.current = history ? history.messages.length > 0 : null;
+initialHistoryHadMessagesRef.current = resolveInitialHistoryHadMessages(
+history ? history.messages.length : null,
+Boolean(getOwnerToken()),
+);
 setInitialHistoryLoaded(true);
 });
 
@@ -2069,8 +2073,8 @@ senderName: null,
 setMessages((prev) => [...prev, templateMessage]);
 };
 
-const showWelcomeWidget = aiRepliesEnabled && messages.length === 1 && messages[0].id === 'welcome-msg' && !isTyping;
 const hasCustomerMessage = messages.some((message) => message.role === 'user');
+const showWelcomeWidget = aiRepliesEnabled && !hasCustomerMessage && messages.some((message) => message.id === 'welcome-msg') && !isTyping;
 const standardSelfserviceMenuStage = standardSelfserviceAvailable && !standardSelfserviceExclusive && selfserviceStage === null
 ? 'menu'
 : selfserviceStage;
@@ -2266,7 +2270,7 @@ return (
 <ChatHeader
 onEndSession={hasCustomerMessage ? handleEndSession : undefined}
 onRequestHuman={handleRequestHuman}
-humanMode={humanMode && !isArchived}
+humanMode={humanMode}
 isDark={isDark}
 onToggleTheme={handleToggleTheme}
 selectedCity={selectedCity}
