@@ -55,7 +55,8 @@ describe("light customer chat surface separation", () => {
   });
 
   it("puts tenant header logos on a dark plate in the light theme without changing the dark theme plate", () => {
-    expect(chatHeaderSource).toContain("bg-slate-950");
+    expect(chatHeaderSource).toContain("bg-slate-800/90");
+    expect(chatHeaderSource).not.toContain("bg-slate-950");
     expect(chatHeaderSource).toContain("dark:bg-card/80");
   });
 });
