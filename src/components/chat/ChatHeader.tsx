@@ -82,13 +82,14 @@ className="max-h-6 w-full object-contain sm:max-h-7"
 
 {/* KAN-121: widgeten är fullbredd under 480px, så 380px-gränsen dolde namnet på
     vanliga 360/375px-telefoner. Prototypmätt på alla fem boxnamn: min-360 +
-    break-words gav noll horisontell kapning och 65px header vid 360/375/380px;
-    320px behåller logotypen ensam. Tvåraders-clampen ger en riktig ellips när
-    längre namn behöver en tredje rad, och title bär alltid hela namnet.
+    break-words gav noll horisontell kapning och 65px header vid 360/375/380px.
+    320px behåller logotypen ensam och döljer själva titeln med display:none,
+    så läget inte kan se ut som en oavsiktlig flexkollaps. Tvåraders-clampen
+    ger en riktig ellips när längre namn behöver en tredje rad, och title bär alltid hela namnet.
     Underrubriken ligger kvar på 560px: tvingad visning gav 81px header vid
     440/441px och vid 470px med fem åtgärdsknappar, över widgettaket 72px. */}
-<div className="hidden min-[360px]:block min-w-0">
-<h1 className="line-clamp-2 break-words font-semibold leading-tight text-foreground" title={displayName}>{displayName}</h1>
+<div className="hidden min-[360px]:block min-w-0" data-testid="chat-header-tenant-name">
+<h1 className="hidden min-[360px]:line-clamp-2 break-words font-semibold leading-tight text-foreground" title={displayName} data-testid="chat-header-tenant-title">{displayName}</h1>
 <p className="hidden min-h-4 min-[560px]:block truncate text-xs text-muted-foreground">{subtitleLoading ? '' : subtitle}</p>
 </div>
 </div>

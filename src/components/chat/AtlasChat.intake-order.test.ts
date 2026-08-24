@@ -126,9 +126,10 @@ describe("AtlasChat intake-order contract", () => {
   });
 
   it("keeps the tenant name visible and recoverable on common mobile widget widths", () => {
-    expect(chatHeaderSource).toContain('className="hidden min-[360px]:block min-w-0"');
+    expect(chatHeaderSource).toContain('className="hidden min-[360px]:block min-w-0" data-testid="chat-header-tenant-name"');
     expect(chatHeaderSource).not.toContain('className="hidden min-[380px]:block min-w-0"');
-    expect(chatHeaderSource).toContain('className="line-clamp-2 break-words font-semibold leading-tight text-foreground"');
+    expect(chatHeaderSource).toContain('className="hidden min-[360px]:line-clamp-2 break-words font-semibold leading-tight text-foreground"');
+    expect(chatHeaderSource).toContain('data-testid="chat-header-tenant-title"');
     expect(chatHeaderSource).toContain('title={displayName}');
     // Tvingad underrubrik gav 81px header vid 440/441px och vid 470px med
     // fem åtgärdsknappar. Behåll 560px-gränsen så widgetens 72px-tak står.
