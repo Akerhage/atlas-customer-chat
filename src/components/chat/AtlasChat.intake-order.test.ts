@@ -343,6 +343,36 @@ describe("AtlasChat intake-order contract", () => {
     );
   });
 
+  // #455/KAN-209. `repeated-menu-message.test.ts` testar predikatet ISOLERAT, vilket inte
+  // bevisar att det är inkopplat. Mätt 2026-08-28 under Claudes oberoende granskning: med
+  // anropet borttaget ur showStandardMenu var sviten fortfarande `217/217` grön och buggen
+  // — sex identiska menyrutor efter sju kategoribyten — var tillbaka utan ett enda rött test.
+  // Denna vakt binder kopplingen, gränsen och statusuppdateringen till källan.
+  it("wires the repeated-menu guard into showStandardMenu without silencing real answers", () => {
+    expect(source).toContain('import { shouldSkipRepeatedMenuMessage } from "@/lib/repeated-menu-message";');
+    // Spegeln måste vara effekt-baserad: fyra ställen skriver HELA meddelandelistan
+    // (serverhistorik och välkomståterställning), och en ref som missar dem blir stale.
+    expect(source).toContain("messagesRef.current = messages;");
+
+    const menuStart = source.indexOf("const showStandardMenu = (");
+    const menuEnd = source.indexOf("const showCompactStandardMenuFollowup", menuStart);
+    const menuSource = source.slice(menuStart, menuEnd);
+    expect(menuSource).toContain("shouldSkipRepeatedMenuMessage(messagesRef.current, nextContent)");
+    // Menyns state ska uppdateras ÄVEN när bubblan hoppas över — annars slutar
+    // kontrollradens frågelista följa kategorin.
+    expect(menuSource.indexOf("setSelfserviceMenu(items);"))
+      .toBeLessThan(menuSource.indexOf("shouldSkipRepeatedMenuMessage"));
+    expect(menuSource.indexOf("setSelfserviceStage('menu');"))
+      .toBeLessThan(menuSource.indexOf("shouldSkipRepeatedMenuMessage"));
+
+    // 🔴 Gränsen: dedupen gäller BARA menybubblan. Riktiga svar och de händelsestyrda
+    // beskeden ska alltid synas, även när kunden klickar samma snabbfråga igen.
+    const followupStart = source.indexOf("const showCompactStandardMenuFollowup");
+    const followupEnd = source.indexOf("const loadAndShowStandardMenu", followupStart);
+    expect(source.slice(followupStart, followupEnd)).not.toContain("shouldSkipRepeatedMenuMessage");
+    expect(source).toContain("injectBotMessage(response.presentation || response.answer || STANDARD_EMPTY_MESSAGE);");
+  });
+
   it("opens all footer controls upward and caps the question list to a scrollable mobile viewport", () => {
     expect(contextBarSource).toContain('side="top"');
     expect(contextBarSource).toContain("sideOffset={8}");
