@@ -65,19 +65,17 @@ onContactFormOpenChange,
 const displayName = companyName || "Atlas";
 const logoSrc = resolveTenantAssetUrl(companyLogoUrl) || atlasLogo;
 return (
-<header className="flex items-center justify-between gap-2 px-3 py-3 sm:px-5 sm:py-4 bg-chat-header border-b border-border">
+<header className="chat-header-surface flex items-center justify-between gap-2 border-b border-border px-3 py-3 sm:px-5 sm:py-4">
 {/* Brand */}
-<div className="flex min-w-0 shrink items-center gap-2 sm:gap-3">
-<div className="relative shrink-0">
-<div className="flex h-9 w-[116px] items-center rounded-lg border border-slate-900/15 bg-slate-800/90 px-2 shadow-sm dark:border-border/70 dark:bg-card/80 sm:h-10 sm:w-[128px]" data-testid="chat-header-logo">
+<div className="flex min-w-0 shrink items-center gap-3">
+<div className="relative shrink-0" data-testid="chat-header-logo">
 <img
 src={logoSrc}
 alt={displayName}
-className="max-h-6 w-full object-contain sm:max-h-7"
+className="block h-6 w-auto max-w-[116px] object-contain sm:h-7 sm:max-w-[128px]"
 />
-</div>
 {/* Online indicator */}
-<div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-500 border-2 border-chat-header" />
+<div className="absolute -bottom-0.5 -right-3 h-3 w-3 rounded-full border-2 border-chat-header bg-green-500" data-testid="chat-header-online-indicator" />
 </div>
 
 {/* KAN-121: widgeten är fullbredd under 480px, så 380px-gränsen dolde namnet på
@@ -157,7 +155,7 @@ className="p-1.5 sm:p-2 rounded-lg text-muted-foreground hover:text-foreground h
 <button
 onClick={onEndSession}
 aria-label="Avsluta ärende"
-className="p-1.5 sm:p-2 rounded-lg text-red-500 hover:text-red-600 hover:bg-red-500/10 transition-colors"
+className="rounded-lg p-1.5 text-[hsl(var(--chat-header-danger))] transition-colors hover:bg-red-500/10 hover:text-[hsl(var(--chat-header-danger-hover))] sm:p-2"
 >
 <XCircle className="w-5 h-5" />
 </button>

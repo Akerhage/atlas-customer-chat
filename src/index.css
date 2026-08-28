@@ -65,7 +65,13 @@ Baserat på chrome-light estetik.
 
 /* === ATLAS CHAT SPECIFIC TOKENS === */
 --chat-bg: 147 36% 83%;
---chat-header-bg: 144 34% 93%;
+--chat-header-bg: 150 12% 36%;
+--chat-header-fg: 145 20% 97%;
+--chat-header-fg-muted: 146 18% 86%;
+--chat-header-hover-bg: 150 12% 44%;
+--chat-header-accent: 160 55% 82%;
+--chat-header-danger: 0 80% 92%;
+--chat-header-danger-hover: 0 80% 96%;
 --chat-input-bg: 144 34% 93%;
 
 /* Bubble tokens - Atlas style */
@@ -150,6 +156,12 @@ Baserat på chrome-light estetik.
 /* Chat specific dark tokens */
 --chat-bg: 220 20% 8%;
 --chat-header-bg: 220 20% 12%;
+--chat-header-fg: 210 20% 95%;
+--chat-header-fg-muted: 215 15% 60%;
+--chat-header-hover-bg: 220 15% 18%;
+--chat-header-accent: 160 70% 45%;
+--chat-header-danger: 0 84% 60%;
+--chat-header-danger-hover: 0 72% 51%;
 --chat-input-bg: 220 20% 13%;
 
 --bubble-atlas-bg: 220 20% 14%;
@@ -189,6 +201,14 @@ body {
 @apply bg-background text-foreground antialiased;
 font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
+}
+
+.chat-header-surface {
+background-color: hsl(var(--chat-header-bg));
+--foreground: var(--chat-header-fg);
+--muted-foreground: var(--chat-header-fg-muted);
+--secondary: var(--chat-header-hover-bg);
+--primary: var(--chat-header-accent);
 }
 
 /* === CUSTOM UTILITIES === */

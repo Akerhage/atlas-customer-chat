@@ -86,6 +86,7 @@ type StandardSelfserviceStage,
 } from "@/lib/standard-selfservice-machine";
 import { buildOfficeHoursNoticeText } from "../../lib/office-hours-notice";
 import { formatCityAreaLabel } from "@/lib/place-format";
+import { shouldSkipRepeatedMenuMessage } from "@/lib/repeated-menu-message";
 import { toast } from "sonner";
 
 declare global {
@@ -293,6 +294,10 @@ const initialWidgetTextsRef = useRef<WidgetTexts | null>(null);
 if (!initialWidgetTextsRef.current) initialWidgetTextsRef.current = readCachedWidgetTexts();
 const initialWidgetTexts = initialWidgetTextsRef.current;
 const [messages, setMessages] = useState<ChatMessage[]>([]);
+const messagesRef = useRef<ChatMessage[]>([]);
+useEffect(() => {
+messagesRef.current = messages;
+}, [messages]);
 const [offices, setOffices] = useState<Office[]>([]); // 🔥 Håller kontorslistan
 const [officesLoaded, setOfficesLoaded] = useState(false);
 const [aiRepliesEnabled, setAiRepliesEnabled] = useState(true);
@@ -767,8 +772,10 @@ items: StandardSelfserviceMenuItem[],
 ) => {
 setSelfserviceMenu(items);
 setSelfserviceStage('menu');
+const nextContent = items.length ? message : STANDARD_EMPTY_MESSAGE;
+if (shouldSkipRepeatedMenuMessage(messagesRef.current, nextContent)) return;
 injectBotMessage(
-items.length ? message : STANDARD_EMPTY_MESSAGE,
+nextContent,
 // L-098: sakfrågorna finns redan 1:1 i kontrollradens selfserviceMenu.
 // Slutbubblan behåller bara eskaleringsutvägen; enhets- och kategoristegen ovan
 // använder fortsatt sina egna choices och är den beslutade välkomststegen.

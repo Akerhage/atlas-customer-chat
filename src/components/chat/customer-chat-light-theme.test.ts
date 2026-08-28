@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 const css = readFileSync(new URL("../../index.css", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const contextBarSource = readFileSync(new URL("./ChatContextBar.tsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const chatHeaderSource = readFileSync(new URL("./ChatHeader.tsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+const chatHeaderSurfaceCss = css.match(/\.chat-header-surface\s*\{([^}]*)\}/)?.[1] ?? "";
 
 function token(name: string): [number, number, number] {
   const match = css.match(new RegExp(`${name}:\\s*(\\d+)\\s+(\\d+)%\\s+(\\d+)%;`));
@@ -54,9 +55,25 @@ describe("light customer chat surface separation", () => {
     expect(contextBarSource).toContain('choice.label === selectedLabel && "bg-primary/20 text-primary-ink"');
   });
 
-  it("puts tenant header logos on a dark plate in the light theme without changing the dark theme plate", () => {
-    expect(chatHeaderSource).toContain("bg-slate-800/90");
-    expect(chatHeaderSource).not.toContain("bg-slate-950");
-    expect(chatHeaderSource).toContain("dark:bg-card/80");
+  it("uses the header surface for white-logo contrast without a separate logo plate", () => {
+    expect(chatHeaderSource).toContain('className="chat-header-surface');
+    expect(chatHeaderSource).toContain('data-testid="chat-header-logo"');
+    expect(chatHeaderSource).toContain("<img");
+    expect(chatHeaderSource).not.toContain("bg-slate-800/90");
+    expect(chatHeaderSource).not.toContain("dark:bg-card/80");
+    expect(contrast(hslToRgb(token("--chat-header-bg")), [255, 255, 255])).toBeGreaterThanOrEqual(4.5);
+    for (const foregroundToken of [
+      "--chat-header-fg",
+      "--chat-header-fg-muted",
+      "--chat-header-accent",
+      "--chat-header-danger",
+      "--chat-header-danger-hover",
+    ]) {
+      expect(contrast(hslToRgb(token("--chat-header-bg")), hslToRgb(token(foregroundToken)))).toBeGreaterThanOrEqual(4.5);
+    }
+    expect(chatHeaderSurfaceCss).toContain("--foreground: var(--chat-header-fg)");
+    expect(chatHeaderSurfaceCss).toContain("--primary: var(--chat-header-accent)");
+    expect(chatHeaderSurfaceCss).not.toContain("--border:");
+    expect(chatHeaderSurfaceCss).not.toContain("--popover");
   });
 });
