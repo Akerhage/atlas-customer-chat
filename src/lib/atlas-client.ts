@@ -55,6 +55,7 @@ messages: HistoryMessage[];
 human_mode: boolean;
 is_archived?: boolean;
 close_reason?: string | null;
+assigned_agent_name?: string | null;
 }
 
 export interface CustomerReplyEvent {
@@ -724,6 +725,7 @@ messages: data.messages || [],
 human_mode: data.human_mode || false,
 is_archived: data.is_archived || false,
 close_reason: data.close_reason || null,
+assigned_agent_name: typeof data.assigned_agent_name === 'string' ? data.assigned_agent_name : null,
 };
 }
 

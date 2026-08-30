@@ -41,7 +41,7 @@ ${"=".repeat(50)}
     const cleanContent = msg.content
       .replace(/\*\*(.*?)\*\*/g, "$1")
       .replace(/\*(.*?)\*/g, "$1")
-      .replace(/^- /gm, "- ");
+      .replace(/^- /gm, "• ");
 
     return `[${time}] ${sender}:\n${cleanContent}\n`;
   }).join("\n");

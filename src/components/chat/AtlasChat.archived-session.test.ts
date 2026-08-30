@@ -5,7 +5,13 @@ const rawSource = readFileSync(new URL("./AtlasChat.tsx", import.meta.url), "utf
 
 function mutateSourceForRedFirst(src: string): string {
   if (process.env.ATLAS_KAN235_ARCHIVE_MUTATION === "passive-opens-dialog") {
-    return src.replace("}, { showEndDialog: false });", "});");
+    return src.replace("}, options.initialHydration ? { showEndDialog: false } : {});", "});");
+  }
+  if (process.env.ATLAS_KAN235_ARCHIVE_MUTATION === "poll-suppresses-active") {
+    return src.replace(
+      "}, options.initialHydration ? { showEndDialog: false } : {});",
+      "}, { showEndDialog: false });",
+    );
   }
   if (process.env.ATLAS_KAN235_ARCHIVE_MUTATION === "active-dialog-removed") {
     const start = src.indexOf("const handleEndSession = () => {");
@@ -32,16 +38,44 @@ function sourceBlock(startMarker: string, endMarker: string): string {
 describe("AtlasChat archived-session UX", () => {
   it("suppresses the end dialog only for the passive pollHistory archive path", () => {
     expect(source).toContain("type ApplyArchivedStateOptions = { showEndDialog?: boolean };");
+    expect(source).toContain("type PollHistoryOptions = { initialHydration?: boolean };");
     expect(source).toContain("const suppressNextArchiveDialogRef = useRef(false);");
     expect(source).toContain("if (!suppressNextArchiveDialogRef.current) {");
     expect(source).toContain("setShowEndDialog(true);");
 
     const pollHistoryBlock = sourceBlock(
-      "const pollHistory = useCallback(async () => {",
+      "const pollHistory = useCallback(async (options: PollHistoryOptions = {}) => {",
       "// Always sync messages from server",
     );
     expect(pollHistoryBlock).toContain("applyArchivedState({");
-    expect(pollHistoryBlock).toContain("}, { showEndDialog: false });");
+    expect(pollHistoryBlock).toContain("}, options.initialHydration ? { showEndDialog: false } : {});");
+
+    const bootstrapBlock = sourceBlock(
+      "pollHistory({ initialHydration: true }).then((history) => {",
+      "return () => {",
+    );
+    expect(bootstrapBlock).toContain("initialHydration: true");
+
+    const reconnectBlock = sourceBlock(
+      "const handleReconnect = useCallback(() => {",
+      "// Connect socket on mount",
+    );
+    expect(reconnectBlock).toContain("void pollHistory();");
+    expect(reconnectBlock).not.toContain("initialHydration");
+
+    const crossTabBlock = sourceBlock(
+      "const handleCrossTabSync = useCallback((event: CrossTabSyncEvent | null) => {",
+      "const notifySiblingTabs = useCallback(() => {",
+    );
+    expect(crossTabBlock).toContain("pollHistory();");
+    expect(crossTabBlock).not.toContain("initialHydration");
+
+    const humanModeIntervalBlock = sourceBlock(
+      "const pollInterval = setInterval(() => {",
+      "return () => clearInterval(pollInterval);",
+    );
+    expect(humanModeIntervalBlock).toContain("pollHistory();");
+    expect(humanModeIntervalBlock).not.toContain("initialHydration");
 
     const selfserviceBlock = sourceBlock(
       "if (isArchivedStandardSelfserviceAnswerError(error)) {",
@@ -63,6 +97,15 @@ describe("AtlasChat archived-session UX", () => {
     );
     expect(sendBlock).toContain("applyArchivedState({");
     expect(sendBlock).not.toContain("showEndDialog: false");
+  });
+
+  it("fails if pollHistory suppresses active archive discoveries again", () => {
+    const pollHistoryBlock = sourceBlock(
+      "const pollHistory = useCallback(async (options: PollHistoryOptions = {}) => {",
+      "// Always sync messages from server",
+    );
+    expect(pollHistoryBlock).not.toContain("}, { showEndDialog: false });");
+    expect(pollHistoryBlock).toContain("options.initialHydration");
   });
 
   it("keeps the active customer end-session dialog path intact", () => {

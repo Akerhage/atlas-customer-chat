@@ -108,6 +108,7 @@ choices?: { label: string; value: string; icon?: string; fullWidth?: boolean }[]
 }
 
 type ApplyArchivedStateOptions = { showEndDialog?: boolean };
+type PollHistoryOptions = { initialHydration?: boolean };
 type IntakeStep = 'name' | 'email' | 'phone' | 'office' | 'vehicle' | 'category' | null;
 type VehicleType = ActiveVehicle;
 type QuickContextPayload = { vehicle: string | null; city: string; vehicle_choice?: string | null; clear_vehicle?: boolean };
@@ -1367,18 +1368,24 @@ break;
 };
 
 // Polling for human mode - fetch history and sync messages
-const pollHistory = useCallback(async () => {
+const pollHistory = useCallback(async (options: PollHistoryOptions = {}) => {
 try {
 const history = await getHistory();
 
 // Update human mode and archived state
 setHumanMode(history.human_mode);
+const historyAssignedAgentName =
+typeof history.assigned_agent_name === 'string' && history.assigned_agent_name.trim()
+? history.assigned_agent_name.trim()
+: null;
+setAssignedAgentName(history.human_mode ? historyAssignedAgentName : null);
+setAgentNames(history.human_mode && historyAssignedAgentName ? [historyAssignedAgentName] : []);
 
 // Check if session is archived (persistent state from backend)
 if (history.is_archived) {
 applyArchivedState({
 closeReason: history.close_reason || null,
-}, { showEndDialog: false });
+}, options.initialHydration ? { showEndDialog: false } : {});
 }
 
 // Always sync messages from server - compare by content, not just count
@@ -1508,7 +1515,7 @@ broadcastChannelRef.current = null;
 useEffect(() => {
 let cancelled = false;
 
-pollHistory().then((history) => {
+pollHistory({ initialHydration: true }).then((history) => {
 if (cancelled) return;
 initialHistoryHadMessagesRef.current = resolveInitialHistoryHadMessages(
 history ? history.messages.length : null,

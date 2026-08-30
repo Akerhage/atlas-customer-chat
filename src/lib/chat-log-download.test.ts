@@ -24,7 +24,7 @@ describe("chat log download", () => {
 
     expect(log).toContain("Atlas Chattlogg");
     expect(log).toContain("Du:\nHej Atlas");
-    expect(log).toContain("Atlas:\n- Svar med markdown");
+    expect(log).toContain("Atlas:\n• Svar med markdown");
     expect(log).toContain("Slut på chattlogg");
     expect(log).not.toContain("**");
   });
