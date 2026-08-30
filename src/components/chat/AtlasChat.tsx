@@ -87,7 +87,9 @@ type StandardSelfserviceStage,
 import { buildOfficeHoursNoticeText } from "../../lib/office-hours-notice";
 import { formatCityAreaLabel } from "@/lib/place-format";
 import { shouldSkipRepeatedMenuMessage } from "@/lib/repeated-menu-message";
+import { downloadChatLog } from "@/lib/chat-log-download";
 import { toast } from "sonner";
+import { Download } from "lucide-react";
 
 declare global {
 interface Window {
@@ -105,6 +107,7 @@ senderName?: string | null; // Agentens namn för mänskliga svar (null = Atlas 
 choices?: { label: string; value: string; icon?: string; fullWidth?: boolean }[];
 }
 
+type ApplyArchivedStateOptions = { showEndDialog?: boolean };
 type IntakeStep = 'name' | 'email' | 'phone' | 'office' | 'vehicle' | 'category' | null;
 type VehicleType = ActiveVehicle;
 type QuickContextPayload = { vehicle: string | null; city: string; vehicle_choice?: string | null; clear_vehicle?: boolean };
@@ -528,6 +531,7 @@ const agentTypingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 const tabIdRef = useRef<string>(createCrossTabId());
 const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
 const lastCrossTabEventIdRef = useRef<string | null>(null);
+const suppressNextArchiveDialogRef = useRef(false);
 const archiveEffectsRef = useRef<(status: ArchivedSessionStatus) => void>(() => undefined);
 const persistentStatusPollRef = useRef<() => Promise<PersistentSessionStatus | null>>(getHistory);
 const sessionStatusMachineRef = useRef<ReturnType<typeof createSessionStatusMachine> | null>(null);
@@ -550,7 +554,9 @@ if (inactivityTimerRef.current) {
 clearInterval(inactivityTimerRef.current);
 inactivityTimerRef.current = null;
 }
+if (!suppressNextArchiveDialogRef.current) {
 setShowEndDialog(true);
+}
 };
 
 if (!sessionStatusMachineRef.current) {
@@ -560,8 +566,14 @@ onArchived: (status) => archiveEffectsRef.current(status),
 });
 }
 
-const applyArchivedState = useCallback((status: ArchivedSessionStatus) => {
+const applyArchivedState = useCallback((status: ArchivedSessionStatus, options: ApplyArchivedStateOptions = {}) => {
+const previousSuppress = suppressNextArchiveDialogRef.current;
+suppressNextArchiveDialogRef.current = options.showEndDialog === false;
+try {
 sessionStatusMachineRef.current?.archived(status);
+} finally {
+suppressNextArchiveDialogRef.current = previousSuppress;
+}
 }, []);
 
 const clearInactivityWarningForCustomerActivity = useCallback(() => {
@@ -1366,7 +1378,7 @@ setHumanMode(history.human_mode);
 if (history.is_archived) {
 applyArchivedState({
 closeReason: history.close_reason || null,
-});
+}, { showEndDialog: false });
 }
 
 // Always sync messages from server - compare by content, not just count
@@ -2334,11 +2346,23 @@ Chatten stängs automatiskt pga inaktivitet om{' '}
 {/* Archived indicator */}
 {isArchived && (
 <div className="bg-muted/80 border-b border-border px-4 py-3 text-center">
-<div className="flex items-center justify-center gap-2 text-muted-foreground">
+<div className="flex flex-col items-center justify-center gap-2 text-muted-foreground sm:flex-row">
+<div className="flex min-w-0 items-center justify-center gap-2">
 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
 </svg>
 <span className="font-medium">{archivedMessage || 'Chatten är avslutad av handläggaren.'}</span>
+</div>
+<button
+type="button"
+onClick={() => downloadChatLog(messages)}
+aria-label="Spara kopia av chattloggen"
+title="Spara kopia av chattloggen"
+className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-full border border-border/70 bg-background/70 px-3 text-xs font-medium text-foreground shadow-sm transition-colors hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+>
+<Download className="h-3.5 w-3.5" aria-hidden="true" />
+<span>Spara kopia</span>
+</button>
 </div>
 </div>
 )}

@@ -11,6 +11,7 @@ AlertDialogTitle,
 import { useEffect } from "react";
 import { Download, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { downloadChatLog } from "@/lib/chat-log-download";
 
 const AUTO_CLOSE_MS = 60_000;
 
@@ -49,49 +50,8 @@ const timeoutId = window.setTimeout(() => onOpenChange(false), AUTO_CLOSE_MS);
 return () => window.clearTimeout(timeoutId);
 }, [open, onOpenChange]);
 
-const generateChatLog = (): string => {
-const header = `Atlas Chattlogg
-Datum: ${new Date().toLocaleDateString('sv-SE')}
-Tid: ${new Date().toLocaleTimeString('sv-SE')}
-${'='.repeat(50)}
-
-`;
-
-const messageLog = messages.map(msg => {
-const time = msg.timestamp.toLocaleTimeString('sv-SE', { 
-hour: '2-digit', 
-minute: '2-digit' 
-});
-const sender = msg.role === 'user' ? 'Du' : 'Atlas';
-// Remove markdown formatting for plain text
-const cleanContent = msg.content
-.replace(/\*\*(.*?)\*\*/g, '$1')
-.replace(/\*(.*?)\*/g, '$1')
-.replace(/^- /gm, '• ');
-
-return `[${time}] ${sender}:\n${cleanContent}\n`;
-}).join('\n');
-
-const footer = `
-${'='.repeat(50)}
-Slut på chattlogg`;
-
-return header + messageLog + footer;
-};
-
 const handleDownload = () => {
-const log = generateChatLog();
-const blob = new Blob([log], { type: 'text/plain;charset=utf-8' });
-const url = URL.createObjectURL(blob);
-
-const a = document.createElement('a');
-a.href = url;
-a.download = `atlas-chatt-${new Date().toISOString().split('T')[0]}.txt`;
-document.body.appendChild(a);
-a.click();
-document.body.removeChild(a);
-URL.revokeObjectURL(url);
-
+downloadChatLog(messages);
 onConfirm();
 };
 
