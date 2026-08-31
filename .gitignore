@@ -22,3 +22,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Playwright e2e-artefakter (genereras vid testkorning). Samma regel som huvudrepot
+# redan har: utdata, inte leverans. Lag tidigare otrackade och rapporterades vidare
+# mellan agenter som "smuts i kundchatt-repot", vilket dolde att inga TRACKADE
+# andringar fanns — och gor en felaktig `git add -A` mycket dyrare.
+# 🔴 Filerna ligger kvar pa disk: `kan235-archived-session-1788073093053/` ar citerad
+# som visuellt bevis i huvudrepots `docs/BOX4_IDEAS_BACKLOG.md`. Ignorera, radera inte.
+e2e/screenshots/

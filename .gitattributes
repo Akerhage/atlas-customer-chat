@@ -1,0 +1,7 @@
+# Speglar huvudrepots `.gitattributes`-motiv (C:\Atlas). Med `core.autocrlf=true`
+# skriver en checkout CRLF medan blobben i indexet har LF — filen ser da ut som
+# ANDRAD i `git status` utan att en enda byte skiljer. Matt 2026-08-31:
+# `package-lock.json` hade rapporterats som "smuts" i flera rundor och gatt vidare
+# mellan agenter som en ocommittad andring, fast index och disk var byte-identiska
+# (311226 bytes bada, noll CR). `-text` stanger av konverteringen for filen.
+package-lock.json -text
