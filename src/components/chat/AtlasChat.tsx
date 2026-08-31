@@ -467,11 +467,15 @@ useEffect(() => {
 if (!singletonOffice || !singletonOfficeLabel) return;
 const nextCity = singletonOffice.city || null;
 const nextArea = singletonOffice.area || null;
-if (selectedCity === singletonOfficeLabel && context.city === nextCity && context.area === nextArea) return;
+// 🔴 #496: guarden måste jämföra ALLT den sätter. Den jämförde bara city/area, och
+// för en avdelning utan stad är båda null === null — effekten returnerade därför
+// innan unit_id hann sättas, och widgeten skickade ingen enhet alls.
+const nextUnitId = singletonOffice.routing_tag || null;
+if (selectedCity === singletonOfficeLabel && context.city === nextCity && context.area === nextArea && context.unit_id === nextUnitId) return;
 setSelectedCity(singletonOfficeLabel);
-setContext(prev => ({ ...prev, city: nextCity, area: nextArea, unit_id: singletonOffice.routing_tag || null }));
+setContext(prev => ({ ...prev, city: nextCity, area: nextArea, unit_id: nextUnitId }));
 window.selectedCity = singletonOfficeLabel;
-}, [singletonOffice, singletonOfficeLabel, selectedCity, context.city, context.area]);
+}, [singletonOffice, singletonOfficeLabel, selectedCity, context.city, context.area, context.unit_id]);
 
 useEffect(() => {
 let cancelled = false;
