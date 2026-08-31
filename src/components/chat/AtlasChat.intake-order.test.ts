@@ -157,7 +157,12 @@ describe("AtlasChat intake-order contract", () => {
 
   it("keeps empty selfservice category choices escapable instead of buttonless", () => {
     expect(source).toContain("STANDARD_EMPTY_CATEGORY_MESSAGE,");
-    expect(source).toContain("content: STANDARD_EMPTY_CATEGORY_MESSAGE,");
+    // #167/L-037: meddelandet bar tenantens kategoriord sedan 2026-08-31 och byggs
+    // darfor av en funktion. Vakten galler ESKALERINGSVAGEN, inte ordet — den binds
+    // om till byggaren i stallet for att krava Atlas standardord.
+    expect(source).toContain(
+      "content: buildStandardEmptyCategoryMessage(resolveChatCategoryPluralWord(tenantProfile)),",
+    );
     expect(source).toContain("choices: withEscalationValue([])");
     expect(source).toContain("const categoryStep = getStandardCategoryStep(requestedUnitId);");
     expect(source).toContain("if (choices.length > 0) {");
@@ -324,7 +329,10 @@ describe("AtlasChat intake-order contract", () => {
 
   it("keeps the Standard welcome steps but moves final subject questions exclusively to the footer panel", () => {
     expect(source).toContain("injectBotMessage(STANDARD_UNIT_PROMPT,");
-    expect(source).toContain("? { content: 'Välj kategori.', choices }");
+    // #167/L-037: ordet ar tenantens. Kontraktet laser resolveranropet.
+    expect(source).toContain(
+      "? { content: `Välj ${resolveChatCategoryWord(tenantProfile).toLocaleLowerCase('sv-SE')}.`, choices }",
+    );
 
     const menuStart = source.indexOf("const showStandardMenu = (");
     const menuEnd = source.indexOf("const showCompactStandardMenuFollowup", menuStart);
@@ -337,7 +345,18 @@ describe("AtlasChat intake-order contract", () => {
     expect(menuSource).toContain("setSelfserviceMenu(items);");
     expect(menuSource).toContain("withEscalationChoice([])");
     expect(menuSource).not.toContain("withEscalationChoice(items)");
-    expect(menuSource).toContain("Välj en fråga i Frågor & tjänster nere vid skrivfältet");
+    // #167/L-037: chippets namn bar tenantens tjansteord i plural.
+    expect(menuSource).toContain(
+      "Välj en fråga i Frågor & ${resolveChatOfferingPluralWord(tenantProfile).toLocaleLowerCase('sv-SE')} nere vid skrivfältet",
+    );
+
+    // 🔴 #167: meningen ovan NAMNGER chippet. Star de tva isar sager chatten "valj i
+    // Frågor & behandlingar" medan chippet fortfarande heter "Frågor & tjänster".
+    // Mutationsprovet 2026-08-31 visade att den kopplingen var OVAKTAD: att ta bort
+    // triggerLabel-propen gav ingen rod. Darfor pinnas propen har.
+    expect(source).toContain(
+      "triggerLabel={`Frågor & ${resolveChatOfferingPluralWord(tenantProfile).toLocaleLowerCase('sv-SE')}`}",
+    );
     expect(quickQuestionsSource).toContain(
       "const selfserviceActions = standardSelfserviceMenu.map(item => ({",
     );

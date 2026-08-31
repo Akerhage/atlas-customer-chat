@@ -3,6 +3,11 @@ import { describe, expect, it } from "vitest";
 import {
   normalizeCategoryRegistryEntries,
   normalizeTenantProfile,
+  resolveChatCategoryPluralWord,
+  resolveChatCategoryWord,
+  resolveChatOfferingPluralWord,
+  resolveChatOfferingWord,
+  resolveChatUnitWord,
   resolveEffectiveCategories,
 } from "./tenant-capabilities";
 
@@ -188,6 +193,57 @@ describe("normalizeTenantProfile", () => {
     };
 
     expect(normalizeTenantProfile(profile)).toEqual(profile);
+  });
+
+  // #167 (2026-08-31): pluralorden nådde aldrig kunden — den här filen är det TREDJE
+  // lagret som normaliserar `labels`, och dess tillåtna mängd låg kvar på tre nycklar.
+  // Följden var tyst: nyckeln kastades med en warning och kunden fick Atlas ord i
+  // chatten fast admin hade satt sina egna.
+  it("bevarar alla sex etikettnycklar — samma mängd som servern och Atlas-renderaren", () => {
+    const labels = {
+      unit: "Filial",
+      unit_plural: "Filialer",
+      category: "Ärendetyp",
+      category_plural: "Ärendetyper",
+      offering: "Behandling",
+      offering_plural: "Behandlingar",
+    };
+    expect(normalizeTenantProfile({ schema_version: 1, edition: "standard", labels }))
+      .toEqual({ schema_version: 1, edition: "standard", labels });
+  });
+
+  it("orden i chatten läser tenantens etiketter, annars dagens ord", () => {
+    const tenant = {
+      schema_version: 1,
+      edition: "standard",
+      labels: {
+        unit: "Filial",
+        category: "Ärendetyp",
+        category_plural: "Ärendetyper",
+        offering: "Behandling",
+        offering_plural: "Behandlingar",
+      },
+    };
+    expect(resolveChatUnitWord(tenant)).toBe("Filial");
+    expect(resolveChatCategoryWord(tenant)).toBe("Ärendetyp");
+    expect(resolveChatCategoryPluralWord(tenant)).toBe("Ärendetyper");
+    expect(resolveChatOfferingWord(tenant)).toBe("Behandling");
+    expect(resolveChatOfferingPluralWord(tenant)).toBe("Behandlingar");
+
+    // Utan egna etiketter ska INGET ändras för dagens tenanter.
+    const standard = { schema_version: 1, edition: "standard" };
+    const trafik = { schema_version: 1, edition: "trafikskola" };
+    expect(resolveChatCategoryPluralWord(standard)).toBe("Kategorier");
+    expect(resolveChatCategoryPluralWord(trafik)).toBe("Fordonstyper");
+    expect(resolveChatOfferingWord(standard)).toBe("Tjänst");
+    expect(resolveChatOfferingPluralWord(standard)).toBe("Tjänster");
+    // Tjänsteordet är medvetet INTE editionsgrenat — chippet har hetat likadant i båda.
+    expect(resolveChatOfferingPluralWord(trafik)).toBe("Tjänster");
+
+    // 🔴 En satt singular får ALDRIG smitta pluralen: svensk plural går inte att härleda.
+    const bara_singular = { schema_version: 1, edition: "standard", labels: { offering: "Behandling" } };
+    expect(resolveChatOfferingWord(bara_singular)).toBe("Behandling");
+    expect(resolveChatOfferingPluralWord(bara_singular)).toBe("Tjänster");
   });
 
   it("omits only invalid optional tenant profile subfields", () => {

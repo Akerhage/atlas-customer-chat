@@ -86,6 +86,9 @@ export interface PublicConfig {
   // chatten anses bemannad och ingen notis visas.
   chat_staffed: boolean;
   chat_reopens_label: string | null;
+  // #167: tenantens valda standardtema för widgeten. Servern skickar 'light' eller
+  // 'dark'; allt annat (och saknat fält) betyder ljust, som är produktdefaulten.
+  chat_default_theme: 'light' | 'dark';
 }
 
 export interface StandardSelfserviceMenuResponse {
@@ -758,11 +761,12 @@ export async function getPublicConfig(): Promise<PublicConfig> {
       // RAG-frågorna. Saknat/feltypat fält måste bevara Box1-3/legacy.
       industry_rag_enabled: data?.industry_rag_enabled !== false,
       chat_staffed: data?.chat_staffed !== false,
-      chat_reopens_label: typeof data?.chat_reopens_label === 'string' ? data.chat_reopens_label : null
+      chat_reopens_label: typeof data?.chat_reopens_label === 'string' ? data.chat_reopens_label : null,
+      chat_default_theme: data?.chat_default_theme === 'dark' ? 'dark' : 'light'
     };
   } catch (err) {
     console.warn('[Atlas] Kunde inte hamta publik konfiguration:', err);
-    return { ai_replies_enabled: true, industry_rag_enabled: true, chat_staffed: true, chat_reopens_label: null };
+    return { ai_replies_enabled: true, industry_rag_enabled: true, chat_staffed: true, chat_reopens_label: null, chat_default_theme: 'light' };
   }
 }
 

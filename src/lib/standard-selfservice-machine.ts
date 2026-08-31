@@ -15,8 +15,16 @@ export const STANDARD_CENTRAL_SUPPORT_LABEL = 'Vet inte / allmän fråga';
 export const STANDARD_EMPTY_MESSAGE =
   'Vi har ingen direktinformation för detta val ännu. Du kan skapa ett ärende så hjälper vi dig.';
 export const STANDARD_UNIT_PROMPT = 'Välj vem du vill ha hjälp av.';
+// #167: ordet är tenantens. Konstanten står kvar med Atlas standardord — den är
+// defaulten och det värde kontrakten läser — medan byggaren används i chatten.
 export const STANDARD_EMPTY_CATEGORY_MESSAGE =
   'Det här valet har inga kategorier ännu. Skapa ett ärende så hjälper vi dig vidare.';
+
+export function buildStandardEmptyCategoryMessage(categoryPluralWord: string): string {
+  const word = String(categoryPluralWord || '').trim();
+  if (!word) return STANDARD_EMPTY_CATEGORY_MESSAGE;
+  return `Det här valet har inga ${word.toLocaleLowerCase('sv-SE')} ännu. Skapa ett ärende så hjälper vi dig vidare.`;
+}
 
 export type StandardSelfserviceStage = 'unit' | 'category' | 'menu' | null;
 

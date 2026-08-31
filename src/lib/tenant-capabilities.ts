@@ -14,8 +14,11 @@ export interface EffectiveCategory {
 
 export interface TenantProfileLabels {
   unit?: string;
+  unit_plural?: string;
   category?: string;
+  category_plural?: string;
   offering?: string;
+  offering_plural?: string;
 }
 
 export interface TenantProfileModules {
@@ -157,6 +160,30 @@ export function resolveChatCategoryWord(profile: TenantProfile | null | undefine
   return profile?.edition === "standard" ? "Kategori" : "Fordonstyp";
 }
 
+// #167 (2026-08-31): pluralen och tjänsteordet kom aldrig ut till kunden — chattens
+// texter bar dem hårdkodade. Samma regel som ovan: tenantens eget ord vinner, annars
+// dagens ord, så en tenant som INTE satt något ser ingen förändring.
+//
+// 🔴 Bara obestämd singular och plural finns, precis som i Atlas egen resolver. Böjda
+// former (`kategorin`, `tjänstens`) går inte att härleda för ett godtyckligt ord utan
+// att gissa genus — texterna nedan är i stället skrivna så att böjningen inte behövs.
+export function resolveChatCategoryPluralWord(profile: TenantProfile | null | undefined): string {
+  const own = normalizeRequiredString(profile?.labels?.category_plural);
+  if (own) return own;
+  return profile?.edition === "standard" ? "Kategorier" : "Fordonstyper";
+}
+
+// Tjänsteordet är INTE editionsgrenat: chippet har hetat `Frågor & tjänster` i båda
+// verksamhetstyperna (mätt 2026-08-31 i QuickQuestionsButton), så en gren här hade
+// varit en obeställd copyändring på trafikboxarna.
+export function resolveChatOfferingWord(profile: TenantProfile | null | undefined): string {
+  return normalizeRequiredString(profile?.labels?.offering) ?? "Tjänst";
+}
+
+export function resolveChatOfferingPluralWord(profile: TenantProfile | null | undefined): string {
+  return normalizeRequiredString(profile?.labels?.offering_plural) ?? "Tjänster";
+}
+
 function warnOmitted(field: string, reason: string): void {
   console.warn(`⚠️ [TenantProfile] utelämnar ${field}: ${reason}`);
 }
@@ -167,7 +194,19 @@ export function normalizeLabels(value: unknown): TenantProfileLabels | undefined
     return undefined;
   }
   const normalized: TenantProfileLabels = {};
-  const allowed = new Set(["unit", "category", "offering"]);
+  // 🔴 #167 (2026-08-31): mängden MÅSTE spegla serverns `lib/tenant-profile.js`
+  // normalizeLabels och Atlas-renderarens `atlas-capabilities.js`. Den här filen är
+  // det TREDJE lagret. Låg tidigare på tre nycklar, vilket innebar att pluralorden
+  // kastades här med en `okänd nyckel`-warning — kunden fick Atlas ord i chatten
+  // fast admin hade satt sina egna.
+  const allowed = new Set([
+    "unit",
+    "unit_plural",
+    "category",
+    "category_plural",
+    "offering",
+    "offering_plural",
+  ]);
   const labels = value as Record<string, unknown>;
   for (const key of Object.keys(labels)) {
     if (!allowed.has(key)) warnOmitted(`labels.${key}`, "okänd nyckel");

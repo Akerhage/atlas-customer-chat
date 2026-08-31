@@ -37,7 +37,9 @@ type ArchivedSessionStatus,
 type PersistentSessionStatus,
 } from "@/lib/session-status-machine";
 import {
+resolveChatCategoryPluralWord,
 resolveChatCategoryWord,
+resolveChatOfferingPluralWord,
 resolveChatUnitWord,
 type TenantProfile,
 } from "@/lib/tenant-capabilities";
@@ -67,6 +69,7 @@ STANDARD_CATEGORY_PREFIX,
 STANDARD_CENTRAL_SUPPORT,
 STANDARD_CENTRAL_SUPPORT_LABEL,
 STANDARD_EMPTY_CATEGORY_MESSAGE,
+buildStandardEmptyCategoryMessage,
 STANDARD_EMPTY_MESSAGE,
 STANDARD_ESCALATE_VALUE,
 STANDARD_MENU_PREFIX,
@@ -314,7 +317,11 @@ const [chatReopensLabel, setChatReopensLabel] = useState<string | null>(null);
 const [contactFormOpen, setContactFormOpen] = useState(false);
 const [initialHistoryLoaded, setInitialHistoryLoaded] = useState(false);
 const [isTyping, setIsTyping] = useState(false);
-const [isDark, setIsDark] = useState(true);
+// #167 (Patriks order 2026-08-31): standardtemat är LJUST. Tenanten kan välja
+// mörkt i Systemkonfiguration → Webbplats-widget; valet kommer med
+// /api/public/config och sätts i effekten nedan. Startvärdet är ljust så att den
+// vanligaste inställningen inte blinkar mörkt innan konfigurationen hunnit fram.
+const [isDark, setIsDark] = useState(false);
 const [showEndDialog, setShowEndDialog] = useState(false);
 const [humanMode, setHumanMode] = useState(false);
 const [agentNames, setAgentNames] = useState<string[]>([]); // Alla agenter som svarat
@@ -462,6 +469,7 @@ setAiRepliesEnabled(config.ai_replies_enabled);
 setIndustryRagEnabled(config.industry_rag_enabled);
 setChatStaffed(config.chat_staffed);
 setChatReopensLabel(config.chat_reopens_label);
+setIsDark(config.chat_default_theme === 'dark');
 })
 .catch((err) => {
 if (cancelled) return;
@@ -470,6 +478,7 @@ setAiRepliesEnabled(true);
 setIndustryRagEnabled(true);
 setChatStaffed(true);
 setChatReopensLabel(null);
+setIsDark(false);
 })
 .finally(() => {
 if (!cancelled) setPublicConfigLoaded(true);
@@ -775,13 +784,13 @@ value: categoryChoiceValue(choice.value),
 const getStandardCategoryStep = (unitId?: string | null): { content: string; choices: { label: string; value: string }[] } => {
 const choices = getStandardCategoryChoices(unitId);
 return choices.length
-? { content: 'Välj kategori.', choices }
-: { content: STANDARD_EMPTY_CATEGORY_MESSAGE, choices: withEscalationValue([]) };
+? { content: `Välj ${resolveChatCategoryWord(tenantProfile).toLocaleLowerCase('sv-SE')}.`, choices }
+: { content: buildStandardEmptyCategoryMessage(resolveChatCategoryPluralWord(tenantProfile)), choices: withEscalationValue([]) };
 };
 
 const showStandardMenu = (
 items: StandardSelfserviceMenuItem[],
-  message = 'Välj en fråga i Frågor & tjänster nere vid skrivfältet, eller skapa ett ärende så hjälper vi dig.'
+  message = `Välj en fråga i Frågor & ${resolveChatOfferingPluralWord(tenantProfile).toLocaleLowerCase('sv-SE')} nere vid skrivfältet, eller skapa ett ärende så hjälper vi dig.`
 ) => {
 setSelfserviceMenu(items);
 setSelfserviceStage('menu');
@@ -1814,9 +1823,9 @@ if (standardSelfserviceExclusive) {
 if (selfserviceUnitId && selectedCategoryId) {
 startStandardEscalation();
 } else if (selfserviceStage === 'unit') {
-injectBotMessage('Välj först den avdelning du vill skapa ärendet hos.', getStandardUnitChoices());
+injectBotMessage(`Välj först den ${resolveChatUnitWord(tenantProfile).toLocaleLowerCase('sv-SE')} du vill skapa ärendet hos.`, getStandardUnitChoices());
 } else {
-injectBotMessage('Välj först kategori.', getStandardCategoryChoices(selfserviceUnitId));
+injectBotMessage(`Välj först ${resolveChatCategoryWord(tenantProfile).toLocaleLowerCase('sv-SE')}.`, getStandardCategoryChoices(selfserviceUnitId));
 }
 return;
 }
@@ -2455,6 +2464,7 @@ quickQuestions={quickQuestions}
 standardSelfserviceMenu={showStandardSelfserviceMenuButton ? selfserviceMenu : []}
 aiRepliesEnabled={aiRepliesEnabled}
 industryRagEnabled={industryRagEnabled}
+triggerLabel={`Frågor & ${resolveChatOfferingPluralWord(tenantProfile).toLocaleLowerCase('sv-SE')}`}
 />
 )}
 />
