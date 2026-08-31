@@ -198,14 +198,28 @@ formatCityAreaLabel(contextCity || null, contextArea || null)
 return contextMatches.length === 1 ? contextMatches[0] : undefined;
 }
 
-function getContextFromOfficeSelection(offices: Office[], value: string | null | undefined): Pick<ChatContext, 'city' | 'area'> {
+// #496 (2026-08-31): returnerar även `unit_id`. En Trafik-**avdelning** har medvetet
+// ingen stad, så `{ city, area }` ensamt tappade enhetens identitet helt — kunden
+// valde sin enhet, men motorn fick `city: null` och bad om en ort som inte finns.
+// `unit_id` fanns redan i wire-formatet (atlas-client.ts) och sätts nu från
+// enhetens routing_tag.
+function getContextFromOfficeSelection(offices: Office[], value: string | null | undefined): Pick<ChatContext, 'city' | 'area' | 'unit_id'> {
 // Anta ett konkret kontor (inkl. dess area) BARA när etiketten matchar exakt ETT kontor.
 // En ren stad-etikett (t.ex. "Stockholm") matchar många kontor — välj aldrig tyst det
 // första kontorets area, då poisonas locked_context.area och eskalerings-misroutingen
 // (stad-only → första kontoret) återintroduceras via en annan väg.
 const matches = findOfficesByLabel(offices, value);
-if (matches.length === 1) return { city: matches[0].city || null, area: matches[0].area || null };
-return value ? splitCityArea(value) : { city: null, area: null };
+if (matches.length === 1) {
+return {
+city: matches[0].city || null,
+area: matches[0].area || null,
+// 🔴 Bara vid EXAKT en träff. En ren stadsetikett matchar flera enheter, och att
+// då gissa den förstas routing_tag hade återinfört exakt den tysta misroutning
+// kommentaren ovan varnar för.
+unit_id: matches[0].routing_tag || null
+};
+}
+return value ? { ...splitCityArea(value), unit_id: null } : { city: null, area: null, unit_id: null };
 }
 
 const VEHICLE_CHOICES: { label: string; value: VehicleType }[] = [
@@ -455,7 +469,7 @@ const nextCity = singletonOffice.city || null;
 const nextArea = singletonOffice.area || null;
 if (selectedCity === singletonOfficeLabel && context.city === nextCity && context.area === nextArea) return;
 setSelectedCity(singletonOfficeLabel);
-setContext(prev => ({ ...prev, city: nextCity, area: nextArea }));
+setContext(prev => ({ ...prev, city: nextCity, area: nextArea, unit_id: singletonOffice.routing_tag || null }));
 window.selectedCity = singletonOfficeLabel;
 }, [singletonOffice, singletonOfficeLabel, selectedCity, context.city, context.area]);
 
@@ -525,9 +539,9 @@ setContext((prev) => {
 // Ett enhetsbyte som rensar fordon är inte kundens val "Övrigt / Allmän
 // fråga". vehicle:null räcker för konsumenten; sätt därför aldrig
 // vehicle_choice:OVRIGT eller clear_vehicle här.
-if (!locationLabel) return { ...prev, city: null, area: null, vehicle: nextVehicle };
-const { city, area } = getContextFromOfficeSelection(offices, locationLabel);
-return { ...prev, city, area, vehicle: nextVehicle };
+if (!locationLabel) return { ...prev, city: null, area: null, unit_id: null, vehicle: nextVehicle };
+const { city, area, unit_id } = getContextFromOfficeSelection(offices, locationLabel);
+return { ...prev, city, area, unit_id: unit_id ?? null, vehicle: nextVehicle };
 });
 };
 const messagesEndRef = useRef<HTMLDivElement>(null);
