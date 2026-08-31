@@ -1650,11 +1650,17 @@ messageContext.clear_vehicle = true;
 } else {
 // Använd nuvarande val från fönstret
 const cityLabel = selectedCity || singletonOfficeLabel;
-const cityArea = cityLabel ? getContextFromOfficeSelection(offices, cityLabel) : { city: null, area: null };
+const cityArea = cityLabel ? getContextFromOfficeSelection(offices, cityLabel) : { city: null, area: null, unit_id: null };
+// 🔴 #496: sändvägen ÅTERSKAPAR kontexten ur sidans val i stället för att använda
+// `context`-staten — den plockade bara city/area, så enhetens identitet föll bort
+// här även när den var korrekt satt uppströms. Mätt på wire 2026-08-31: payloaden
+// bar `{city:null, area:null, vehicle:"BIL"}` för en avdelning utan stad, alltså
+// ingen enhet alls. Enhetsvalet måste följa med hela vägen till servern.
 messageContext = {
 vehicle: generalMode ? null : (selectedVehicle ?? singletonVehicle ?? null),
 city: cityArea.city,
 area: cityArea.area,
+unit_id: cityArea.unit_id ?? null,
 };
 if (generalMode) {
 messageContext.vehicle_choice = 'OVRIGT';
