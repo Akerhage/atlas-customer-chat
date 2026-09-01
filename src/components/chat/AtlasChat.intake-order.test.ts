@@ -141,10 +141,15 @@ describe("AtlasChat intake-order contract", () => {
       .toBe("88318a8e03322d4fcfaa3e85fffa976d62468fe103d57338821b2edbdea9e885");
   });
 
-  it("routes all seven intake starts through the mode-gated starter", () => {
+  it("routes all seven literal intake starts through the mode-gated starter", () => {
     expect(source.match(/startIntake\('/g)).toHaveLength(7);
     expect(source).toContain("const firstStep = buildIntakeOrder(intakeMode, categoryChoices.length, hasKnownOfficeForIntake())[0];");
     expect(source).toContain("if (firstStep === 'office') {");
+  });
+
+  it("routes backend-requested contact intake through the same starter", () => {
+    expect(source).toContain("if (response.contact_intake_required) {");
+    expect(source).toContain("startIntake(response.answer || 'För att kunna koppla dig till rätt person behöver jag några uppgifter. Vad heter du?');");
   });
 
   it("uses office-filtered category choices for standard intake paths", () => {

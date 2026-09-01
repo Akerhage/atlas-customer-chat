@@ -1693,6 +1693,12 @@ setIsTyping(false);
 return;
 }
 
+if (response.contact_intake_required) {
+setIsTyping(false);
+startIntake(response.answer || 'För att kunna koppla dig till rätt person behöver jag några uppgifter. Vad heter du?');
+return;
+}
+
 // 4. Uppdatera context OCH de visuella knapparna om servern ändrat kontext
 if (response.locked_context) {
 const newV = getSafeActiveVehicle(response.locked_context.vehicle);

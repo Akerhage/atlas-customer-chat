@@ -40,6 +40,8 @@ sessionId: string;
 ownerToken?: string;
 locked_context?: ChatContext;
 human_mode?: boolean;
+contact_intake_required?: boolean;
+code?: string;
 is_archived?: boolean;
 close_reason?: string | null;
 choices?: { label: string; value: string }[];
@@ -526,6 +528,8 @@ return {
   ownerToken: data.ownerToken,
   locked_context: data.locked_context,
   human_mode: data.human_mode,
+  contact_intake_required: data.contact_intake_required,
+  code: data.code,
   is_archived: data.is_archived || false,
   close_reason: data.close_reason || null,
   choices: data.choices,
