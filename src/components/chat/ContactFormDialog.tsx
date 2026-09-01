@@ -380,7 +380,7 @@ aria-label="Telefonnummer"
 ) : (
 <Select value={formData.city} onValueChange={(v) => setFormData({ ...formData, city: v })}>
 {/* K9-B: öppningseffekten förväljer alltid en mottagare; om det ändras måste placeholdertexten omprövas. */}
-<SelectTrigger><SelectValue placeholder="Välj kontor" /></SelectTrigger>
+<SelectTrigger><SelectValue placeholder={`Välj ${formLabels.unit.toLowerCase()}`} /></SelectTrigger>
 <SelectContent className="max-h-[min(60vh,400px)]">
 {/* K7/C: i Standard läser kunden aldrig "Centralsupport" eller "Huvudinkorgen"
     — bägge är interna Atlas-begrepp. Utvägen får samma ord som enhetschippet i
@@ -395,7 +395,7 @@ aria-label="Telefonnummer"
 </SelectGroup>
 )}
 <SelectGroup>
-{!categoryFormMode && <SelectLabel className="font-bold border-t mt-2 pt-2">Välj Kontor</SelectLabel>}
+{!categoryFormMode && <SelectLabel className="font-bold border-t mt-2 pt-2">{`Välj ${formLabels.unit.toLowerCase()}`}</SelectLabel>}
 {offices.map((office) => (
 <SelectItem key={office.id} value={getOfficeDisplayName(office)}>{getOfficeDisplayName(office)}</SelectItem>
 ))}

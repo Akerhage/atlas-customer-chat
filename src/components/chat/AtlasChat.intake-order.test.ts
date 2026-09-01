@@ -176,6 +176,10 @@ describe("AtlasChat intake-order contract", () => {
     expect(source).toContain("injectBotMessage(STANDARD_UNIT_PROMPT,");
     expect(source).toContain("getStandardUnitChoices()");
     expect(contactFormSource).toContain('{!categoryFormMode && <SelectLabel');
+    expect(contactFormSource).toContain('placeholder={`Välj ${formLabels.unit.toLowerCase()}`}');
+    expect(contactFormSource).toContain('{`Välj ${formLabels.unit.toLowerCase()}`}</SelectLabel>');
+    expect(contactFormSource).not.toContain('placeholder="Välj kontor"');
+    expect(contactFormSource).not.toContain('>Välj Kontor</SelectLabel>');
   });
 
   it("keeps the contact form phone copy honest about callbacks", () => {
