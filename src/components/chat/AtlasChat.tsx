@@ -77,7 +77,9 @@ STANDARD_UNIT_PREFIX,
 STANDARD_UNIT_PROMPT,
 categoryChoiceValue,
 isStandardSelfserviceAvailable,
+isInternalStandardChoiceValue,
 isStandardSelfserviceExclusive,
+resolveStaleStandardChoiceMessage,
 shouldBlockSelfserviceFreeText,
 shouldShowStandardSelfserviceMenu,
 unitChoiceValue,
@@ -126,28 +128,15 @@ routing_tag: string;
 categories_offered?: string[];
 }
 
-export function isInternalStandardChoiceValue(value: string): boolean {
-return (
-value === STANDARD_ESCALATE_VALUE ||
-valueAfterPrefix(value, STANDARD_UNIT_PREFIX) !== null ||
-valueAfterPrefix(value, STANDARD_CATEGORY_PREFIX) !== null ||
-valueAfterPrefix(value, STANDARD_MENU_PREFIX) !== null
-);
-}
-
-export function isStaleStandardChoiceSelection({
-value,
-standardSelfserviceAvailable,
-humanMode,
-intakeStep,
-}: {
-value: string;
-standardSelfserviceAvailable: boolean;
-humanMode: boolean;
-intakeStep: IntakeStep;
-}): boolean {
-return !standardSelfserviceAvailable && !humanMode && !intakeStep && isInternalStandardChoiceValue(value);
-}
+// KAN-279 rev 2 (2026-09-03): guarden och dess meddelande bor i
+// `@/lib/standard-selfservice-machine` — där går de att KÖRA i test. Rev 1
+// villkorade själva blockeringen på `!standardSelfserviceAvailable && !humanMode
+// && !intakeStep` och läckte därför kvar i två lägen, mätt i källan samma dag: i
+// humanMode gick klicket vidare till `handleSendMessage(value)`, och under
+// `intakeStep === 'office'` till `injectUserMessage(value)` — som visade det
+// interna tokenet som kundens egen bubbla OCH satte det som stadsval. Gamla
+// menyknappar är alltid klickbara (endast arkivläge kopplar bort handlern), så
+// båda lägena är nåbara från en kvarliggande meny.
 
 // Convert history role to our internal role
 function mapHistoryRole(role: HistoryMessage['role']): 'user' | 'assistant' {
@@ -1998,10 +1987,12 @@ void handleStandardChoice(value);
 return;
 }
 
-if (isStaleStandardChoiceSelection({ value, standardSelfserviceAvailable, humanMode, intakeStep })) {
-injectBotMessage(
-'Alternativet är inte längre tillgängligt. [Skapa ett ärende här i chatten](#atlas-human) eller klicka på headsetikonen så hjälper vi dig vidare.',
-);
+// 🔴 BACKSTOP — måste ligga sist av grenarna och får ALDRIG villkoras på läge.
+// Allt som självservicegrenarna ovan inte tog hand om stoppas här, så att inget
+// internt token kan nå vare sig `handleSendMessage(value)` eller
+// `injectUserMessage(value)`. Villkora du den här raden igen öppnar du KAN-279.
+if (isInternalStandardChoiceValue(value)) {
+injectBotMessage(resolveStaleStandardChoiceMessage({ humanMode, intakeStep }));
 return;
 }
 

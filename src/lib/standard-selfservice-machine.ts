@@ -160,6 +160,36 @@ export function categoryChoiceValue(categoryId: string): string {
   return `${STANDARD_CATEGORY_PREFIX}${categoryId}`;
 }
 
+// KAN-279: de fyra interna Standard-värdena är identifierare, aldrig kundtext.
+// Bor här och inte i AtlasChat.tsx så att de går att KÖRA i test — repot har
+// varken jsdom eller testing-library, och en källtextvakt över komponenten kan
+// inte mata in ett värde.
+export function isInternalStandardChoiceValue(value: string): boolean {
+  return (
+    value === STANDARD_ESCALATE_VALUE
+    || valueAfterPrefix(value, STANDARD_UNIT_PREFIX) !== null
+    || valueAfterPrefix(value, STANDARD_CATEGORY_PREFIX) !== null
+    || valueAfterPrefix(value, STANDARD_MENU_PREFIX) !== null
+  );
+}
+
+// KAN-279 rev 2: MEDDELANDET beror på läget, BLOCKERINGEN aldrig.
+export function resolveStaleStandardChoiceMessage({
+  humanMode,
+  intakeStep,
+}: {
+  humanMode: boolean;
+  intakeStep: string | null;
+}): string {
+  if (humanMode) {
+    return 'Du är redan kopplad till oss här i chatten — skriv gärna direkt i rutan så hjälper vi dig vidare.';
+  }
+  if (intakeStep) {
+    return 'Vi håller på att skapa ditt ärende — följ stegen här i chatten så hjälper vi dig vidare.';
+  }
+  return 'Alternativet är inte längre tillgängligt. [Skapa ett ärende här i chatten](#atlas-human) eller klicka på headsetikonen så hjälper vi dig vidare.';
+}
+
 export function valueAfterPrefix(value: string, prefix: string): string | null {
   return value.startsWith(prefix) && value.length > prefix.length
     ? value.slice(prefix.length)
