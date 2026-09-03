@@ -88,19 +88,21 @@ export function isStandardSelfserviceEnabled(
 // medan detta även behöver den aktuella AI-, human- och intake-state som bara
 // widgeten känner till.
 export function shouldBlockSelfserviceFreeText({
-  available,
-  exclusive,
+  profile,
   aiRepliesEnabled,
   humanMode,
   intakeActive,
 }: {
-  available: boolean;
-  exclusive: boolean;
+  profile: TenantProfile | null | undefined;
   aiRepliesEnabled: boolean;
   humanMode: boolean;
   intakeActive: boolean;
 }): boolean {
-  return available && (exclusive || !aiRepliesEnabled) && !humanMode && !intakeActive;
+  const hasCustomerFreeTextEngine =
+    profile?.edition !== 'standard'
+    && profile?.modules?.industry_rag !== false
+    && aiRepliesEnabled;
+  return !hasCustomerFreeTextEngine && !humanMode && !intakeActive;
 }
 
 export function withEscalationChoice(

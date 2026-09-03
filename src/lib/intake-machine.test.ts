@@ -119,9 +119,12 @@ describe("resolveWidgetTexts", () => {
     });
     expect(texts.welcomeAiOn).toContain("Hej och välkommen till Bosses Skruvfabrik!");
     expect(texts.welcomeAiOff).toContain("Hej och välkommen till Bosses Skruvfabrik!");
-    expect(texts.welcomeAiOn).toContain("företagets inlagda fakta om tjänster");
+    expect(texts.welcomeAiOn).toContain("Jag är företagets smarta guide!");
+    expect(texts.welcomeAiOn).toContain("Jag visar företagets inlagda information om tjänster, öppettider och kontaktvägar.");
     expect(texts.welcomeAiOn).toContain("headsetikonen i menyn ovanför chatten");
     expect(texts.welcomeAiOn).toContain("välj bland knapparna i chatten");
+    expect(texts.welcomeAiOn).not.toContain("smarta AI-assistent");
+    expect(texts.welcomeAiOn).not.toContain("Jag svarar utifrån");
     expect(texts.welcomeAiOn).not.toContain("Vad kan jag hjälpa dig med idag?");
     expect(texts.welcomeAiOn).not.toContain("Ställ gärna en fråga");
     expect(texts.welcomeAiOn).not.toContain("(#atlas-human)");

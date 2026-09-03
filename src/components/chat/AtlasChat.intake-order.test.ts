@@ -210,8 +210,7 @@ describe("AtlasChat intake-order contract", () => {
       "{' '}— {selfserviceFreeTextBlocked ? 'välj ett alternativ' : 'skriv något'} för att hålla den öppen.",
     );
     expect(source).toContain("shouldBlockSelfserviceFreeText({");
-    expect(source).toContain("available: standardSelfserviceAvailable,");
-    expect(source).toContain("exclusive: standardSelfserviceExclusive,");
+    expect(source).toContain("profile: tenantProfile,");
     expect(source).toContain("aiRepliesEnabled,");
     expect(source).toContain("intakeActive: Boolean(intakeStep),");
     expect(source).toContain("if (selfserviceFreeTextBlocked) {");

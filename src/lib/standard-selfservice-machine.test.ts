@@ -18,6 +18,7 @@ import {
   withEscalationValue,
 } from './standard-selfservice-machine';
 import type { StandardSelfserviceAction } from './standard-selfservice-machine';
+import type { TenantProfile } from './tenant-capabilities';
 
 describe('standard selfservice machine', () => {
   it('exports the customer-facing Standard unit, empty-category and recipient copy', () => {
@@ -64,35 +65,97 @@ describe('standard selfservice machine', () => {
     expect(isStandardSelfserviceEnabled(trafficRagOn, 'legacy')).toBe(false);
   });
 
+  const standardProfileForFreeText = (structured_answers: boolean): TenantProfile => ({
+    schema_version: 1,
+    edition: 'standard',
+    modules: { structured_answers },
+    intake: { mode: 'category_first' },
+  });
+  const trafficProfileForFreeText = (
+    structured_answers: boolean,
+    industry_rag: boolean,
+  ): TenantProfile => ({
+    schema_version: 1,
+    edition: 'trafikskola',
+    modules: { structured_answers, industry_rag },
+  });
+
   it.each([
-    { available: true, exclusive: false, aiRepliesEnabled: true, expected: false },
-    { available: true, exclusive: false, aiRepliesEnabled: false, expected: true },
-    { available: true, exclusive: true, aiRepliesEnabled: true, expected: true },
-    { available: false, exclusive: false, aiRepliesEnabled: true, expected: false },
+    {
+      label: 'standard structured answers on',
+      profile: standardProfileForFreeText(true),
+      aiRepliesEnabled: true,
+      expectedBlocked: true,
+    },
+    {
+      label: 'standard structured answers off',
+      profile: standardProfileForFreeText(false),
+      aiRepliesEnabled: true,
+      expectedBlocked: true,
+    },
+    {
+      label: 'traffic structured answers on, RAG on, AI replies on',
+      profile: trafficProfileForFreeText(true, true),
+      aiRepliesEnabled: true,
+      expectedBlocked: false,
+    },
+    {
+      label: 'traffic structured answers on, RAG on, AI replies off',
+      profile: trafficProfileForFreeText(true, true),
+      aiRepliesEnabled: false,
+      expectedBlocked: true,
+    },
+    {
+      label: 'traffic structured answers on, RAG off',
+      profile: trafficProfileForFreeText(true, false),
+      aiRepliesEnabled: true,
+      expectedBlocked: true,
+    },
+    {
+      label: 'traffic structured answers off, RAG on, AI replies on',
+      profile: trafficProfileForFreeText(false, true),
+      aiRepliesEnabled: true,
+      expectedBlocked: false,
+    },
+    {
+      label: 'traffic structured answers off, RAG off',
+      profile: trafficProfileForFreeText(false, false),
+      aiRepliesEnabled: true,
+      expectedBlocked: true,
+    },
+    {
+      label: 'profileless with AI replies on',
+      profile: null,
+      aiRepliesEnabled: true,
+      expectedBlocked: false,
+    },
+    {
+      label: 'profileless with AI replies off',
+      profile: null,
+      aiRepliesEnabled: false,
+      expectedBlocked: true,
+    },
   ])(
-    'blocks free text only for an available selfservice path without a valid answer engine %#',
-    ({ available, exclusive, aiRepliesEnabled, expected }) => {
+    'blocks free text from customer-engine availability, not selfservice availability: $label',
+    ({ profile, aiRepliesEnabled, expectedBlocked }) => {
       expect(shouldBlockSelfserviceFreeText({
-        available,
-        exclusive,
+        profile,
         aiRepliesEnabled,
         humanMode: false,
         intakeActive: false,
-      })).toBe(expected);
+      })).toBe(expectedBlocked);
     }
   );
 
   it('keeps free text available during escalation intake and human support', () => {
     expect(shouldBlockSelfserviceFreeText({
-      available: true,
-      exclusive: false,
+      profile: standardProfileForFreeText(false),
       aiRepliesEnabled: false,
       humanMode: true,
       intakeActive: false,
     })).toBe(false);
     expect(shouldBlockSelfserviceFreeText({
-      available: true,
-      exclusive: false,
+      profile: trafficProfileForFreeText(false, false),
       aiRepliesEnabled: false,
       humanMode: false,
       intakeActive: true,

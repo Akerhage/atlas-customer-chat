@@ -400,8 +400,7 @@ const categoryFirstEnabled = isCategoryFirstIntake(intakeMode, categoryChoices.l
 const standardSelfserviceAvailable = isStandardSelfserviceAvailable(tenantProfile, intakeMode);
 const standardSelfserviceExclusive = isStandardSelfserviceExclusive(tenantProfile, intakeMode);
 const selfserviceFreeTextBlocked = shouldBlockSelfserviceFreeText({
-available: standardSelfserviceAvailable,
-exclusive: standardSelfserviceExclusive,
+profile: tenantProfile,
 aiRepliesEnabled,
 humanMode,
 intakeActive: Boolean(intakeStep),

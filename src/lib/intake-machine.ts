@@ -128,9 +128,9 @@ Jag guidar dig genom några korta steg och skickar ditt ärende till rätt motta
 Vi börjar med vart du vill skicka ärendet.`,
     welcomeAiOn: `Hej och välkommen till ${greetingName}! 👋
 
-Jag är vår smarta AI-assistent!
+Jag är företagets smarta guide!
 
-Jag svarar utifrån företagets inlagda fakta om tjänster, öppettider och kontaktvägar.
+Jag visar företagets inlagda information om tjänster, öppettider och kontaktvägar.
 
 Du behöver inte skriva något — välj bland knapparna i chatten så visar jag det du vill veta.
 
