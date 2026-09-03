@@ -126,6 +126,29 @@ routing_tag: string;
 categories_offered?: string[];
 }
 
+export function isInternalStandardChoiceValue(value: string): boolean {
+return (
+value === STANDARD_ESCALATE_VALUE ||
+valueAfterPrefix(value, STANDARD_UNIT_PREFIX) !== null ||
+valueAfterPrefix(value, STANDARD_CATEGORY_PREFIX) !== null ||
+valueAfterPrefix(value, STANDARD_MENU_PREFIX) !== null
+);
+}
+
+export function isStaleStandardChoiceSelection({
+value,
+standardSelfserviceAvailable,
+humanMode,
+intakeStep,
+}: {
+value: string;
+standardSelfserviceAvailable: boolean;
+humanMode: boolean;
+intakeStep: IntakeStep;
+}): boolean {
+return !standardSelfserviceAvailable && !humanMode && !intakeStep && isInternalStandardChoiceValue(value);
+}
+
 // Convert history role to our internal role
 function mapHistoryRole(role: HistoryMessage['role']): 'user' | 'assistant' {
 return role === 'user' ? 'user' : 'assistant';
@@ -1972,6 +1995,13 @@ intakeStep &&
 (valueAfterPrefix(value, STANDARD_UNIT_PREFIX) || valueAfterPrefix(value, STANDARD_CATEGORY_PREFIX))
 ) {
 void handleStandardChoice(value);
+return;
+}
+
+if (isStaleStandardChoiceSelection({ value, standardSelfserviceAvailable, humanMode, intakeStep })) {
+injectBotMessage(
+'Alternativet är inte längre tillgängligt. [Skapa ett ärende här i chatten](#atlas-human) eller klicka på headsetikonen så hjälper vi dig vidare.',
+);
 return;
 }
 
