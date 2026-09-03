@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   resolveBlockedFreeTextStart,
+  resolveSelfserviceStart,
   STANDARD_EMPTY_CATEGORY_MESSAGE,
   STANDARD_UNIT_PROMPT,
   STANDARD_ESCALATE_VALUE,
@@ -27,6 +28,15 @@ describe('standard selfservice machine', () => {
     expect(STANDARD_EMPTY_CATEGORY_MESSAGE).toBe(
       'Det här valet har inga kategorier ännu. Skapa ett ärende så hjälper vi dig vidare.'
     );
+  });
+
+  it.each([
+    { label: 'no units', unitIds: [], expected: { stage: 'unit' } },
+    { label: 'one unit', unitIds: ['goteborg_ullevi'], expected: { stage: 'category', unitId: 'goteborg_ullevi' } },
+    { label: 'two units', unitIds: ['goteborg_ullevi', 'kungalv'], expected: { stage: 'unit' } },
+    { label: 'one empty unit id', unitIds: ['   '], expected: { stage: 'unit' } },
+  ])('resolves the initial selfservice step for $label', ({ unitIds, expected }) => {
+    expect(resolveSelfserviceStart({ unitIds })).toEqual(expected);
   });
 
   it('separates the clickable selfservice path from exclusive free-text blocking', () => {

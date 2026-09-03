@@ -56,6 +56,39 @@ Du kan också klicka på headsetikonen i menyn ovanför chatten.
 
 Jag guidar dig genom några korta steg och skickar ditt ärende till rätt mottagare hos oss.`;
 
+const PROFILELESS_WELCOME_AI_ON = `Hej och välkommen till oss! 👋
+
+Här kan du ställa dina frågor till oss.
+
+Skriv gärna en fråga i taget, kort och konkret — så hjälper jag dig vidare.
+
+Vill du hellre prata med en människa?
+
+[💬 Prata med en människa](#atlas-human)
+
+Du kan också klicka på headsetikonen i menyn ovanför chatten.
+
+Vad kan jag hjälpa dig med idag?`;
+
+const PROFILELESS_TEXTS: WidgetTexts = {
+  headerSubtitle: "Kundservice",
+  templatesTitle: "Kundinformation",
+  templatesSubtitle: "Här kan du läsa mer om oss — klicka för att visa i chatten",
+  welcomeAiOn: PROFILELESS_WELCOME_AI_ON,
+  welcomeAiOff: `Hej och välkommen till oss! 👋
+
+Har du frågor eller vill du skicka ett ärende till oss är du varmt välkommen.
+
+Jag guidar dig genom några korta steg och skickar ditt ärende till rätt mottagare hos oss.
+
+Vi börjar med vart du vill skicka ärendet.`,
+  officeQuestion: "Vart vill du skicka ditt ärende?",
+  formUnitLabel: "Kontor",
+  formCategoryLabel: "Kategori",
+  seoTitle: "Atlas - Kundservice",
+  seoDescription: "Atlas kundservice – ställ din fråga eller skicka ett ärende till oss.",
+};
+
 const LEGACY_TEXTS: WidgetTexts = {
   headerSubtitle: "Din körkortsguide",
   templatesTitle: "Kundinformation",
@@ -97,6 +130,17 @@ Vad heter du?`,
 
 export function resolveWidgetTexts(profile: TenantProfile | null | undefined, companyName?: string | null): WidgetTexts {
   const greetingName = (companyName ?? "").trim() || "oss";
+  const hasKnownEdition = profile?.edition === "standard"
+    || profile?.edition === "trafikskola"
+    || profile?.edition === "legacy_trafik";
+  if (!hasKnownEdition) {
+    const greeting = `Hej och välkommen till ${greetingName}! 👋`;
+    return {
+      ...PROFILELESS_TEXTS,
+      welcomeAiOn: PROFILELESS_TEXTS.welcomeAiOn.replace("Hej och välkommen till oss! 👋", greeting),
+      welcomeAiOff: PROFILELESS_TEXTS.welcomeAiOff.replace("Hej och välkommen till oss! 👋", greeting),
+    };
+  }
   const intakeMode = resolveIntakeMode(profile);
   const selfserviceAvailable = isStandardSelfserviceAvailable(profile, intakeMode);
   const selfserviceExclusive = isStandardSelfserviceExclusive(profile, intakeMode);

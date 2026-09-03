@@ -8,6 +8,15 @@ const standardProfile: TenantProfile = {
   modules: { structured_answers: true, industry_rag: false },
   intake: { mode: "category_first" },
 };
+const legacyTrafficProfile: TenantProfile = {
+  schema_version: 1,
+  edition: "legacy_trafik",
+  modules: { structured_answers: true, industry_rag: true },
+};
+
+function joinedWidgetText(texts: ReturnType<typeof resolveWidgetTexts>): string {
+  return Object.values(texts).join("\n");
+}
 
 describe("resolveIntakeMode", () => {
   it("enables category-first only for the standard category-first profile", () => {
@@ -52,8 +61,7 @@ describe("resolveWidgetTexts — L-019 fritextlöftet", () => {
       modules: { structured_answers: true, industry_rag: true },
     };
     expect(resolveWidgetTexts(ragOn, "Test Trafik").welcomeAiOn).toContain("Du kan fråga mig allt");
-    // Profillös tenant (Box1-3) ska aldrig byta text.
-    expect(resolveWidgetTexts(undefined, "MDA").welcomeAiOn).toContain("Du kan fråga mig allt");
+    expect(resolveWidgetTexts(legacyTrafficProfile, "MDA").welcomeAiOn).toContain("Du kan fråga mig allt");
   });
 
   it("uses honest handoff copy when traffic RAG and structured answers are both off", () => {
@@ -73,8 +81,23 @@ describe("resolveWidgetTexts — L-019 fritextlöftet", () => {
 });
 
 describe("resolveWidgetTexts", () => {
-  it("returns the legacy traffic text contract with the tenant company name", () => {
-    const texts = resolveWidgetTexts(undefined, "My Driving Academy");
+  it.each([
+    { label: "profileless", profile: null },
+    { label: "awaiting edition", profile: { schema_version: 1, edition: "awaiting_edition" } as TenantProfile },
+  ])("returns neutral customer-service copy for $label", ({ profile }) => {
+    const texts = resolveWidgetTexts(profile, "My Company");
+    const allText = joinedWidgetText(texts);
+    expect(texts.headerSubtitle).toBe("Kundservice");
+    expect(texts.formCategoryLabel).toBe("Kategori");
+    expect(allText).not.toMatch(/k[oö]rkort/i);
+    expect(allText).not.toMatch(/AI-assistent/i);
+    expect(texts.welcomeAiOn).toContain("Hej och välkommen till My Company!");
+    expect(texts.welcomeAiOn).toContain("Här kan du ställa dina frågor till oss.");
+    expect(texts.welcomeAiOff).toContain("skickar ditt ärende till rätt mottagare hos oss");
+  });
+
+  it("keeps the legacy traffic text contract with the tenant company name", () => {
+    const texts = resolveWidgetTexts(legacyTrafficProfile, "My Driving Academy");
     const legacyNameLead = "Vi börjar med ditt " + "namn.";
     expect(texts.welcomeAiOn).toMatch(/^Hej och välkommen till My Driving Academy! 👋/);
     expect(texts.welcomeAiOff).toMatch(/^Hej och välkommen till My Driving Academy! 👋/);
@@ -93,7 +116,7 @@ describe("resolveWidgetTexts", () => {
 
   it("falls back to oss for missing legacy company names instead of Atlas", () => {
     for (const missing of [undefined, null, "", "   "]) {
-      const texts = resolveWidgetTexts(undefined, missing as string | null | undefined);
+      const texts = resolveWidgetTexts(legacyTrafficProfile, missing as string | null | undefined);
       expect(texts.welcomeAiOn).toMatch(/^Hej och välkommen till oss! 👋/);
       expect(texts.welcomeAiOff).toMatch(/^Hej och välkommen till oss! 👋/);
       expect(texts.welcomeAiOn).not.toContain("välkommen till Atlas");
@@ -170,7 +193,7 @@ describe("resolveWidgetTexts", () => {
   });
 
   it("forks the templates title and subtitle without changing the legacy defaults", () => {
-    const legacy = resolveWidgetTexts(undefined);
+    const legacy = resolveWidgetTexts(legacyTrafficProfile);
     const standard = resolveWidgetTexts(standardProfile);
     expect(legacy.templatesTitle).toBe("Kundinformation");
     expect(legacy.templatesSubtitle).toContain("paket");

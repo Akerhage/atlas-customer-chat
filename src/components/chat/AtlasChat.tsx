@@ -80,6 +80,7 @@ isStandardSelfserviceAvailable,
 isInternalStandardChoiceValue,
 isStandardSelfserviceExclusive,
 resolveBlockedFreeTextStart,
+resolveSelfserviceStart,
 resolveStaleStandardChoiceMessage,
 shouldBlockSelfserviceFreeText,
 shouldShowStandardSelfserviceMenu,
@@ -867,6 +868,18 @@ setSelectedCategoryId(null);
 setSelfserviceUnitId(null);
 setSelfserviceUnitLabel(null);
 setSelfserviceMenu([]);
+const selfserviceStart = resolveSelfserviceStart({ unitIds: offices.map((office) => office.routing_tag) });
+if (selfserviceStart.stage === 'category') {
+const office = offices.find(candidate => candidate.routing_tag === selfserviceStart.unitId);
+if (office) {
+const categoryStep = getStandardCategoryStep(selfserviceStart.unitId);
+setSelfserviceUnitId(selfserviceStart.unitId);
+setSelfserviceUnitLabel(getOfficeDisplayName(office));
+setSelfserviceStage('category');
+selfserviceCategoryMessageIdRef.current = injectBotMessage(categoryStep.content, categoryStep.choices);
+return;
+}
+}
 setSelfserviceStage('unit');
 // Enhetssteget saknade tidigare eskalering helt — utvägen var chipet i listan.
 // Med chipet borttaget måste steget bära den riktiga utvägen, annars blir första
@@ -2199,9 +2212,10 @@ isArchived,
 // och Box4-panelens Byt avdelning/Byt kategori.
 //
 // 🔴 Vilken väg ett val tar beror på om boxen har den deterministiska självservicen.
-// Mätt 2026-08-19 mot /api/tenant-name på alla fem boxar: Box1 och Box2 saknar
-// tenant_profile helt ⇒ structured_answers är inte true ⇒ de har BARA AI-vägen.
-// Raden ser likadan ut där, men enheten sätter kontext åt AI:n i stället.
+// VPS-mätt 2026-09-03 17:51 UTC med sqlite3 mot settings.tenant_profile_v1:
+// alla fem boxar har profilrad; Box1/2/3 är legacy_trafik med structured_answers
+// true, Box4 är standard och sandbox trafikskola. Kontrollraden tar alltså
+// standard-grenen på alla fem när structured_answers är aktivt.
 const LEGACY_UNIT_PREFIX = 'legacy:unit:';
 const LEGACY_CATEGORY_PREFIX = 'legacy:category:';
 const LEGACY_CATEGORY_GENERAL = `${LEGACY_CATEGORY_PREFIX}__general__`;

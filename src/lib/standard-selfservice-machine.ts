@@ -27,6 +27,16 @@ export function buildStandardEmptyCategoryMessage(categoryPluralWord: string): s
 }
 
 export type StandardSelfserviceStage = 'unit' | 'category' | 'menu' | null;
+export type SelfserviceStart =
+  | { stage: 'unit' }
+  | { stage: 'category'; unitId: string };
+
+export function resolveSelfserviceStart({
+  unitIds,
+}: { unitIds: readonly string[] }): SelfserviceStart {
+  const only = unitIds.length === 1 ? String(unitIds[0] || '').trim() : '';
+  return only ? { stage: 'category', unitId: only } : { stage: 'unit' };
+}
 
 export interface StandardSelfserviceAction {
   type: 'category_overview' | 'category_info' | 'offering' | 'unit_info' | 'fact';
