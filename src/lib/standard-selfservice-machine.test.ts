@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  resolveBlockedFreeTextStart,
   STANDARD_EMPTY_CATEGORY_MESSAGE,
   STANDARD_UNIT_PROMPT,
   STANDARD_ESCALATE_VALUE,
@@ -240,5 +241,31 @@ describe('standard selfservice machine', () => {
     expect(isStandardStageChoice('')).toBe(false);
     expect(isStandardStageChoice('nagot-helt-annat')).toBe(false);
     expect(isStandardStageChoice('standard:')).toBe(false);
+  });
+});
+
+// 🔴 KAN-275 rev 2 (Patriks IRL 2026-09-03): en NY chatt med självservicen AV fick
+// enhetsmenyn ändå, och klicket besvarades med "Alternativet är inte längre
+// tillgängligt". Orsaken var att bootstrappen valde flöde på FRITEXTSPÄRREN, som
+// sedan rev 1 är sann på hela Standard. Facit nedan binder beslutet, inte texten.
+describe("resolveBlockedFreeTextStart", () => {
+  it("väljer självservicen när den är tillgänglig", () => {
+    expect(resolveBlockedFreeTextStart({ selfserviceAvailable: true, intakeMode: "category_first" }))
+      .toBe("selfservice");
+  });
+
+  it("väljer ärendevägen på Standard när självservicen är AV", () => {
+    expect(resolveBlockedFreeTextStart({ selfserviceAvailable: false, intakeMode: "category_first" }))
+      .toBe("intake");
+  });
+
+  it("lämnar Trafik oförändrad — legacy-intaget startar inte av sig självt", () => {
+    expect(resolveBlockedFreeTextStart({ selfserviceAvailable: false, intakeMode: "legacy" }))
+      .toBe("none");
+  });
+
+  it("självservicen vinner även i legacy-läge när den är tillgänglig", () => {
+    expect(resolveBlockedFreeTextStart({ selfserviceAvailable: true, intakeMode: "legacy" }))
+      .toBe("selfservice");
   });
 });

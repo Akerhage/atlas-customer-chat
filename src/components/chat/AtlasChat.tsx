@@ -79,6 +79,7 @@ categoryChoiceValue,
 isStandardSelfserviceAvailable,
 isInternalStandardChoiceValue,
 isStandardSelfserviceExclusive,
+resolveBlockedFreeTextStart,
 resolveStaleStandardChoiceMessage,
 shouldBlockSelfserviceFreeText,
 shouldShowStandardSelfserviceMenu,
@@ -1089,6 +1090,24 @@ setIntakeStep('name');
 injectBotMessage(legacyMessage);
 };
 
+// KAN-275 rev 2: se resolveBlockedFreeTextStart i standard-selfservice-machine.ts
+// för varför självservicemenyn inte får väljas enbart på fritextspärren.
+const startBlockedFreeTextFlow = () => {
+switch (resolveBlockedFreeTextStart({ selfserviceAvailable: standardSelfserviceAvailable, intakeMode })) {
+case 'selfservice':
+beginStandardSelfservice();
+return;
+case 'intake':
+// Samma ref som självservicen använder: den vaktar att bootstrappen bara
+// startar ETT flöde per session, oavsett vilket av dem det blev.
+standardSelfserviceStartedRef.current = true;
+startIntake('Vad heter du?');
+return;
+default:
+return;
+}
+};
+
 const scrollToBottom = useCallback(() => {
 messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
 }, []);
@@ -1579,7 +1598,7 @@ setSelectedCity(null);
 setGeneralMode(false);
 setIsTyping(false);
 lastMessageCountRef.current = 0;
-beginStandardSelfservice();
+startBlockedFreeTextFlow();
 return;
 }
 
@@ -1802,9 +1821,12 @@ setSelfserviceUnitId(null);
 setSelfserviceUnitLabel(null);
 setSelfserviceMenu([]);
 standardSelfserviceStartedRef.current = false;
-if (standardSelfserviceExclusive) {
+// KAN-275 rev 2: samma val som bootstrappen. Tidigare grindade denna på
+// `standardSelfserviceExclusive`, vilket lämnade en Standard-tenant med
+// självservicen AV utan något flöde alls efter en omstart av chatten.
+if (selfserviceFreeTextBlocked) {
 setIntakeStep(null);
-beginStandardSelfservice();
+startBlockedFreeTextFlow();
 } else if (aiRepliesEnabled) {
 setIntakeStep(null);
 } else {

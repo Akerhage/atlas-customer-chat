@@ -54,7 +54,7 @@ Vill du skicka ett ärende kan du välja länken här:
 
 Du kan också klicka på headsetikonen i menyn ovanför chatten.
 
-Skriv gärna kort vad du behöver hjälp med, så hjälper vi dig att skicka ärendet till rätt mottagare hos oss.`;
+Jag guidar dig genom några korta steg och skickar ditt ärende till rätt mottagare hos oss.`;
 
 const LEGACY_TEXTS: WidgetTexts = {
   headerSubtitle: "Din körkortsguide",

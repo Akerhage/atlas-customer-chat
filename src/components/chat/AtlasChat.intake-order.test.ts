@@ -141,8 +141,11 @@ describe("AtlasChat intake-order contract", () => {
       .toBe("88318a8e03322d4fcfaa3e85fffa976d62468fe103d57338821b2edbdea9e885");
   });
 
-  it("routes all seven literal intake starts through the mode-gated starter", () => {
-    expect(source.match(/startIntake\('/g)).toHaveLength(7);
+  // 7 -> 8 i KAN-275 rev 2: startBlockedFreeTextFlow() startar ärendevägen när
+  // Standard saknar både självservice och fritextmotor. Vakten är oförändrad i sak
+  // — varje literal start går fortfarande genom den lägesstyrda startIntake().
+  it("routes all eight literal intake starts through the mode-gated starter", () => {
+    expect(source.match(/startIntake\('/g)).toHaveLength(8);
     expect(source).toContain("const firstStep = buildIntakeOrder(intakeMode, categoryChoices.length, hasKnownOfficeForIntake())[0];");
     expect(source).toContain("if (firstStep === 'office') {");
   });

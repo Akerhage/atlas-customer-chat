@@ -160,6 +160,29 @@ export function categoryChoiceValue(categoryId: string): string {
   return `${STANDARD_CATEGORY_PREFIX}${categoryId}`;
 }
 
+// 🔴 KAN-275 rev 2 (Patriks IRL 2026-09-03): fritextspärren och SJÄLVSERVICEN är
+// två olika beslut. Bootstrappen valde självservicemenyn så fort fritexten var
+// blockerad — och sedan rev 1 är den blockerad på HELA Standard, även när
+// structured_answers är AV. En helt ny chatt med självservicen avstängd fick då en
+// meny som inte leder någonstans, och kundens klick besvarades med "Alternativet är
+// inte längre tillgängligt". Utan självservice och utan fritextmotor ÄR ärendevägen
+// flödet: enhet → kategori → namn/e-post/telefon → riktigt ärende.
+//
+// 'none' bevarar Trafiks nuvarande beteende oförändrat: legacy-intaget startar inte
+// av sig självt, kunden går via ärendelänken. Det är en egen fråga, inte denna.
+export type BlockedFreeTextStart = 'selfservice' | 'intake' | 'none';
+
+export function resolveBlockedFreeTextStart({
+  selfserviceAvailable,
+  intakeMode,
+}: {
+  selfserviceAvailable: boolean;
+  intakeMode: string;
+}): BlockedFreeTextStart {
+  if (selfserviceAvailable) return 'selfservice';
+  return intakeMode === 'category_first' ? 'intake' : 'none';
+}
+
 // KAN-279: de fyra interna Standard-värdena är identifierare, aldrig kundtext.
 // Bor här och inte i AtlasChat.tsx så att de går att KÖRA i test — repot har
 // varken jsdom eller testing-library, och en källtextvakt över komponenten kan
