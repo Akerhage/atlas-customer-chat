@@ -2492,6 +2492,7 @@ style={{ '--atlas-chat-message-size': `${chatTextSize}px` } as CSSProperties}
 <WelcomeMessage
 companyName={companyName}
 companyLogoUrl={companyLogoUrl}
+unitWord={contextBarUnitWord.toLocaleLowerCase('sv-SE')}
 />
 )}
 

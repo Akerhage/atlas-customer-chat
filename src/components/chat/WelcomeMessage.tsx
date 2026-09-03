@@ -3,10 +3,17 @@ import atlasLogo from "@/assets/atlas-logo.png";
 interface WelcomeMessageProps {
 companyName?: string | null;
 companyLogoUrl?: string | null;
+// 🔴 Enhetsordet löses av ANROPAREN (resolveChatUnitWord) och skickas in redan
+// gemenformat för löpande text. Livemätt 2026-09-03: raden nedan hårdkodade
+// "kontor" och frågade aldrig resolvern, så sandbox (labels.unit = "Avdelning")
+// läste fel ord. Komponenten har ingen tenantprofil och ska varken hämta en
+// eller uppfinna en egen upplösning — då blir det två sanningar om samma ord.
+unitWord: string;
 }
 
 export function WelcomeMessage({
 companyName,
+unitWord,
 }: WelcomeMessageProps) {
 const displayName = companyName || "Atlas";
 return (
@@ -25,7 +32,7 @@ className="h-full w-full object-contain"
 Välkommen till {displayName}
 </h2>
 <p className="text-sm text-muted-foreground mb-6 max-w-[340px] leading-relaxed">
-Chatta med {displayName}. Vi hjälper dig hitta rätt svar eller rätt kontor.
+Chatta med {displayName}. Vi hjälper dig hitta rätt svar eller rätt {unitWord}.
 </p>
 
 {/* 🔴 Den tidigare pillerraden låg HÄR fram till 2026-08-19.
