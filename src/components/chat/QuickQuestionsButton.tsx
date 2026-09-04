@@ -75,7 +75,7 @@ questions: [
 "Hur tar man B-körkort steg för steg?", 
 "Vad är en Testlektion och hur bokar jag den?", 
 "Vad krävs för att få övningsköra bil privat?",
-"Måste elev och handledare gå kursen samtidigt?"
+"Behöver elev och handledare gå en kurs?"
 ] 
 },
 { 
