@@ -42,9 +42,24 @@ describe("AtlasChat intake-order contract", () => {
   // diffen inne i blocket är EXAKT en rad (templatesTitle); welcomeAiOn, welcomeAiOff,
   // templatesSubtitle och headerSubtitle är byte-identiska. Sänk aldrig vakten till ett
   // mindre block för att slippa pinna om den.
+  // #538/L-038 (Patriks beslut 2026-09-04): baslinjen flyttad från
+  // 1030e1e331bf8b03fc4bcef12853b7e2618576b2f14030ece5d3f02c9d84e1f3 eftersom
+  // trafikcopyn nu bär tenantens EGET enhetsord. Patriks IRL-fynd: sandbox hade
+  // döpt om enheten till "Avdelning" och kunden läste ändå "kontor".
+  // 🔴 Vaktens OMFATTNING är oförändrad — den hashar fortfarande HELA blocket,
+  // inte ett smalare. Endast den godkända baslinjen är ny. Mätt diff inne i
+  // blocket: EXAKT tre rader.
+  //   1. welcomeAiOn: "och kontor," → "och {{enheter}}," (platshållare, löses i
+  //      resolveWidgetTexts; trafikboxarna renderar samma bokstäver som förut)
+  //   2. welcomeAiOff: "ditt lokala kontor" krävde neutrum-kongruens ⇒ ordet är
+  //      BORTTAGET ur meningen, inte böjt
+  //   3. officeQuestion: "Vilket kontor vill du kontakta?" ⇒ "Vart vill du
+  //      skicka ditt ärende?" — samma mening som Standard redan använder
+  // Allt annat i blocket är byte-identiskt. Sänk aldrig vakten till ett mindre
+  // block för att slippa pinna om den.
   it("keeps the approved G6-8b legacy (trafik) widget texts byte-identical", () => {
     expect(blockHashIn(intakeMachineSource, "const LEGACY_TEXTS", "export function resolveWidgetTexts"))
-      .toBe("1030e1e331bf8b03fc4bcef12853b7e2618576b2f14030ece5d3f02c9d84e1f3");
+      .toBe("b6ecd4b9b179d51e22988ef746917d648c641627d68d98ea0e7648fd40a0f695");
   });
 
   // Vakt över det som FAKTISKT renderas: välkomstbubblan läser widget-texterna,

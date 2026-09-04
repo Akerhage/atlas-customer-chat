@@ -141,7 +141,10 @@ describe("QuickQuestionsButton category builder", () => {
 
       expect(categories.find(category => category.category === "Priser & tjänster")?.actions).toHaveLength(1);
       expect(categories.some(category => category.category === "Kom igång med Bil")).toBe(expectRag);
-      expect(categories.some(category => category.category === "Om kontoret i Göteborg - Ullevi")).toBe(expectRag);
+      // #538 (Patriks beslut 2026-09-04): rubriken bar enhetsordet i BESTÄMD form
+      // ("kontoret"), som inte går att bilda för ett godtyckligt tenantord.
+      // Ordet är borttaget ur meningen i stället för böjt.
+      expect(categories.some(category => category.category === "Om oss i Göteborg - Ullevi")).toBe(expectRag);
       expect(categories.some(category => category.category === "Populära frågor")).toBe(expectRag);
       expect(categories.some(category => category.category === "Vanliga frågor")).toBe(expectTenant);
     }

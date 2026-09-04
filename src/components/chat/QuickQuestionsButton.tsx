@@ -43,11 +43,16 @@ triggerLabel?: string;
 // fordonskategori med deterministisk formulering ("Vilka ...paket erbjuder ni i
 // {{stad}}?") — den gamla "Vilka X-utbildningar erbjuder ni"-frågan föll till
 // LLM-vägen och dumpade kontorsnamn som "innehåll", så den togs bort här.
+// #538 (Patriks IRL-fynd 2026-09-04): raderna skrev ut enhetsordet i BESTÄMD form
+// ("kontoret"), som inte går att bilda för ett godtyckligt tenantord utan att
+// gissa genus. Enligt Patriks beslut samma dag är ordet därför borttaget ur
+// meningen i stället för böjt — texten fungerar för både "kontor" och
+// "avdelning" utan logik.
 function getOfficeQuestions(): QuestionCategory {
 return {
-category: "Om kontoret i {{stad}}",
+category: "Om oss i {{stad}}",
 questions: [
-"Var i {{stad}} ligger kontoret och när har ni öppet?",
+"Var i {{stad}} finns ni och när har ni öppet?",
 ],
 };
 }

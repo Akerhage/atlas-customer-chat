@@ -154,6 +154,19 @@ export function resolveChatUnitWord(profile: TenantProfile | null | undefined): 
   return profile?.edition === "standard" ? "Avdelning" : "Kontor";
 }
 
+// #538 (Patriks IRL-fynd 2026-09-04): sandbox hade bytt enhetsordet till
+// "Avdelning" och ändå läste kunden "kontor" i chattens texter. Pluralen fanns
+// inte alls i chatten — bara singularen lästes.
+//
+// 🔴 En satt singular får ALDRIG härleda pluralen: svensk plural går inte att
+// räkna ut ur ett godtyckligt ord. Tenanten sätter `unit_plural` själv, annars
+// gäller dagens ord. Trafikens plural är avsiktligt "Kontor", inte "Kontorer".
+export function resolveChatUnitPluralWord(profile: TenantProfile | null | undefined): string {
+  const own = normalizeRequiredString(profile?.labels?.unit_plural);
+  if (own) return own;
+  return profile?.edition === "standard" ? "Avdelningar" : "Kontor";
+}
+
 export function resolveChatCategoryWord(profile: TenantProfile | null | undefined): string {
   const own = normalizeRequiredString(profile?.labels?.category);
   if (own) return own;

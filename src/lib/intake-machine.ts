@@ -1,5 +1,29 @@
 import type { EffectiveCategory, TenantProfile } from "@/lib/tenant-capabilities";
+import { resolveChatUnitPluralWord, resolveChatUnitWord } from "@/lib/tenant-capabilities";
 import { isStandardSelfserviceAvailable, isStandardSelfserviceExclusive } from "@/lib/standard-selfservice-machine";
+
+// #538 (Patriks IRL-fynd 2026-09-04, sandbox): trafikcopyn skrev ut enhetsordet
+// hårdkodat, så en tenant som döpt om sin enhet till "Avdelning" läste ändå
+// "kontor" i AI-bubblan, i självservicehälsningen och i formulärets fältnamn.
+//
+// 🔴 Ordet substitueras via PLATSHÅLLARE (`{{enhet}}` / `{{enheter}}`), samma
+// idiom som `{{stad}}` i snabbfrågorna. Skälet är böjning: svenska går inte att
+// böja för ett godtyckligt ord utan att gissa genus, så copyn skrivs så att bara
+// obestämd singular och plural behövs. Meningar som krävde bestämd form eller
+// genuskongruens ("ditt lokala kontor", "Vilket kontor…") är i stället omskrivna
+// UTAN ordet — Patriks beslut 2026-09-04: *"texten kan säga något vi slipper
+// böja eller ändra med logik"*.
+//
+// 🔴 Trafikboxarna renderar OFÖRÄNDRAT: Box1/htig/Box4 har `unit = Kontor` och
+// base saknar labels ⇒ fallbacken ger "Kontor"/"Kontor". Endast en tenant som
+// själv bytt ordet ser någon skillnad.
+function applyUnitWords(text: string, profile: TenantProfile | null | undefined): string {
+  const unitLower = resolveChatUnitWord(profile).toLocaleLowerCase("sv-SE");
+  const unitPluralLower = resolveChatUnitPluralWord(profile).toLocaleLowerCase("sv-SE");
+  return text
+    .replace(/\{\{enheter\}\}/g, unitPluralLower)
+    .replace(/\{\{enhet\}\}/g, unitLower);
+}
 
 export type IntakeMode = "category_first" | "legacy";
 export type IntakeOrderStep = "category" | "office" | "name" | "email" | "phone" | "vehicle" | "handoff";
@@ -34,7 +58,7 @@ Jag är företagets smarta guide!
 
 Du behöver inte skriva något — välj bland knapparna i chatten så visar jag det du vill veta.
 
-Jag har stenkoll på våra priser, produkter, utbildningar och kontor. Välj kontor och fordon så visar jag vad som gäller. Du kan också testa våra snabbfrågor direkt i chatten.
+Jag har stenkoll på våra priser, produkter, utbildningar och {{enheter}}. Välj {{enhet}} och fordon så visar jag vad som gäller. Du kan också testa våra snabbfrågor direkt i chatten.
 
 Vill du hellre prata med en människa?
 
@@ -99,7 +123,7 @@ Jag är företagets smarta AI-assistent!
 
 Du kan fråga mig allt som rör ditt körkort och vårt utbud.
 
-Jag har stenkoll på våra priser, produkter, utbildningar och kontor, men även på allmän information som rör körkort. Ställ gärna en fråga i taget, kort och konkret – då hittar jag snabbast rätt svar. Eller testa våra snabbfrågor direkt i chatten.
+Jag har stenkoll på våra priser, produkter, utbildningar och {{enheter}}, men även på allmän information som rör körkort. Ställ gärna en fråga i taget, kort och konkret – då hittar jag snabbast rätt svar. Eller testa våra snabbfrågor direkt i chatten.
 
 Vill du hellre prata med en människa?
 
@@ -112,7 +136,7 @@ Vad kan jag hjälpa dig med idag?`,
 
 Har du frågor att ställa till oss är du varmt välkommen att ställa dem här.
 
-Här kan du välja att chatta eller mejla direkt med ditt lokala kontor, eller med vår supportavdelning.
+Här kan du välja att chatta eller mejla direkt med oss lokalt, eller med vår supportavdelning.
 
 Jag guidar dig genom att fylla i ditt namn och skicka ärendet rätt.
 
@@ -121,7 +145,7 @@ Några korta steg, sedan är du igång!
 Vi börjar med ditt namn.
 
 Vad heter du?`,
-  officeQuestion: "Vilket kontor vill du kontakta?",
+  officeQuestion: "Vart vill du skicka ditt ärende?",
   formUnitLabel: "Kontor",
   formCategoryLabel: "Fordon",
   seoTitle: "Atlas - Din Körkortsguide",
@@ -152,10 +176,13 @@ export function resolveWidgetTexts(profile: TenantProfile | null | undefined, co
       : profile?.modules?.industry_rag === false
         ? HANDOFF_WELCOME_AI_ON
       : LEGACY_TEXTS.welcomeAiOn;
+    const unitWord = resolveChatUnitWord(profile);
     return {
       ...LEGACY_TEXTS,
-      welcomeAiOn: welcomeAiOn.replace("Hej och välkommen till oss! 👋", greeting),
-      welcomeAiOff: LEGACY_TEXTS.welcomeAiOff.replace("Hej och välkommen till oss! 👋", greeting),
+      welcomeAiOn: applyUnitWords(welcomeAiOn.replace("Hej och välkommen till oss! 👋", greeting), profile),
+      welcomeAiOff: applyUnitWords(LEGACY_TEXTS.welcomeAiOff.replace("Hej och välkommen till oss! 👋", greeting), profile),
+      officeQuestion: applyUnitWords(LEGACY_TEXTS.officeQuestion, profile),
+      formUnitLabel: unitWord,
     };
   }
   const standardTexts: WidgetTexts = {

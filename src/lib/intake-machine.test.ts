@@ -104,12 +104,18 @@ describe("resolveWidgetTexts", () => {
     expect(texts.headerSubtitle).toBe("Din körkortsguide");
     expect(texts.templatesTitle).toBe("Kundinformation");
     expect(texts.templatesSubtitle).toBe("Här kan du läsa mer om våra paket, vår policy, våra kurser, utbildningar och erbjudanden — klicka för att visa i chatten");
-    expect(texts.officeQuestion).toBe("Vilket kontor vill du kontakta?");
+    // #538 (Patriks beslut 2026-09-04): frågan bar genusbunden bestämning
+    // ("Vilket kontor…") som inte går att bilda för ett godtyckligt tenantord.
+    // Ordet är borttaget ur meningen i stället för böjt — samma formulering som
+    // Standard redan använder, så de två editionerna säger nu samma sak här.
+    expect(texts.officeQuestion).toBe("Vart vill du skicka ditt ärende?");
     expect(texts.seoTitle).toBe("Atlas - Din Körkortsguide");
     expect(texts.seoDescription).toBe("Atlas är din personliga körkortsguide. Få svar på frågor om körkort, priser och hitta rätt trafikskola.");
     expect(texts.welcomeAiOn).toContain("Du kan fråga mig allt som rör ditt körkort och vårt utbud.");
     expect(texts.welcomeAiOn).toContain('Du kan också skriva *"jag vill prata med en människa"*');
-    expect(texts.welcomeAiOff).toContain("Här kan du välja att chatta eller mejla direkt med ditt lokala kontor, eller med vår supportavdelning.");
+    // #538: "ditt lokala kontor" krävde neutrum-kongruens ("ditt"), som blir fel
+    // för ett utrum-ord som "avdelning". Ordet är borttaget, inte böjt.
+    expect(texts.welcomeAiOff).toContain("Här kan du välja att chatta eller mejla direkt med oss lokalt, eller med vår supportavdelning.");
     expect(texts.welcomeAiOff).not.toContain("Centralsupport i Stockholm");
     expect(texts.welcomeAiOff).toContain(legacyNameLead);
   });
@@ -319,5 +325,77 @@ describe("filterCategoryChoicesForOffice", () => {
       { label: "Motorcykel", value: "legacy-category:MC" },
       { label: "Övrigt / Allmän fråga", value: "legacy-category:general" },
     ]);
+  });
+});
+
+// 🔴 #538 — Patriks IRL-fynd 2026-09-04 på sandbox: tenanten hade döpt om sin
+// enhet till "Avdelning" och kunden läste ändå "kontor" i AI-bubblan, i
+// självservicehälsningen och i formulärets fältnamn. Testet binder DET RENDERADE
+// ordet och paras med en oföränderlighetsvakt för trafikboxarna — den senare är
+// hela säkerhetsargumentet för att röra Box1-3:s copy.
+describe("resolveWidgetTexts — tenantens enhetsord (#538)", () => {
+  const sandboxProfile: TenantProfile = {
+    schema_version: 1,
+    edition: "trafikskola",
+    modules: { structured_answers: true, industry_rag: true },
+    labels: { unit: "Avdelning", unit_plural: "Avdelningar" },
+  };
+
+  it("skriver ut tenantens egna ord i trafikcopyn", () => {
+    const texts = resolveWidgetTexts(sandboxProfile, "Pelles Trafikskola");
+    const all = joinedWidgetText(texts);
+
+    // Facit läses ur profilen, aldrig som handskriven sträng.
+    const unit = sandboxProfile.labels!.unit!.toLocaleLowerCase("sv-SE");
+    const units = sandboxProfile.labels!.unit_plural!.toLocaleLowerCase("sv-SE");
+    expect(texts.welcomeAiOn).toContain(`utbildningar och ${units}`);
+    expect(texts.formUnitLabel).toBe(sandboxProfile.labels!.unit);
+
+    // Negativ vakt PARAD med positivt bevis ovan.
+    expect(all).not.toContain("kontor");
+    expect(all).not.toContain("Kontor");
+    // Ingen platshållare får läcka ut till kunden.
+    expect(all).not.toContain("{{enhet");
+    void unit;
+  });
+
+  it("byter ordet även i självservice-hälsningen", () => {
+    // Trafik når självservice-hälsningen när branschkunskapen är explicit AV
+    // (standard-selfservice-machine.ts:85) — inte via någon egen flagga.
+    const selfservice: TenantProfile = {
+      ...sandboxProfile,
+      modules: { structured_answers: true, industry_rag: false },
+    };
+    const texts = resolveWidgetTexts(selfservice, "Pelles Trafikskola");
+    expect(texts.welcomeAiOn + texts.welcomeAiOff).not.toContain("kontor");
+    expect(joinedWidgetText(texts)).not.toContain("{{enhet");
+  });
+
+  it("lämnar trafikboxarna OFÖRÄNDRADE — ordet där ÄR Kontor", () => {
+    // Box1/htig/Box4 har unit = "Kontor"; base saknar labels helt. Båda vägarna
+    // måste ge exakt samma bokstäver som före #538, annars har vi ändrat copy på
+    // riktiga trafikkunder utan att det var beställt.
+    const box1: TenantProfile = {
+      ...legacyTrafficProfile,
+      labels: { unit: "Kontor", unit_plural: "Kontor" },
+    };
+    for (const profile of [box1, legacyTrafficProfile]) {
+      const texts = resolveWidgetTexts(profile, "My Driving Academy");
+      expect(texts.welcomeAiOn).toContain("utbildningar och kontor, men även");
+      expect(texts.formUnitLabel).toBe("Kontor");
+      expect(joinedWidgetText(texts)).not.toContain("{{enhet");
+    }
+  });
+
+  it("härleder ALDRIG pluralen ur en satt singular", () => {
+    const onlySingular: TenantProfile = {
+      ...legacyTrafficProfile,
+      labels: { unit: "Filial" },
+    };
+    const texts = resolveWidgetTexts(onlySingular, "Test");
+    // Singularen byts, pluralen faller tillbaka på dagens ord — svensk plural
+    // går inte att räkna ut ur ett godtyckligt ord.
+    expect(texts.formUnitLabel).toBe("Filial");
+    expect(texts.welcomeAiOn).toContain("utbildningar och kontor");
   });
 });
