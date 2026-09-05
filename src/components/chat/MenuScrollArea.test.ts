@@ -16,4 +16,15 @@ describe("content-fit question menu scroll area", () => {
   it("reserves mobile height for the Standard menu header, selectors and footer", () => {
     expect(standardSource).toContain("<MenuScrollArea reservedPanelChrome>");
   });
+
+  // KAN-284: menyn kapade aldrig innehåll, men den visade inte att den fortsatte.
+  // Radix döljer den inbyggda scrollbaren och monterar sin egen först vid hover —
+  // och på Box1 monterades den aldrig. Mätt live: 990 px innehåll under vikningen
+  // utan en enda visuell antydan. "auto" visar listen så fort innehållet spiller
+  // över, och bara då, så korta listor ser oförändrade ut.
+  it("shows a scrollbar whenever the menu overflows", () => {
+    const source = readFileSync(new URL("./MenuScrollArea.tsx", import.meta.url), "utf8");
+    expect(source).toMatch(/type="auto"/);
+    expect(source).not.toMatch(/type="hover"/);
+  });
 });

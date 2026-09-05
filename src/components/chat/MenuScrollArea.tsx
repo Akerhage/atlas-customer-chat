@@ -17,6 +17,12 @@ interface MenuScrollAreaProps extends ComponentProps<typeof ScrollArea> {
 export function MenuScrollArea({ className, reservedPanelChrome = false, ...props }: MenuScrollAreaProps) {
   return (
     <ScrollArea
+      // KAN-284: Radix döljer den inbyggda scrollbaren och monterar sin egen först
+      // vid hover. Mätt live på Box1 (Ullevi + MC) monterades den aldrig — listan
+      // bar 990 px innehåll under vikningen utan någon visuell antydan om att den
+      // fortsatte. Med "auto" ritas listen så snart innehållet spiller över, och
+      // bara då, så korta menyer ser oförändrade ut.
+      type="auto"
       data-testid="question-menu-scroll"
       className={cn(
         reservedPanelChrome ? QUESTION_MENU_WITH_PANEL_CHROME_SCROLL_CLASS : QUESTION_MENU_SCROLL_CLASS,
