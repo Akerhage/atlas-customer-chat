@@ -30,6 +30,7 @@ type CustomerReplyEvent,
 type SessionStatusEvent,
 type SessionWarningEvent,
 type ActiveVehicle,
+type QuickQuestionRecord,
 } from "@/lib/atlas-client";
 import {
 createSessionStatusMachine,
@@ -383,7 +384,7 @@ const [companyName, setCompanyName] = useState<string | null>(null);
 const [supportDisplayName, setSupportDisplayName] = useState<string | null>(null);
 const [companyLogoUrl, setCompanyLogoUrl] = useState<string | null>(null);
 const [activeVehicles, setActiveVehicles] = useState<VehicleType[]>(['BIL', 'MC', 'AM', 'LASTBIL', 'SLÄP']);
-const [quickQuestions, setQuickQuestions] = useState<string[]>([]);
+const [quickQuestions, setQuickQuestions] = useState<Array<string | QuickQuestionRecord>>([]);
 const [intakeMode, setIntakeMode] = useState<IntakeMode>('legacy');
 const [tenantProfile, setTenantProfile] = useState<TenantProfile | null>(() => readCachedTenantProfile() ?? null);
 const [tenantConfigLoaded, setTenantConfigLoaded] = useState(false);
@@ -413,6 +414,9 @@ const singletonVehicle = activeVehicles.length === 1 ? activeVehicles[0] : null;
 const categoryFirstEnabled = isCategoryFirstIntake(intakeMode, categoryChoices.length);
 const standardSelfserviceAvailable = isStandardSelfserviceAvailable(tenantProfile, intakeMode);
 const standardSelfserviceExclusive = isStandardSelfserviceExclusive(tenantProfile, intakeMode);
+const hasSectionBoundQuickQuestion = quickQuestions.some((question) =>
+  typeof question !== 'string' && Array.isArray(question.section_ref) && question.section_ref.length > 0
+);
 const selfserviceFreeTextBlocked = shouldBlockSelfserviceFreeText({
 profile: tenantProfile,
 aiRepliesEnabled,
@@ -694,7 +698,9 @@ reopensLabel: chatReopensLabel,
 selfserviceMenuAvailable: standardSelfserviceAvailable,
 // AtlasChat.tsx:2103 + ChatInput.tsx:344: snabbfrågor visas bara i legacy
 // AI-läge här, och ett tomt quick_questions-array får aldrig bli ett löfte.
-quickQuestionsAvailable: intakeMode === 'legacy' && aiRepliesEnabled && quickQuestions.some((question) => question.trim().length > 0),
+quickQuestionsAvailable: intakeMode === 'legacy' && (aiRepliesEnabled || hasSectionBoundQuickQuestion) && quickQuestions.some((question) =>
+  (typeof question === 'string' ? question : question.text).trim().length > 0
+),
 // AtlasChat.tsx:1893 + ChatInput.tsx:381: AI-assistenten finns bara när
 // AI-svar är på och fritextfältet inte är dolt av selfservice-exklusivitet.
 aiAssistantAvailable: aiRepliesEnabled && !selfserviceFreeTextBlocked,

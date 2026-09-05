@@ -15,7 +15,7 @@ PopoverContent,
 PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import type { ActiveVehicle } from "@/lib/atlas-client";
+import type { ActiveVehicle, QuickQuestionRecord } from "@/lib/atlas-client";
 import { COMMON_QUESTIONS, type QuestionCategory } from "@/lib/quick-questions-data";
 import { menuChoiceValue, type StandardSelfserviceMenuItem } from "@/lib/standard-selfservice-machine";
 import { CANONICAL_VEHICLE_ORDER, VEHICLE_LABELS, officeOffersVehicle } from "@/lib/vehicle-utils";
@@ -31,7 +31,7 @@ generalMode: boolean;
 disabled?: boolean;
 offices: any[]; // 🔥 TILLAGD
 activeVehicles: ActiveVehicle[];
-quickQuestions: string[];
+quickQuestions: Array<string | QuickQuestionRecord>;
 standardSelfserviceMenu?: StandardSelfserviceMenuItem[];
 aiRepliesEnabled?: boolean;
 industryRagEnabled?: boolean;
@@ -176,19 +176,73 @@ LASTBIL: [/\blastbil/i, /\bc1e?\b/i, /\bce\b/i, /\bykb\b/i, /\bbuss\b/i, /\bd[-\
 SLÄP: [/\bsläp/i, /\bsläpvagn/i, /\bBE\b/, /\bb96\b/i, /\butökat\s+b\b/i],
 };
 
+interface NormalizedQuickQuestion {
+text: string;
+sectionRefBound: boolean;
+vehicles: ActiveVehicle[];
+}
+
+function normalizeQuestionText(value: string): string {
+return value.trim().toLocaleLowerCase("sv-SE").replace(/\s+/g, " ");
+}
+
 function getQuestionVehicleHints(question: string): ActiveVehicle[] {
 return (Object.keys(TENANT_QUESTION_VEHICLE_PATTERNS) as ActiveVehicle[]).filter((vehicle) =>
 TENANT_QUESTION_VEHICLE_PATTERNS[vehicle].some((pattern) => pattern.test(question))
 );
 }
 
-function filterTenantQuickQuestions(questions: string[], allowedVehicles: ActiveVehicle[] | null): string[] {
+function normalizeTenantQuickQuestion(question: string | QuickQuestionRecord): NormalizedQuickQuestion | null {
+const text = (typeof question === "string" ? question : question.text).trim();
+if (!text) return null;
+const vehicles = typeof question === "string" || !Array.isArray(question.vehicles)
+? []
+: question.vehicles.filter((vehicle, index, arr) => arr.indexOf(vehicle) === index);
+return {
+text,
+sectionRefBound: typeof question !== "string" && Array.isArray(question.section_ref) && question.section_ref.length > 0,
+vehicles,
+};
+}
+
+function filterTenantQuickQuestions(questions: NormalizedQuickQuestion[], allowedVehicles: ActiveVehicle[] | null): NormalizedQuickQuestion[] {
 if (!allowedVehicles || allowedVehicles.length === 0) return questions;
 return questions.filter((question) => {
-const hints = getQuestionVehicleHints(question);
+const hints = question.vehicles.length ? question.vehicles : getQuestionVehicleHints(question.text);
 if (hints.length === 0) return true;
 return hints.some((hint) => allowedVehicles.includes(hint));
 });
+}
+
+export function listStandardSelfserviceDuplicateQuestions(
+categories: QuestionCategory[],
+standardSelfserviceMenu: StandardSelfserviceMenuItem[],
+selectedCity: string | null
+): string[] {
+const labels = new Set(standardSelfserviceMenu.map(item => normalizeQuestionText(item.label)));
+if (!labels.size) return [];
+const duplicates: string[] = [];
+for (const category of categories) {
+for (const question of category.questions) {
+const rendered = selectedCity
+? question.replace(/\{\{stad\}\}/g, selectedCity)
+: question.replace(/\{\{stad\}\}/g, "").trim();
+if (labels.has(normalizeQuestionText(rendered))) duplicates.push(question);
+}
+}
+return duplicates;
+}
+
+function filterStandardSelfserviceDuplicates(
+categories: QuestionCategory[],
+standardSelfserviceMenu: StandardSelfserviceMenuItem[],
+selectedCity: string | null
+): QuestionCategory[] {
+const duplicates = new Set(listStandardSelfserviceDuplicateQuestions(categories, standardSelfserviceMenu, selectedCity));
+if (!duplicates.size) return categories;
+return categories
+.map(category => ({ ...category, questions: category.questions.filter(question => !duplicates.has(question)) }))
+.filter(category => category.questions.length || (category.actions?.length || 0) > 0);
 }
 
 interface BuildQuickQuestionCategoriesInput {
@@ -197,7 +251,7 @@ selectedVehicle: VehicleType;
 generalMode: boolean;
 selectedOffice: any | null;
 availableVehicles: ActiveVehicle[];
-quickQuestions: string[];
+quickQuestions: Array<string | QuickQuestionRecord>;
 standardSelfserviceMenu?: StandardSelfserviceMenuItem[];
 aiRepliesEnabled?: boolean;
 industryRagEnabled?: boolean;
@@ -243,11 +297,14 @@ const tenantQuestionVehicleFilter = generalMode
 ? availableVehicles
 : null;
 const tenantQuickQuestions = filterTenantQuickQuestions(
-quickQuestions.map(q => q.trim()).filter(Boolean).slice(0, 20),
+quickQuestions.map(normalizeTenantQuickQuestion).filter((question): question is NormalizedQuickQuestion => Boolean(question)).slice(0, 20),
 tenantQuestionVehicleFilter
 );
+const tenantQuestionsAllowed = aiRepliesEnabled && industryRagEnabled !== false
+? tenantQuickQuestions
+: tenantQuickQuestions.filter(question => question.sectionRefBound);
 const tenantCategory: QuestionCategory | null = tenantQuickQuestions.length
-? { category: "Vanliga frågor", questions: tenantQuickQuestions }
+? { category: "Vanliga frågor", questions: tenantQuestionsAllowed.map(question => question.text) }
 : null;
 
 // Tenantens egna snabbfrågor kan vara kontors-/fordonsspecifika även om texten
@@ -255,22 +312,13 @@ const tenantCategory: QuestionCategory | null = tenantQuickQuestions.length
 const canShowTenantQuestions = Boolean(selectedCity && selectedVehicle);
 const prefix = selfserviceCategory ? [selfserviceCategory] : [];
 
-if (!aiRepliesEnabled) {
-return prefix;
-}
-
-// #295: #250 antog felaktigt att tenantens snabbfrågor kunde överleva
-// Branschkunskap AV. Föräldern äger nåbarheten och disablar knappen i exakt
-// detta läge; svarsmotorn kan dessutom inte besvara frågorna utan RAG.
-// Endast explicit false stänger, så saknad/feltypad profil förblir fail-open.
-if (industryRagEnabled === false) {
-return prefix;
-}
+const sectionRefTenantCategory = canShowTenantQuestions && tenantCategory?.questions.length ? [tenantCategory] : [];
+if (!aiRepliesEnabled || industryRagEnabled === false) return [...prefix, ...sectionRefTenantCategory];
 
 // Om plats eller fordon saknas, visa bara bevisat generella frågor plus den
 // deterministiska självservicesektionen. Den måste byggas före denna retur.
 if (!selectedVehicle || !selectedCity) {
-return [...prefix, ...COMMON_QUESTIONS];
+return filterStandardSelfserviceDuplicates([...prefix, ...COMMON_QUESTIONS], standardSelfserviceMenu, selectedCity);
 }
 
 const officeCategory: QuestionCategory = {
@@ -281,9 +329,10 @@ questions: getOfficeQuestions().questions,
 const vehicleCategories = QUESTIONS_BY_VEHICLE[selectedVehicle] || [];
 
 // Ordning: självservice -> fordonsfrågor -> tenantens egna -> kontorsfrågor -> generella.
-return canShowTenantQuestions && tenantCategory
+const categories = canShowTenantQuestions && tenantCategory?.questions.length
 ? [...prefix, ...vehicleCategories, tenantCategory, officeCategory, ...COMMON_QUESTIONS]
 : [...prefix, ...vehicleCategories, officeCategory, ...COMMON_QUESTIONS];
+return filterStandardSelfserviceDuplicates(categories, standardSelfserviceMenu, selectedCity);
 }
 
 const getOfficeDisplayName = (office: any) => {

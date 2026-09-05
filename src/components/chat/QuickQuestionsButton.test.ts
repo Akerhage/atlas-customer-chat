@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { menuChoiceValue, type StandardSelfserviceMenuItem } from "@/lib/standard-selfservice-machine";
-import { buildQuickQuestionCategories } from "./QuickQuestionsButton";
+import { buildQuickQuestionCategories, listStandardSelfserviceDuplicateQuestions } from "./QuickQuestionsButton";
 
 const standardItems: StandardSelfserviceMenuItem[] = [{
   id: "offer-1",
@@ -95,6 +95,60 @@ describe("QuickQuestionsButton category builder", () => {
     expect(selfservice?.questions).toEqual([]);
     expect(tenant?.questions).toEqual(["Vad krävs för att få övningsköra privat?"]);
     expect(tenant?.actions).toBeUndefined();
+  });
+
+  it("keeps section_ref questions but removes free tenant questions when AI replies are disabled", () => {
+    const categories = buildQuickQuestionCategories({
+      selectedCity: "Göteborg - Ullevi",
+      selectedVehicle: "BIL",
+      generalMode: false,
+      selectedOffice: { city: "Göteborg", area: "Ullevi" },
+      availableVehicles: ["BIL"],
+      quickQuestions: [
+        "När stänger receptionen?",
+        {
+          text: "Hur tar man B-körkort steg för steg?",
+          section_ref: [{ file: "basfakta_personbil_b.json", id: "sec_001" }],
+          vehicles: ["BIL"],
+        },
+      ],
+      standardSelfserviceMenu: standardItems,
+      aiRepliesEnabled: false,
+    });
+
+    expect(categories.find(category => category.category === "Priser & tjänster")?.actions).toHaveLength(1);
+    expect(categories.find(category => category.category === "Vanliga frågor")?.questions).toEqual([
+      "Hur tar man B-körkort steg för steg?",
+    ]);
+    expect(categories.some(category => category.questions.includes("När stänger receptionen?"))).toBe(false);
+  });
+
+  it("counts and removes hardcoded questions already represented by Standard selfservice actions", () => {
+    const rawCategories = buildQuickQuestionCategories({
+      selectedCity: "Göteborg - Ullevi",
+      selectedVehicle: "BIL",
+      generalMode: false,
+      selectedOffice: { city: "Göteborg", area: "Ullevi" },
+      availableVehicles: ["BIL"],
+      quickQuestions: [],
+      standardSelfserviceMenu: [],
+    });
+    const duplicates = listStandardSelfserviceDuplicateQuestions(rawCategories, standardItems, "Göteborg - Ullevi");
+
+    expect(duplicates).toEqual(["Vilka körkortspaket erbjuder ni i {{stad}}?"]);
+
+    const categories = buildQuickQuestionCategories({
+      selectedCity: "Göteborg - Ullevi",
+      selectedVehicle: "BIL",
+      generalMode: false,
+      selectedOffice: { city: "Göteborg", area: "Ullevi" },
+      availableVehicles: ["BIL"],
+      quickQuestions: [],
+      standardSelfserviceMenu: standardItems,
+    });
+
+    expect(categories.find(category => category.category === "Priser & tjänster")?.actions).toHaveLength(1);
+    expect(categories.some(category => category.questions.includes("Vilka körkortspaket erbjuder ni i {{stad}}?"))).toBe(false);
   });
 
   it("keeps deterministic selfservice actions but removes RAG questions when AI replies are disabled", () => {

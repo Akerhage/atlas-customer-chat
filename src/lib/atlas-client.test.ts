@@ -50,6 +50,43 @@ describe("getTenantConfig tenant capability wiring", () => {
     ]);
   });
 
+  it("prefers metadata quick questions while keeping legacy strings as fallback", async () => {
+    const getTenantConfig = await loadGetTenantConfig();
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        quick_questions: ["Legacyfråga?"],
+        quick_questions_with_metadata: [{
+          text: "Hur tar man B-körkort steg för steg?",
+          locked: true,
+          section_ref: [{ file: "basfakta_personbil_b.json", id: "SEC_001" }],
+          vehicles: ["BIL", "BIL", "okänd"],
+        }],
+      }),
+    }));
+
+    const config = await getTenantConfig();
+    expect(config.quickQuestions).toEqual([{
+      text: "Hur tar man B-körkort steg för steg?",
+      locked: true,
+      section_ref: [{ file: "basfakta_personbil_b.json", id: "sec_001" }],
+      vehicles: ["BIL"],
+    }]);
+  });
+
+  it("keeps legacy quick question strings when metadata is absent", async () => {
+    const getTenantConfig = await loadGetTenantConfig();
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        quick_questions: [" Legacyfråga? ", "", null],
+      }),
+    }));
+
+    const config = await getTenantConfig();
+    expect(config.quickQuestions).toEqual(["Legacyfråga?"]);
+  });
+
   it.each([
     ["non-ok response", vi.fn().mockResolvedValue({ ok: false })],
     ["fetch rejection", vi.fn().mockRejectedValue(new Error("offline"))],

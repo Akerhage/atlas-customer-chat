@@ -81,7 +81,10 @@ describe("AtlasChat intake-order contract", () => {
   it("builds the office-hours notice from the shared copy helper, not a local constant", () => {
     expect(source).toContain("import { buildOfficeHoursNoticeText } from \"../../lib/office-hours-notice\";");
     expect(source).toContain("return buildOfficeHoursNoticeText({");
-    expect(source).toContain("quickQuestionsAvailable: intakeMode === 'legacy' && aiRepliesEnabled && quickQuestions.some((question) => question.trim().length > 0),");
+    expect(source).toContain("const hasSectionBoundQuickQuestion = quickQuestions.some((question) =>");
+    expect(source).toContain("typeof question !== 'string' && Array.isArray(question.section_ref) && question.section_ref.length > 0");
+    expect(source).toContain("quickQuestionsAvailable: intakeMode === 'legacy' && (aiRepliesEnabled || hasSectionBoundQuickQuestion) && quickQuestions.some((question) =>");
+    expect(source).toContain("(typeof question === 'string' ? question : question.text).trim().length > 0");
     expect(source).toContain("aiAssistantAvailable: aiRepliesEnabled && !selfserviceFreeTextBlocked,");
     expect(source).not.toContain("Snabbfrågorna och AI-assistenten hjälper dig gärna under tiden.");
   });

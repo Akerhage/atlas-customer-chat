@@ -783,13 +783,20 @@ export interface CustomerTemplate {
 
 export type ActiveVehicle = "BIL" | "MC" | "AM" | "LASTBIL" | "SLÄP";
 
+export interface QuickQuestionRecord {
+  text: string;
+  locked?: boolean;
+  section_ref?: Array<{ file: string; id: string }>;
+  vehicles?: ActiveVehicle[];
+}
+
 export interface TenantConfig {
   companyName: string;
   companyNameRaw: string | null;
   supportDisplayName: string | null;
   companyLogoUrl: string | null;
   activeVehicles: ActiveVehicle[];
-  quickQuestions: string[];
+  quickQuestions: Array<string | QuickQuestionRecord>;
   tenantProfile: TenantProfile;
   categories: EffectiveCategory[];
 }
@@ -824,6 +831,44 @@ function normalizeTenantLogoUrl(value: unknown): string | null {
   return trimmed;
 }
 
+function normalizeQuickQuestions(value: unknown): Array<string | QuickQuestionRecord> {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item): string | QuickQuestionRecord | null => {
+      if (item && typeof item === 'object' && !Array.isArray(item)) {
+        const raw = item as Record<string, unknown>;
+        const text = String(raw.text || '').trim();
+        if (!text) return null;
+        const record: QuickQuestionRecord = { text };
+        if (raw.locked === true) record.locked = true;
+        if (Array.isArray(raw.section_ref)) {
+          const refs = raw.section_ref
+            .map((ref): { file: string; id: string } | null => {
+              if (!ref || typeof ref !== 'object' || Array.isArray(ref)) return null;
+              const refRecord = ref as Record<string, unknown>;
+              const file = String(refRecord.file || '').trim();
+              const id = String(refRecord.id || '').trim().toLowerCase();
+              return file && id ? { file, id } : null;
+            })
+            .filter((ref): ref is { file: string; id: string } => Boolean(ref));
+          if (refs.length) record.section_ref = refs;
+        }
+        if (Array.isArray(raw.vehicles)) {
+          const valid = new Set(DEFAULT_ACTIVE_VEHICLES);
+          const vehicles = raw.vehicles
+            .map(vehicle => String(vehicle || '').trim().toUpperCase())
+            .filter((vehicle): vehicle is ActiveVehicle => valid.has(vehicle as ActiveVehicle))
+            .filter((vehicle, index, arr) => arr.indexOf(vehicle) === index);
+          if (vehicles.length) record.vehicles = vehicles;
+        }
+        return record;
+      }
+      const text = String(item || '').trim();
+      return text || null;
+    })
+    .filter((item): item is string | QuickQuestionRecord => Boolean(item));
+}
+
 export function resolveTenantAssetUrl(value: string | null | undefined): string | null {
   const trimmed = String(value || '').trim();
   if (!trimmed) return null;
@@ -852,9 +897,9 @@ export async function getTenantConfig(): Promise<TenantConfig> {
       supportDisplayName,
       companyLogoUrl: normalizeTenantLogoUrl(data?.company_logo_url),
       activeVehicles,
-      quickQuestions: Array.isArray(data?.quick_questions)
-        ? data.quick_questions.map((q: unknown) => String(q || "").trim()).filter(Boolean)
-        : [],
+      quickQuestions: normalizeQuickQuestions(
+        Array.isArray(data?.quick_questions_with_metadata) ? data.quick_questions_with_metadata : data?.quick_questions
+      ),
       tenantProfile,
       categories: resolveEffectiveCategories(tenantProfile, data?.category_registry, activeVehicles),
     };
