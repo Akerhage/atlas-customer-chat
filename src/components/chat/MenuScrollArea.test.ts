@@ -27,4 +27,11 @@ describe("content-fit question menu scroll area", () => {
     expect(source).toMatch(/type="auto"/);
     expect(source).not.toMatch(/type="hover"/);
   });
+
+  // Mätt live: den delade primitivens `bg-border` gav 1,38:1 mot menypanelen.
+  // En scrollbar som finns men inte syns löser inte det den infördes för.
+  it("gives the scrollbar thumb enough contrast to be seen", () => {
+    const source = readFileSync(new URL("./MenuScrollArea.tsx", import.meta.url), "utf8");
+    expect(source).toMatch(/\[&>\[data-orientation\]>div\]:bg-muted-foreground\/80/);
+  });
 });

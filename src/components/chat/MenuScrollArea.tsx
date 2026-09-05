@@ -10,6 +10,13 @@ const QUESTION_MENU_SCROLL_CLASS =
 const QUESTION_MENU_WITH_PANEL_CHROME_SCROLL_CLASS =
   "max-h-[min(20rem,45dvh)] [&>[data-radix-scroll-area-viewport]]:max-h-[min(20rem,45dvh)]";
 
+// KAN-284: den delade primitiven färgar tumman med `bg-border`, som mätt gav
+// kontrasten 1,38:1 mot menypanelen — en scrollbar som finns men inte syns är
+// ingen hjälp. `muted-foreground` ligger på 5,94:1 rent; vid 80 % opacitet mot
+// panelen landar den runt 3,7:1, alltså över WCAG:s 3:1 för grafiska element.
+// Klassen sitter här och inte i `scroll-area.tsx`, så andra scrollytor är orörda.
+const QUESTION_MENU_THUMB_CLASS = "[&>[data-orientation]>div]:bg-muted-foreground/80";
+
 interface MenuScrollAreaProps extends ComponentProps<typeof ScrollArea> {
   reservedPanelChrome?: boolean;
 }
@@ -26,6 +33,7 @@ export function MenuScrollArea({ className, reservedPanelChrome = false, ...prop
       data-testid="question-menu-scroll"
       className={cn(
         reservedPanelChrome ? QUESTION_MENU_WITH_PANEL_CHROME_SCROLL_CLASS : QUESTION_MENU_SCROLL_CLASS,
+        QUESTION_MENU_THUMB_CLASS,
         className,
       )}
       {...props}
