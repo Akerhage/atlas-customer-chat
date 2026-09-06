@@ -14,6 +14,16 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
+    {
+      name: "atlas-normalize-html-line-endings",
+      enforce: "post",
+      transformIndexHtml: {
+        order: "post",
+        handler(html) {
+          return html.replace(/\r\n?/g, "\n");
+        },
+      },
+    },
     // Här låg lovable-tagger förut - nu borta för att undvika byggfel
   ].filter(Boolean),
   resolve: {
