@@ -788,6 +788,8 @@ export interface QuickQuestionRecord {
   locked?: boolean;
   section_ref?: Array<{ file: string; id: string }>;
   vehicles?: ActiveVehicle[];
+  scope?: "general" | "vehicle";
+  group_label?: string;
 }
 
 export interface TenantConfig {
@@ -861,12 +863,27 @@ function normalizeQuickQuestions(value: unknown): Array<string | QuickQuestionRe
             .filter((vehicle, index, arr) => arr.indexOf(vehicle) === index);
           if (vehicles.length) record.vehicles = vehicles;
         }
+        if (raw.scope === "general" || raw.scope === "vehicle") record.scope = raw.scope;
+        if (typeof raw.group_label === "string" && raw.group_label.trim()) {
+          record.group_label = raw.group_label.trim();
+        }
         return record;
       }
       const text = String(item || '').trim();
       return text || null;
     })
     .filter((item): item is string | QuickQuestionRecord => Boolean(item));
+}
+
+function hasScopedQuickQuestionMetadata(value: unknown): value is Array<Record<string, unknown>> {
+  if (!Array.isArray(value)) return false;
+  return value.every((item) => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return false;
+    const raw = item as Record<string, unknown>;
+    return (raw.scope === "general" || raw.scope === "vehicle")
+      && typeof raw.group_label === "string"
+      && Boolean(raw.group_label.trim());
+  });
 }
 
 export function resolveTenantAssetUrl(value: string | null | undefined): string | null {
@@ -898,7 +915,9 @@ export async function getTenantConfig(): Promise<TenantConfig> {
       companyLogoUrl: normalizeTenantLogoUrl(data?.company_logo_url),
       activeVehicles,
       quickQuestions: normalizeQuickQuestions(
-        Array.isArray(data?.quick_questions_with_metadata) ? data.quick_questions_with_metadata : data?.quick_questions
+        hasScopedQuickQuestionMetadata(data?.quick_questions_with_metadata)
+          ? data.quick_questions_with_metadata
+          : data?.quick_questions
       ),
       tenantProfile,
       categories: resolveEffectiveCategories(tenantProfile, data?.category_registry, activeVehicles),

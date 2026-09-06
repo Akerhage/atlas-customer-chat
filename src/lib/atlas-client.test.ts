@@ -61,6 +61,8 @@ describe("getTenantConfig tenant capability wiring", () => {
           locked: true,
           section_ref: [{ file: "basfakta_personbil_b.json", id: "SEC_001" }],
           vehicles: ["BIL", "BIL", "okänd"],
+          scope: "vehicle",
+          group_label: "Personbil",
         }],
       }),
     }));
@@ -71,7 +73,26 @@ describe("getTenantConfig tenant capability wiring", () => {
       locked: true,
       section_ref: [{ file: "basfakta_personbil_b.json", id: "sec_001" }],
       vehicles: ["BIL"],
+      scope: "vehicle",
+      group_label: "Personbil",
     }]);
+  });
+
+  it("falls back to legacy strings when an older metadata payload lacks grouping scope", async () => {
+    const getTenantConfig = await loadGetTenantConfig();
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        quick_questions: ["Legacyfråga?"],
+        quick_questions_with_metadata: [{
+          text: "Äldre metadatafråga?",
+          section_ref: [{ file: "basfakta.json", id: "sec_001" }],
+        }],
+      }),
+    }));
+
+    const config = await getTenantConfig();
+    expect(config.quickQuestions).toEqual(["Legacyfråga?"]);
   });
 
   it("keeps legacy quick question strings when metadata is absent", async () => {

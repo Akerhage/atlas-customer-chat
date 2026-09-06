@@ -168,28 +168,16 @@ questions: [
 
 const VEHICLE_ICONS = { BIL: Car, MC: Bike, AM: CircleDot, LASTBIL: Truck, SLÄP: Car };
 
-const TENANT_QUESTION_VEHICLE_PATTERNS: Record<ActiveVehicle, RegExp[]> = {
-BIL: [/\bbil(?:en|ar|körkort|korkort|utbildning|lektion|paket)?\b/i, /\bb[-\s]?körkort\b/i],
-MC: [/\bmc\b/i, /\bmotorcykel/i, /\ba1\b/i, /\ba2\b/i, /\brisk\s*2\s*för\s*mc\b/i, /\brisktvåan\s+för\s+mc\b/i],
-AM: [/\bam\b/i, /\bmoped/i, /\bklass\s*[12]\b/i, /\bförarbevis/i],
-LASTBIL: [/\blastbil/i, /\bc1e?\b/i, /\bce\b/i, /\bykb\b/i, /\bbuss\b/i, /\bd[-\s]?körkort\b/i],
-SLÄP: [/\bsläp/i, /\bsläpvagn/i, /\bBE\b/, /\bb96\b/i, /\butökat\s+b\b/i],
-};
-
 interface NormalizedQuickQuestion {
 text: string;
 sectionRefBound: boolean;
 vehicles: ActiveVehicle[];
+scope: "general" | "vehicle";
+groupLabel: string;
 }
 
 function normalizeQuestionText(value: string): string {
 return value.trim().toLocaleLowerCase("sv-SE").replace(/\s+/g, " ");
-}
-
-function getQuestionVehicleHints(question: string): ActiveVehicle[] {
-return (Object.keys(TENANT_QUESTION_VEHICLE_PATTERNS) as ActiveVehicle[]).filter((vehicle) =>
-TENANT_QUESTION_VEHICLE_PATTERNS[vehicle].some((pattern) => pattern.test(question))
-);
 }
 
 function normalizeTenantQuickQuestion(question: string | QuickQuestionRecord): NormalizedQuickQuestion | null {
@@ -202,16 +190,43 @@ return {
 text,
 sectionRefBound: typeof question !== "string" && Array.isArray(question.section_ref) && question.section_ref.length > 0,
 vehicles,
+scope: typeof question !== "string" && question.scope === "vehicle" ? "vehicle" : "general",
+groupLabel: typeof question !== "string" && question.group_label?.trim()
+? question.group_label.trim()
+: "Vanliga frågor",
 };
 }
 
-function filterTenantQuickQuestions(questions: NormalizedQuickQuestion[], allowedVehicles: ActiveVehicle[] | null): NormalizedQuickQuestion[] {
-if (!allowedVehicles || allowedVehicles.length === 0) return questions;
-return questions.filter((question) => {
-const hints = question.vehicles.length ? question.vehicles : getQuestionVehicleHints(question.text);
-if (hints.length === 0) return true;
-return hints.some((hint) => allowedVehicles.includes(hint));
-});
+function groupTenantQuickQuestions(
+questions: NormalizedQuickQuestion[],
+vehicleContext: ActiveVehicle | null
+): QuestionCategory[] {
+const grouped = new Map<string, string[]>();
+for (const question of questions) {
+const values = grouped.get(question.groupLabel) ?? [];
+values.push(question.text);
+grouped.set(question.groupLabel, values);
+}
+return Array.from(grouped, ([category, groupedQuestions]) => ({
+category,
+questions: groupedQuestions,
+vehicleContext,
+}));
+}
+
+export function resolveQuickQuestionContext(
+category: QuestionCategory,
+generalMode: boolean,
+selectedVehicle: VehicleType,
+city: string | null
+): { vehicle: string | null; city: string; vehicle_choice?: string; clear_vehicle?: boolean } {
+const isGeneral = generalMode || category.vehicleContext === null;
+const vehicle = isGeneral ? null : (category.vehicleContext ?? selectedVehicle);
+return {
+vehicle,
+city: city || "",
+...(isGeneral ? { vehicle_choice: "OVRIGT", clear_vehicle: true } : {}),
+};
 }
 
 export function listStandardSelfserviceDuplicateQuestions(
@@ -289,49 +304,45 @@ questions: [],
 actions: selfserviceActions,
 }
 : null;
-const tenantQuestionVehicleFilter = generalMode
-? null
-: selectedVehicle
-? [selectedVehicle]
-: selectedOffice
-? availableVehicles
-: null;
-const tenantQuickQuestions = filterTenantQuickQuestions(
-quickQuestions.map(normalizeTenantQuickQuestion).filter((question): question is NormalizedQuickQuestion => Boolean(question)).slice(0, 20),
-tenantQuestionVehicleFilter
-);
+const tenantQuickQuestions = quickQuestions
+.map(normalizeTenantQuickQuestion)
+.filter((question): question is NormalizedQuickQuestion => Boolean(question));
 const tenantQuestionsAllowed = aiRepliesEnabled && industryRagEnabled !== false
 ? tenantQuickQuestions
 : tenantQuickQuestions.filter(question => question.sectionRefBound);
-const tenantCategory: QuestionCategory | null = tenantQuickQuestions.length
-? { category: "Vanliga frågor", questions: tenantQuestionsAllowed.map(question => question.text) }
-: null;
-
-// Tenantens egna snabbfrågor kan vara kontors-/fordonsspecifika även om texten
-// saknar tydliga tokens. Visa dem först när både plats och fordon är kända.
-const canShowTenantQuestions = Boolean(selectedCity && selectedVehicle);
+const tenantVehicleQuestions = selectedVehicle
+? tenantQuestionsAllowed.filter(question => question.scope === "vehicle" && question.vehicles.includes(selectedVehicle))
+: [];
+const tenantGeneralQuestions = tenantQuestionsAllowed.filter(question => question.scope === "general");
+const tenantVehicleCategories = groupTenantQuickQuestions(tenantVehicleQuestions, selectedVehicle);
+const tenantGeneralCategories = groupTenantQuickQuestions(tenantGeneralQuestions, null);
 const prefix = selfserviceCategory ? [selfserviceCategory] : [];
-
-const sectionRefTenantCategory = canShowTenantQuestions && tenantCategory?.questions.length ? [tenantCategory] : [];
-if (!aiRepliesEnabled || industryRagEnabled === false) return [...prefix, ...sectionRefTenantCategory];
-
-// Om plats eller fordon saknas, visa bara bevisat generella frågor plus den
-// deterministiska självservicesektionen. Den måste byggas före denna retur.
-if (!selectedVehicle || !selectedCity) {
-return filterStandardSelfserviceDuplicates([...prefix, ...COMMON_QUESTIONS], standardSelfserviceMenu, selectedCity);
+if (!aiRepliesEnabled || industryRagEnabled === false) {
+return [...prefix, ...tenantVehicleCategories, ...tenantGeneralCategories];
 }
 
-const officeCategory: QuestionCategory = {
+const officeCategory: QuestionCategory | null = selectedCity ? {
 category: getOfficeQuestions().category.replace(/\{\{stad\}\}/g, selectedCity),
 questions: getOfficeQuestions().questions,
-};
+vehicleContext: selectedVehicle,
+} : null;
 
-const vehicleCategories = QUESTIONS_BY_VEHICLE[selectedVehicle] || [];
+const vehicleCategories = selectedVehicle
+? (QUESTIONS_BY_VEHICLE[selectedVehicle] || []).map(category => ({ ...category, vehicleContext: selectedVehicle }))
+: [];
+const generalCategories = COMMON_QUESTIONS.map(category => ({ ...category, vehicleContext: null }));
 
-// Ordning: självservice -> fordonsfrågor -> tenantens egna -> kontorsfrågor -> generella.
-const categories = canShowTenantQuestions && tenantCategory?.questions.length
-? [...prefix, ...vehicleCategories, tenantCategory, officeCategory, ...COMMON_QUESTIONS]
-: [...prefix, ...vehicleCategories, officeCategory, ...COMMON_QUESTIONS];
+// Fas 5: självservice -> valt kontor -> valt fordons scope -> generellt scope.
+// Servern äger scope och gruppetikett för tenantens kurerade frågor; klienten
+// härleder inget av detta ur frågetexten.
+const categories = [
+...prefix,
+...(officeCategory ? [officeCategory] : []),
+...tenantVehicleCategories,
+...vehicleCategories,
+...tenantGeneralCategories,
+...generalCategories,
+];
 return filterStandardSelfserviceDuplicates(categories, standardSelfserviceMenu, selectedCity);
 }
 
@@ -379,29 +390,19 @@ const handleOpenChange = (isOpen: boolean) => {
 setOpen(isOpen);
 };
 
-const handleQuestionClick = (question: string, category: string) => {
-// 🧠 SMART LOGIK:
-// 1. Kategorier som "Betalning", "Tillstånd" och "Populära" är generella.
-//    Dessa skickar vi med vehicle: null för att RAG ska söka i basfakta-filer.
-// 2. Fordonsspecifika frågor skickas med vehicle: VALD_FORDON.
-
-const generalCategories = ["Populära frågor", "Betalning & Avbokning", "Tillstånd & Regler"];
-const isGeneral = generalMode || generalCategories.includes(category);
-
-// Om generell -> skicka null. Om fordonsspecifik -> skicka vald fordonstyp (om vald).
-const vehiclePayload = isGeneral ? null : (effectiveSelectedVehicle as string);
-
+const handleQuestionClick = (question: string, category: QuestionCategory) => {
 // Byt ut {{stad}} mot vald stad, eller ta bort det om ingen stad är vald
 const finalQuestion = effectiveSelectedCity
 ? question.replace(/\{\{stad\}\}/g, effectiveSelectedCity)
 : question.replace(/\{\{stad\}\}/g, "").trim();
 
 // Skicka till ChatInput (som skickar till AtlasChat)
-onSendMessage(finalQuestion, {
-vehicle: vehiclePayload as any, 
-city: effectiveSelectedCity || "",
-...(isGeneral ? { vehicle_choice: 'OVRIGT', clear_vehicle: true } : {})
-});
+onSendMessage(finalQuestion, resolveQuickQuestionContext(
+category,
+generalMode,
+effectiveSelectedVehicle,
+effectiveSelectedCity
+));
 
 setOpen(false);
 };
@@ -463,13 +464,13 @@ className={cn(
 <MenuScrollArea>
 <div className="p-2">
 {questionCategories.map((cat, idx) => (
-<div key={cat.category}>
+<div key={`${cat.category}-${idx}`}>
 {idx > 0 && <DropdownMenuSeparator className="my-2" />}
 <p className="text-[10px] text-muted-foreground font-medium px-2 py-1 uppercase tracking-wide">{cat.category}</p>
 {cat.questions.map((q) => (
 <button
 key={q}
-onClick={() => handleQuestionClick(q, cat.category)}
+onClick={() => handleQuestionClick(q, cat)}
 className={cn(
 "w-full text-left px-2 py-2 text-xs rounded-md transition-colors hover:bg-accent hover:text-accent-foreground",
 q.includes("{{stad}}") && !effectiveSelectedCity && "opacity-50 cursor-not-allowed"

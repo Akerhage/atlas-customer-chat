@@ -20,6 +20,7 @@ getClipboardFiles,
 sanitizeHtmlPasteForAiMode,
 usePendingAttachments,
 } from "@/lib/pending-attachments";
+import { shouldRestoreTextareaFocus } from "./chat-input-focus";
 
 type VehicleType = ActiveVehicle | null;
 
@@ -33,6 +34,8 @@ placeholder?: string;
 hideFreeText?: boolean;
 humanMode: boolean;
 aiRepliesEnabled?: boolean;
+restoreFocusAfterReply?: boolean;
+onFocusRestoreHandled?: () => void;
 }
 
 const TYPING_THROTTLE_MS = 2000;
@@ -48,6 +51,8 @@ placeholder = "Skriv ett meddelande...",
 hideFreeText = false,
 humanMode,
 aiRepliesEnabled = true,
+restoreFocusAfterReply = false,
+onFocusRestoreHandled,
 }: ChatInputProps) {
 const [message, setMessage] = useState("");
 const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -67,15 +72,16 @@ getSessionId,
 getSessionToken: getOwnerToken,
 });
 
-// Refocus when disabled flips from true to false. When `disabled={isTyping}`
-// toggles while AI answers, the browser removes focus from the textarea.
+// Restore only a textarea-initiated conversation. Menu and quick-question sends
+// also toggle disabled while an answer is generated, but must never steal focus.
 const wasDisabledRef = useRef(disabled);
 useEffect(() => {
-if (wasDisabledRef.current && !disabled) {
+if (shouldRestoreTextareaFocus(wasDisabledRef.current, disabled, restoreFocusAfterReply)) {
 textareaRef.current?.focus();
 }
+if (wasDisabledRef.current && !disabled) onFocusRestoreHandled?.();
 wasDisabledRef.current = disabled;
-}, [disabled]);
+}, [disabled, restoreFocusAfterReply, onFocusRestoreHandled]);
 
 const handleTyping = useCallback(() => {
 const now = Date.now();

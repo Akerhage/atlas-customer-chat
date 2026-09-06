@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { menuChoiceValue, type StandardSelfserviceMenuItem } from "@/lib/standard-selfservice-machine";
-import { buildQuickQuestionCategories, listStandardSelfserviceDuplicateQuestions } from "./QuickQuestionsButton";
+import {
+  buildQuickQuestionCategories,
+  listStandardSelfserviceDuplicateQuestions,
+  resolveQuickQuestionContext,
+} from "./QuickQuestionsButton";
 
 const standardItems: StandardSelfserviceMenuItem[] = [{
   id: "offer-1",
@@ -223,5 +227,118 @@ describe("QuickQuestionsButton category builder", () => {
 
     expect(categories.find(category => category.category === "Priser & tjänster")?.actions).toHaveLength(1);
     expect(categories.some(category => category.category === "Kom igång med Bil")).toBe(true);
+  });
+
+  it("uses server grouping and orders selfservice, office, selected vehicle, then general scope", () => {
+    const categories = buildQuickQuestionCategories({
+      selectedCity: "Göteborg - Ullevi",
+      selectedVehicle: "BIL",
+      generalMode: false,
+      selectedOffice: { city: "Göteborg", area: "Ullevi" },
+      availableVehicles: ["BIL", "MC"],
+      quickQuestions: [
+        {
+          text: "Det här låter som en bilfråga men är generell",
+          section_ref: [{ file: "basfakta_policy.json", id: "sec_001" }],
+          vehicles: [],
+          scope: "general",
+          group_label: "Serverns allmänna grupp",
+        },
+        {
+          text: "Vald fordonsfråga",
+          section_ref: [{ file: "basfakta_personbil_b.json", id: "sec_002" }],
+          vehicles: ["BIL"],
+          scope: "vehicle",
+          group_label: "Serverns fordonsgrupp",
+        },
+        {
+          text: "Fråga för annat fordon",
+          section_ref: [{ file: "basfakta_mc.json", id: "sec_003" }],
+          vehicles: ["MC"],
+          scope: "vehicle",
+          group_label: "MC från servern",
+        },
+      ],
+      standardSelfserviceMenu: standardItems,
+    } as Parameters<typeof buildQuickQuestionCategories>[0]);
+
+    const names = categories.map(category => category.category);
+    expect(names[0]).toBe("Priser & tjänster");
+    expect(names.indexOf("Om oss i Göteborg - Ullevi")).toBeGreaterThan(names.indexOf("Priser & tjänster"));
+    expect(names.indexOf("Serverns fordonsgrupp")).toBeGreaterThan(names.indexOf("Om oss i Göteborg - Ullevi"));
+    expect(names.indexOf("Serverns allmänna grupp")).toBeGreaterThan(names.indexOf("Serverns fordonsgrupp"));
+    expect(names).not.toContain("MC från servern");
+    expect(categories.find(category => category.category === "Serverns allmänna grupp")?.questions)
+      .toEqual(["Det här låter som en bilfråga men är generell"]);
+  });
+
+  it("shows general curated questions without a vehicle and hides vehicle-scoped questions", () => {
+    const categories = buildQuickQuestionCategories({
+      selectedCity: null,
+      selectedVehicle: null,
+      generalMode: false,
+      selectedOffice: null,
+      availableVehicles: ["BIL"],
+      quickQuestions: [
+        {
+          text: "Allmän fråga",
+          section_ref: [{ file: "basfakta_policy.json", id: "sec_001" }],
+          vehicles: [],
+          scope: "general",
+          group_label: "Allmänt från servern",
+        },
+        {
+          text: "Bilfråga",
+          section_ref: [{ file: "basfakta_personbil_b.json", id: "sec_002" }],
+          vehicles: ["BIL"],
+          scope: "vehicle",
+          group_label: "Personbil från servern",
+        },
+      ],
+    } as Parameters<typeof buildQuickQuestionCategories>[0]);
+
+    expect(categories.find(category => category.category === "Allmänt från servern")?.questions).toEqual(["Allmän fråga"]);
+    expect(categories.some(category => category.category === "Personbil från servern")).toBe(false);
+  });
+
+  it("does not silently cap curated questions below the storage limit", () => {
+    const quickQuestions = Array.from({ length: 30 }, (_, index) => ({
+      text: `Kurerad fråga ${index + 1}`,
+      section_ref: [{ file: "basfakta_policy.json", id: `sec_${String(index + 1).padStart(3, "0")}` }],
+      vehicles: [],
+      scope: "general",
+      group_label: "Alla trettio",
+    }));
+    const categories = buildQuickQuestionCategories({
+      selectedCity: null,
+      selectedVehicle: null,
+      generalMode: false,
+      selectedOffice: null,
+      availableVehicles: [],
+      quickQuestions,
+    } as Parameters<typeof buildQuickQuestionCategories>[0]);
+
+    expect(categories.find(category => category.category === "Alla trettio")?.questions).toHaveLength(30);
+  });
+
+  it("routes answer context from explicit scope rather than the server group label", () => {
+    expect(resolveQuickQuestionContext(
+      { category: "Ser allmän ut", questions: ["Fordonsfråga"], vehicleContext: "BIL" },
+      false,
+      "BIL",
+      "Göteborg - Ullevi"
+    )).toEqual({ vehicle: "BIL", city: "Göteborg - Ullevi" });
+
+    expect(resolveQuickQuestionContext(
+      { category: "Ser ut som MC", questions: ["Allmän fråga"], vehicleContext: null },
+      false,
+      "BIL",
+      "Göteborg - Ullevi"
+    )).toEqual({
+      vehicle: null,
+      city: "Göteborg - Ullevi",
+      vehicle_choice: "OVRIGT",
+      clear_vehicle: true,
+    });
   });
 });

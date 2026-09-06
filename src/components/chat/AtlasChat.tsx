@@ -346,6 +346,7 @@ const [chatReopensLabel, setChatReopensLabel] = useState<string | null>(null);
 const [contactFormOpen, setContactFormOpen] = useState(false);
 const [initialHistoryLoaded, setInitialHistoryLoaded] = useState(false);
 const [isTyping, setIsTyping] = useState(false);
+const [restoreInputFocusAfterReply, setRestoreInputFocusAfterReply] = useState(false);
 // #167 (Patriks order 2026-08-31): standardtemat är LJUST. Tenanten kan välja
 // mörkt i Systemkonfiguration → Webbplats-widget; valet kommer med
 // /api/public/config och sätts i effekten nedan. Startvärdet är ljust så att den
@@ -1657,7 +1658,11 @@ return () => clearInterval(pollInterval);
 }, [humanMode, isArchived, pollHistory]);
 
 
-const handleSendMessage = async (content: string, contextData?: QuickContextPayload) => {
+const handleSendMessage = async (
+content: string,
+contextData?: QuickContextPayload,
+restoreFocusAfterReply = false
+) => {
 if (!aiRepliesEnabled && !humanMode) {
 if (!intakeStep) {
 startIntake('Då sätter vi igång — vad heter du?');
@@ -1726,6 +1731,7 @@ timestamp: new Date(),
 };
 
 setMessages((prev) => [...prev, userMessage]);
+setRestoreInputFocusAfterReply(restoreFocusAfterReply);
 setIsTyping(true);
 
 try {
@@ -2389,7 +2395,7 @@ handleIntakeInput(message);
 return;
 }
 
-handleSendMessage(message, contextData);
+handleSendMessage(message, contextData, true);
 };
 
 return (
@@ -2574,6 +2580,8 @@ onSend={handleInputSend}
 onRequestHuman={handleRequestHuman}
 
 disabled={isTyping || selfserviceFreeTextBlocked}
+restoreFocusAfterReply={restoreInputFocusAfterReply}
+onFocusRestoreHandled={() => setRestoreInputFocusAfterReply(false)}
 // L-019 (Patrik 2026-08-06): när branschkunskapen är AV ska besökaren inte
 // kunna skriva fri text ALLS — fältet döljs, det disablas inte. Samma villkor
 // som tidigare styrde disabled/placeholder återanvänds med flit: det är redan
