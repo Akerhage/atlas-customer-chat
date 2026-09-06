@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback, type CSSProperties } from "re
 import { ChatHeader } from "./ChatHeader";
 import { ChatBubble } from "./ChatBubble";
 import { ChatInput } from "./ChatInput";
+import { shouldRestoreFocusForSendSource, type ChatSendSource } from "./chat-input-focus";
 import { TypingIndicator } from "./TypingIndicator";
 import { WelcomeMessage } from "./WelcomeMessage";
 import { EndSessionDialog } from "./EndSessionDialog";
@@ -1660,8 +1661,8 @@ return () => clearInterval(pollInterval);
 
 const handleSendMessage = async (
 content: string,
-contextData?: QuickContextPayload,
-restoreFocusAfterReply = false
+contextData: QuickContextPayload | undefined,
+sendSource: ChatSendSource
 ) => {
 if (!aiRepliesEnabled && !humanMode) {
 if (!intakeStep) {
@@ -1731,7 +1732,7 @@ timestamp: new Date(),
 };
 
 setMessages((prev) => [...prev, userMessage]);
-setRestoreInputFocusAfterReply(restoreFocusAfterReply);
+setRestoreInputFocusAfterReply(shouldRestoreFocusForSendSource(sendSource));
 setIsTyping(true);
 
 try {
@@ -1882,7 +1883,7 @@ handleVehicleChange(getSafeActiveVehicle(contextData.vehicle));
 }
 handleCityChange(contextData.city);
 }
-handleSendMessage(message, contextData);
+handleSendMessage(message, contextData, 'quick-action');
 };
 
 const handleEndSession = () => {
@@ -2019,7 +2020,7 @@ SLÄP: 'Släp (BE/B96)',
 if (standardSelfserviceAvailable && !humanMode && !intakeStep) {
 void handleStandardChoice(value).then((handled) => {
 if (!handled && !standardSelfserviceExclusive) {
-handleSendMessage(value);
+handleSendMessage(value, undefined, 'menu');
 }
 });
 return;
@@ -2044,7 +2045,7 @@ return;
 }
 
 if (!intakeStep) {
-handleSendMessage(value);
+handleSendMessage(value, undefined, 'menu');
 return;
 }
 
@@ -2395,7 +2396,7 @@ handleIntakeInput(message);
 return;
 }
 
-handleSendMessage(message, contextData, true);
+handleSendMessage(message, contextData, 'textarea');
 };
 
 return (

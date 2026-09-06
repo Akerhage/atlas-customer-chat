@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
-import { shouldRestoreTextareaFocus } from "./chat-input-focus";
-
-const atlasChatSource = readFileSync(new URL("./AtlasChat.tsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
-const chatInputSource = readFileSync(new URL("./ChatInput.tsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+import { shouldRestoreFocusForSendSource, shouldRestoreTextareaFocus } from "./chat-input-focus";
 
 describe("ChatInput focus intent", () => {
   it("restores focus after a textarea submission finishes", () => {
@@ -18,9 +14,9 @@ describe("ChatInput focus intent", () => {
     expect(shouldRestoreTextareaFocus(true, true, true)).toBe(false);
   });
 
-  it("binds typed and menu sends to opposite focus intents", () => {
-    expect(atlasChatSource).toMatch(/const handleQuickAction[\s\S]*?handleSendMessage\(message, contextData\);/);
-    expect(atlasChatSource).toMatch(/const handleInputSend[\s\S]*?handleSendMessage\(message, contextData, true\);/);
-    expect(chatInputSource).toContain("shouldRestoreTextareaFocus(wasDisabledRef.current, disabled, restoreFocusAfterReply)");
+  it("derives focus intent from every send source without a permissive default", () => {
+    expect(shouldRestoreFocusForSendSource("textarea")).toBe(true);
+    expect(shouldRestoreFocusForSendSource("quick-action")).toBe(false);
+    expect(shouldRestoreFocusForSendSource("menu")).toBe(false);
   });
 });

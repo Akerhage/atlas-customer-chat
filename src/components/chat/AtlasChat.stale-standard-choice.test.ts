@@ -84,7 +84,7 @@ describe("backstopens placering i handleChoiceSelected", () => {
   it("ligger före båda läckvägarna", () => {
     expect(guardAt).toBeGreaterThanOrEqual(0);
     // Läckväg 1 (rev 1: nåbar i humanMode).
-    expect(guardAt).toBeLessThan(handler.indexOf("handleSendMessage(value);\nreturn;"));
+    expect(guardAt).toBeLessThan(handler.indexOf("handleSendMessage(value, undefined, 'menu');\nreturn;"));
     // Läckväg 2 (rev 1: nåbar under intakeStep === 'office').
     expect(guardAt).toBeLessThan(handler.indexOf("injectUserMessage(value === 'Centralsupport'"));
   });

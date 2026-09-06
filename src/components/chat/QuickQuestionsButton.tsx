@@ -433,6 +433,10 @@ industryRagEnabled,
 // valen samtidigt och kan ändra sig när som helst. Att ha dem både här och i raden
 // vore just den "meny-i-menyn" som var hela invändningen.
 const hasContent = questionCategories.length > 0;
+const expectedItemCount = questionCategories.reduce(
+  (total, category) => total + category.questions.length + (category.actions?.length ?? 0),
+  0
+);
 
 return (
 <Popover open={open} onOpenChange={handleOpenChange}>
@@ -462,7 +466,7 @@ className={cn(
 {/* Den delade scrollkomponenten innehållsanpassar korta listor och behåller
     60dvh-taket, Radix-viewporten samt hjul/touch-scroll för långa listor. */}
 <MenuScrollArea>
-<div className="p-2">
+<div className="p-2" data-expected-item-count={expectedItemCount}>
 {questionCategories.map((cat, idx) => (
 <div key={`${cat.category}-${idx}`}>
 {idx > 0 && <DropdownMenuSeparator className="my-2" />}
@@ -470,6 +474,7 @@ className={cn(
 {cat.questions.map((q) => (
 <button
 key={q}
+data-quick-question-item="question"
 onClick={() => handleQuestionClick(q, cat)}
 className={cn(
 "w-full text-left px-2 py-2 text-xs rounded-md transition-colors hover:bg-accent hover:text-accent-foreground",
@@ -482,6 +487,7 @@ q.includes("{{stad}}") && !effectiveSelectedCity && "opacity-50 cursor-not-allow
 {(cat.actions ?? []).map((action) => (
 <button
 key={action.value}
+data-quick-question-item="action"
 onClick={() => handleStandardActionClick(action.value)}
 className="w-full text-left px-2 py-2 text-xs rounded-md transition-colors hover:bg-accent hover:text-accent-foreground"
 >
