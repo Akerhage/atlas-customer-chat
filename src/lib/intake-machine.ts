@@ -6,8 +6,8 @@ import { isStandardSelfserviceAvailable, isStandardSelfserviceExclusive } from "
 // hårdkodat, så en tenant som döpt om sin enhet till "Avdelning" läste ändå
 // "kontor" i AI-bubblan, i självservicehälsningen och i formulärets fältnamn.
 //
-// 🔴 Ordet substitueras via PLATSHÅLLARE (`{{enhet}}` / `{{enheter}}`), samma
-// idiom som `{{stad}}` i snabbfrågorna. Skälet är böjning: svenska går inte att
+// 🔴 Ordet substitueras via PLATSHÅLLARE (`{{enhet}}` / `{{enheter}}`).
+// Skälet är böjning: svenska går inte att
 // böja för ett godtyckligt ord utan att gissa genus, så copyn skrivs så att bara
 // obestämd singular och plural behövs. Meningar som krävde bestämd form eller
 // genuskongruens ("ditt lokala kontor", "Vilket kontor…") är i stället omskrivna

@@ -3,6 +3,7 @@ import { menuChoiceValue, type StandardSelfserviceMenuItem } from "@/lib/standar
 import {
   buildQuickQuestionCategories,
   resolveQuickQuestionContext,
+  sendQuickQuestion,
 } from "./QuickQuestionsButton";
 
 const standardItems: StandardSelfserviceMenuItem[] = [{
@@ -308,5 +309,40 @@ describe("QuickQuestionsButton category builder", () => {
       vehicle_choice: "OVRIGT",
       clear_vehicle: true,
     });
+  });
+
+  it("sends a section-bound placeholder label verbatim to the deterministic resolver", () => {
+    const storedLabel = "Vilka MC-paket erbjuder ni i {{stad}}?";
+    const categories = buildQuickQuestionCategories({
+      selectedCity: "Göteborg - Ullevi",
+      selectedVehicle: "MC",
+      generalMode: false,
+      selectedOffice: { city: "Göteborg", area: "Ullevi" },
+      availableVehicles: ["MC"],
+      quickQuestions: [{
+        text: storedLabel,
+        section_ref: [{ file: "basfakta_lektioner_paket_mc.json", id: "sec_001" }],
+        vehicles: ["MC"],
+        scope: "vehicle",
+        group_label: "MC-paket",
+      }],
+    } as Parameters<typeof buildQuickQuestionCategories>[0]);
+    const category = categories.find(item => item.category === "MC-paket");
+    expect(category?.questions).toEqual([storedLabel]);
+
+    const sent: Array<{ message: string; context: unknown }> = [];
+    sendQuickQuestion(
+      (message, context) => sent.push({ message, context }),
+      category!.questions[0],
+      category!,
+      false,
+      "MC",
+      "Göteborg - Ullevi"
+    );
+
+    expect(sent).toEqual([{
+      message: storedLabel,
+      context: { vehicle: "MC", city: "Göteborg - Ullevi" },
+    }]);
   });
 });

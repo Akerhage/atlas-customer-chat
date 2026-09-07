@@ -93,6 +93,22 @@ city: city || "",
 };
 }
 
+export function sendQuickQuestion(
+onSendMessage: QuickQuestionsButtonProps["onSendMessage"],
+question: string,
+category: QuestionCategory,
+generalMode: boolean,
+selectedVehicle: VehicleType,
+city: string | null
+): void {
+onSendMessage(question, resolveQuickQuestionContext(
+category,
+generalMode,
+selectedVehicle,
+city
+));
+}
+
 interface BuildQuickQuestionCategoriesInput {
 selectedCity: string | null;
 selectedVehicle: VehicleType;
@@ -192,18 +208,14 @@ setOpen(isOpen);
 };
 
 const handleQuestionClick = (question: string, category: QuestionCategory) => {
-// Byt ut {{stad}} mot vald stad, eller ta bort det om ingen stad är vald
-const finalQuestion = effectiveSelectedCity
-? question.replace(/\{\{stad\}\}/g, effectiveSelectedCity)
-: question.replace(/\{\{stad\}\}/g, "").trim();
-
-// Skicka till ChatInput (som skickar till AtlasChat)
-onSendMessage(finalQuestion, resolveQuickQuestionContext(
+sendQuickQuestion(
+onSendMessage,
+question,
 category,
 generalMode,
 effectiveSelectedVehicle,
 effectiveSelectedCity
-));
+);
 
 setOpen(false);
 };
@@ -277,12 +289,9 @@ className={cn(
 key={q}
 data-quick-question-item="question"
 onClick={() => handleQuestionClick(q, cat)}
-className={cn(
-"w-full text-left px-2 py-2 text-xs rounded-md transition-colors hover:bg-accent hover:text-accent-foreground",
-q.includes("{{stad}}") && !effectiveSelectedCity && "opacity-50 cursor-not-allowed"
-)}
+className="w-full text-left px-2 py-2 text-xs rounded-md transition-colors hover:bg-accent hover:text-accent-foreground"
 >
-{effectiveSelectedCity ? q.replace(/\{\{stad\}\}/g, effectiveSelectedCity) : q.replace(/\{\{stad\}\}/g, "...")}
+{q}
 </button>
 ))}
 {(cat.actions ?? []).map((action) => (
