@@ -1,11 +1,6 @@
 import { useState } from "react";
-import { ListTodo, ChevronDown, MapPin, Car, Bike, CircleDot, Truck, HelpCircle } from "lucide-react";
+import { ListTodo, ChevronDown } from "lucide-react";
 import {
-DropdownMenu,
-DropdownMenuContent,
-DropdownMenuItem,
-DropdownMenuTrigger,
-DropdownMenuLabel,
 DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { MenuScrollArea } from "./MenuScrollArea";
@@ -16,7 +11,7 @@ PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import type { ActiveVehicle, QuickQuestionRecord } from "@/lib/atlas-client";
-import { COMMON_QUESTIONS, type QuestionCategory } from "@/lib/quick-questions-data";
+import type { QuestionCategory } from "@/lib/quick-questions-data";
 import { menuChoiceValue, type StandardSelfserviceMenuItem } from "@/lib/standard-selfservice-machine";
 import { CANONICAL_VEHICLE_ORDER, VEHICLE_LABELS, officeOffersVehicle } from "@/lib/vehicle-utils";
 
@@ -39,145 +34,12 @@ industryRagEnabled?: boolean;
 triggerLabel?: string;
 }
 
-// Kontorsspecifika frågor. Paket-/utbudsöversikten ligger numera i respektive
-// fordonskategori med deterministisk formulering ("Vilka ...paket erbjuder ni i
-// {{stad}}?") — den gamla "Vilka X-utbildningar erbjuder ni"-frågan föll till
-// LLM-vägen och dumpade kontorsnamn som "innehåll", så den togs bort här.
-// #538 (Patriks IRL-fynd 2026-09-04): raderna skrev ut enhetsordet i BESTÄMD form
-// ("kontoret"), som inte går att bilda för ett godtyckligt tenantord utan att
-// gissa genus. Enligt Patriks beslut samma dag är ordet därför borttaget ur
-// meningen i stället för böjt — texten fungerar för både "kontor" och
-// "avdelning" utan logik.
-function getOfficeQuestions(): QuestionCategory {
-return {
-category: "Om oss i {{stad}}",
-questions: [
-"Var i {{stad}} finns ni och när har ni öppet?",
-],
-};
-}
-
-const QUESTIONS_BY_VEHICLE: Record<ActiveVehicle, QuestionCategory[]> = {
-AM: [{
-category: "AM & Mopedutbildning",
-questions: [
-"Hur gammal måste man vara för att börja AM-kursen?",
-"Vad kostar AM-kursen och vad ingår i priset?",
-"Måste jag ha körkortstillstånd för moped?",
-"Får man övningsköra moped privat?",
-"Hur går manöverkörningen till på banan?",
-],
-}],
-BIL: [
-{ 
-category: "Kom igång med Bil", 
-questions: [
-"Hur tar man B-körkort steg för steg?", 
-"Vad är en Testlektion och hur bokar jag den?", 
-"Vad krävs för att få övningsköra bil privat?",
-"Behöver elev och handledare gå en kurs?"
-] 
-},
-{ 
-category: "Paket & Intensiv", 
-questions: [
-"Vilka körkortspaket erbjuder ni i {{stad}}?",
-"Hur fungerar en intensivkurs på 2 veckor?"
-] 
-},
-{ 
-category: "Risk & Teori", 
-questions: [
-"När ska man göra Riskettan och Risktvåan?", 
-"Vad gör man på Halkbanan (Risk 2)?",
-"Hur anmäler jag mig som ny elev?"
-] 
-},
-],
-MC: [
-{ 
-category: "MC-Behörigheter", 
-questions: [
-"Vad är skillnaden mellan A1, A2 och A?", 
-"Jag är nybörjare på MC – hur börjar jag?", 
-"Kan jag uppgradera A2 till A utan teoriprov?",
-"När är MC-säsongen hos er?"
-] 
-},
-{ 
-category: "MC-Utbildning",
-questions: [
-"Vilka MC-paket erbjuder ni i {{stad}}?",
-"Vad ingår i en intensivvecka för MC?",
-"Får jag låna skyddsutrustning och kläder?", 
-"Vad är en Startlektion för MC?", 
-"Kör ni på bana eller i trafik?"
-] 
-},
-{ 
-category: "Risk & Prov MC", 
-questions: [
-"Vad är Riskettan och Risktvåan för MC?"
-] 
-},
-],
-LASTBIL: [
-{
-category: "Pris Lastbil i {{stad}}",
-questions: [
-"Vilka körkortspaket för lastbil erbjuder ni i {{stad}}?",
-"Vad kostar en C Körlektion i {{stad}}?",
-"Erbjuder ni D-körkort (buss) i {{stad}}?",
-],
-},
-{
-category: "Körkort för Lastbil",
-questions: [
-"Vad är skillnaden mellan C, C1 och CE-körkort?",
-"Vilka krav måste jag uppfylla för att ta C-körkort?",
-"Måste jag ha B-körkort innan jag börjar lastbilsutbildningen?",
-"Hur lång tid tar lastbilsutbildningen?",
-],
-},
-{
-category: "YKB & Yrkestrafik",
-questions: [
-"Vad är YKB och behöver jag det?",
-"Vad är skillnaden på YKB grundutbildning och fortbildning?",
-"Hur ofta måste man förnya YKB?",
-],
-},
-{
-category: "Bokning & Kontakt",
-questions: [
-"Hur bokar jag lastbilsutbildning i {{stad}}?",
-],
-},
-],
-SLÄP: [
-{
-category: "Släp & BE/B96",
-questions: [
-"Vad är skillnaden mellan B96 och BE?",
-"Vad krävs för att ta BE-körkort?",
-"Vad kostar släputbildning i {{stad}}?",
-],
-},
-],
-};
-
-const VEHICLE_ICONS = { BIL: Car, MC: Bike, AM: CircleDot, LASTBIL: Truck, SLÄP: Car };
-
 interface NormalizedQuickQuestion {
 text: string;
 sectionRefBound: boolean;
 vehicles: ActiveVehicle[];
 scope: "general" | "vehicle";
 groupLabel: string;
-}
-
-function normalizeQuestionText(value: string): string {
-return value.trim().toLocaleLowerCase("sv-SE").replace(/\s+/g, " ");
 }
 
 function normalizeTenantQuickQuestion(question: string | QuickQuestionRecord): NormalizedQuickQuestion | null {
@@ -199,19 +61,21 @@ groupLabel: typeof question !== "string" && question.group_label?.trim()
 
 function groupTenantQuickQuestions(
 questions: NormalizedQuickQuestion[],
-vehicleContext: ActiveVehicle | null
+selectedVehicle: ActiveVehicle | null
 ): QuestionCategory[] {
-const grouped = new Map<string, string[]>();
+const grouped = new Map<string, QuestionCategory>();
 for (const question of questions) {
-const values = grouped.get(question.groupLabel) ?? [];
-values.push(question.text);
-grouped.set(question.groupLabel, values);
-}
-return Array.from(grouped, ([category, groupedQuestions]) => ({
-category,
-questions: groupedQuestions,
+const vehicleContext = question.scope === "vehicle" ? selectedVehicle : null;
+const key = `${question.groupLabel}\u0000${vehicleContext || ""}`;
+const category = grouped.get(key) ?? {
+category: question.groupLabel,
+questions: [],
 vehicleContext,
-}));
+};
+category.questions.push(question.text);
+grouped.set(key, category);
+}
+return Array.from(grouped.values());
 }
 
 export function resolveQuickQuestionContext(
@@ -229,37 +93,6 @@ city: city || "",
 };
 }
 
-export function listStandardSelfserviceDuplicateQuestions(
-categories: QuestionCategory[],
-standardSelfserviceMenu: StandardSelfserviceMenuItem[],
-selectedCity: string | null
-): string[] {
-const labels = new Set(standardSelfserviceMenu.map(item => normalizeQuestionText(item.label)));
-if (!labels.size) return [];
-const duplicates: string[] = [];
-for (const category of categories) {
-for (const question of category.questions) {
-const rendered = selectedCity
-? question.replace(/\{\{stad\}\}/g, selectedCity)
-: question.replace(/\{\{stad\}\}/g, "").trim();
-if (labels.has(normalizeQuestionText(rendered))) duplicates.push(question);
-}
-}
-return duplicates;
-}
-
-function filterStandardSelfserviceDuplicates(
-categories: QuestionCategory[],
-standardSelfserviceMenu: StandardSelfserviceMenuItem[],
-selectedCity: string | null
-): QuestionCategory[] {
-const duplicates = new Set(listStandardSelfserviceDuplicateQuestions(categories, standardSelfserviceMenu, selectedCity));
-if (!duplicates.size) return categories;
-return categories
-.map(category => ({ ...category, questions: category.questions.filter(question => !duplicates.has(question)) }))
-.filter(category => category.questions.length || (category.actions?.length || 0) > 0);
-}
-
 interface BuildQuickQuestionCategoriesInput {
 selectedCity: string | null;
 selectedVehicle: VehicleType;
@@ -273,11 +106,7 @@ industryRagEnabled?: boolean;
 }
 
 export function buildQuickQuestionCategories({
-selectedCity,
 selectedVehicle,
-generalMode,
-selectedOffice,
-availableVehicles,
 quickQuestions,
 standardSelfserviceMenu = [],
 aiRepliesEnabled = true,
@@ -310,40 +139,12 @@ const tenantQuickQuestions = quickQuestions
 const tenantQuestionsAllowed = aiRepliesEnabled && industryRagEnabled !== false
 ? tenantQuickQuestions
 : tenantQuickQuestions.filter(question => question.sectionRefBound);
-const tenantVehicleQuestions = selectedVehicle
-? tenantQuestionsAllowed.filter(question => question.scope === "vehicle" && question.vehicles.includes(selectedVehicle))
-: [];
-const tenantGeneralQuestions = tenantQuestionsAllowed.filter(question => question.scope === "general");
-const tenantVehicleCategories = groupTenantQuickQuestions(tenantVehicleQuestions, selectedVehicle);
-const tenantGeneralCategories = groupTenantQuickQuestions(tenantGeneralQuestions, null);
+const visibleTenantQuestions = tenantQuestionsAllowed.filter(question =>
+question.scope === "general" || (selectedVehicle && question.vehicles.includes(selectedVehicle))
+);
+const tenantCategories = groupTenantQuickQuestions(visibleTenantQuestions, selectedVehicle);
 const prefix = selfserviceCategory ? [selfserviceCategory] : [];
-if (!aiRepliesEnabled || industryRagEnabled === false) {
-return [...prefix, ...tenantVehicleCategories, ...tenantGeneralCategories];
-}
-
-const officeCategory: QuestionCategory | null = selectedCity ? {
-category: getOfficeQuestions().category.replace(/\{\{stad\}\}/g, selectedCity),
-questions: getOfficeQuestions().questions,
-vehicleContext: selectedVehicle,
-} : null;
-
-const vehicleCategories = selectedVehicle
-? (QUESTIONS_BY_VEHICLE[selectedVehicle] || []).map(category => ({ ...category, vehicleContext: selectedVehicle }))
-: [];
-const generalCategories = COMMON_QUESTIONS.map(category => ({ ...category, vehicleContext: null }));
-
-// Fas 5: självservice -> valt kontor -> valt fordons scope -> generellt scope.
-// Servern äger scope och gruppetikett för tenantens kurerade frågor; klienten
-// härleder inget av detta ur frågetexten.
-const categories = [
-...prefix,
-...(officeCategory ? [officeCategory] : []),
-...tenantVehicleCategories,
-...vehicleCategories,
-...tenantGeneralCategories,
-...generalCategories,
-];
-return filterStandardSelfserviceDuplicates(categories, standardSelfserviceMenu, selectedCity);
+return [...prefix, ...tenantCategories];
 }
 
 const getOfficeDisplayName = (office: any) => {

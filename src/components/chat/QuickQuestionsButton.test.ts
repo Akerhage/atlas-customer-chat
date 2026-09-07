@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { menuChoiceValue, type StandardSelfserviceMenuItem } from "@/lib/standard-selfservice-machine";
 import {
   buildQuickQuestionCategories,
-  listStandardSelfserviceDuplicateQuestions,
   resolveQuickQuestionContext,
 } from "./QuickQuestionsButton";
 
@@ -127,20 +126,7 @@ describe("QuickQuestionsButton category builder", () => {
     expect(categories.some(category => category.questions.includes("När stänger receptionen?"))).toBe(false);
   });
 
-  it("counts and removes hardcoded questions already represented by Standard selfservice actions", () => {
-    const rawCategories = buildQuickQuestionCategories({
-      selectedCity: "Göteborg - Ullevi",
-      selectedVehicle: "BIL",
-      generalMode: false,
-      selectedOffice: { city: "Göteborg", area: "Ullevi" },
-      availableVehicles: ["BIL"],
-      quickQuestions: [],
-      standardSelfserviceMenu: [],
-    });
-    const duplicates = listStandardSelfserviceDuplicateQuestions(rawCategories, standardItems, "Göteborg - Ullevi");
-
-    expect(duplicates).toEqual(["Vilka körkortspaket erbjuder ni i {{stad}}?"]);
-
+  it("renders no hardcoded content questions when the tenant has not curated any", () => {
     const categories = buildQuickQuestionCategories({
       selectedCity: "Göteborg - Ullevi",
       selectedVehicle: "BIL",
@@ -151,8 +137,14 @@ describe("QuickQuestionsButton category builder", () => {
       standardSelfserviceMenu: standardItems,
     });
 
-    expect(categories.find(category => category.category === "Priser & tjänster")?.actions).toHaveLength(1);
-    expect(categories.some(category => category.questions.includes("Vilka körkortspaket erbjuder ni i {{stad}}?"))).toBe(false);
+    expect(categories).toEqual([{
+      category: "Priser & tjänster",
+      questions: [],
+      actions: [{
+        label: "Vilka körkortspaket erbjuder ni i Göteborg - Ullevi?",
+        value: menuChoiceValue("offer-1"),
+      }],
+    }]);
   });
 
   it("keeps deterministic selfservice actions but removes RAG questions when AI replies are disabled", () => {
@@ -178,13 +170,13 @@ describe("QuickQuestionsButton category builder", () => {
   });
 
   it.each([
-    { industryRagEnabled: true, aiRepliesEnabled: true, expectRag: true, expectTenant: true },
-    { industryRagEnabled: false, aiRepliesEnabled: true, expectRag: false, expectTenant: false },
-    { industryRagEnabled: true, aiRepliesEnabled: false, expectRag: false, expectTenant: false },
-    { industryRagEnabled: false, aiRepliesEnabled: false, expectRag: false, expectTenant: false },
+    { industryRagEnabled: true, aiRepliesEnabled: true, expectLegacyTenant: true },
+    { industryRagEnabled: false, aiRepliesEnabled: true, expectLegacyTenant: false },
+    { industryRagEnabled: true, aiRepliesEnabled: false, expectLegacyTenant: false },
+    { industryRagEnabled: false, aiRepliesEnabled: false, expectLegacyTenant: false },
   ])(
-    "keeps deterministic selfservice while industry_rag=$industryRagEnabled and AI=$aiRepliesEnabled expose only valid question paths",
-    ({ industryRagEnabled, aiRepliesEnabled, expectRag, expectTenant }) => {
+    "keeps only selfservice and eligible tenant content while industry_rag=$industryRagEnabled and AI=$aiRepliesEnabled",
+    ({ industryRagEnabled, aiRepliesEnabled, expectLegacyTenant }) => {
       const categories = buildQuickQuestionCategories({
         selectedCity: "Göteborg - Ullevi",
         selectedVehicle: "BIL",
@@ -198,38 +190,14 @@ describe("QuickQuestionsButton category builder", () => {
       });
 
       expect(categories.find(category => category.category === "Priser & tjänster")?.actions).toHaveLength(1);
-      expect(categories.some(category => category.category === "Kom igång med Bil")).toBe(expectRag);
-      // #538 (Patriks beslut 2026-09-04): rubriken bar enhetsordet i BESTÄMD form
-      // ("kontoret"), som inte går att bilda för ett godtyckligt tenantord.
-      // Ordet är borttaget ur meningen i stället för böjt.
-      expect(categories.some(category => category.category === "Om oss i Göteborg - Ullevi")).toBe(expectRag);
-      expect(categories.some(category => category.category === "Populära frågor")).toBe(expectRag);
-      expect(categories.some(category => category.category === "Vanliga frågor")).toBe(expectTenant);
+      expect(categories.some(category => category.category === "Kom igång med Bil")).toBe(false);
+      expect(categories.some(category => category.category === "Om oss i Göteborg - Ullevi")).toBe(false);
+      expect(categories.some(category => category.category === "Populära frågor")).toBe(false);
+      expect(categories.some(category => category.category === "Vanliga frågor")).toBe(expectLegacyTenant);
     }
   );
 
-  it.each([
-    ["missing", {}],
-    ["undefined", { industryRagEnabled: undefined }],
-    ["wrong typed", { industryRagEnabled: "false" }],
-  ])("fails open for %s Branschkunskap input", (_label, override) => {
-    const categories = buildQuickQuestionCategories({
-      selectedCity: "Göteborg - Ullevi",
-      selectedVehicle: "BIL",
-      generalMode: false,
-      selectedOffice: { city: "Göteborg", area: "Ullevi" },
-      availableVehicles: ["BIL"],
-      quickQuestions: [],
-      standardSelfserviceMenu: standardItems,
-      aiRepliesEnabled: true,
-      ...override,
-    } as unknown as Parameters<typeof buildQuickQuestionCategories>[0]);
-
-    expect(categories.find(category => category.category === "Priser & tjänster")?.actions).toHaveLength(1);
-    expect(categories.some(category => category.category === "Kom igång med Bil")).toBe(true);
-  });
-
-  it("uses server grouping and orders selfservice, office, selected vehicle, then general scope", () => {
+  it("renders curated groups in the exact order supplied by the server after selfservice", () => {
     const categories = buildQuickQuestionCategories({
       selectedCity: "Göteborg - Ullevi",
       selectedVehicle: "BIL",
@@ -263,11 +231,11 @@ describe("QuickQuestionsButton category builder", () => {
     } as Parameters<typeof buildQuickQuestionCategories>[0]);
 
     const names = categories.map(category => category.category);
-    expect(names[0]).toBe("Priser & tjänster");
-    expect(names.indexOf("Om oss i Göteborg - Ullevi")).toBeGreaterThan(names.indexOf("Priser & tjänster"));
-    expect(names.indexOf("Serverns fordonsgrupp")).toBeGreaterThan(names.indexOf("Om oss i Göteborg - Ullevi"));
-    expect(names.indexOf("Serverns allmänna grupp")).toBeGreaterThan(names.indexOf("Serverns fordonsgrupp"));
-    expect(names).not.toContain("MC från servern");
+    expect(names).toEqual([
+      "Priser & tjänster",
+      "Serverns allmänna grupp",
+      "Serverns fordonsgrupp",
+    ]);
     expect(categories.find(category => category.category === "Serverns allmänna grupp")?.questions)
       .toEqual(["Det här låter som en bilfråga men är generell"]);
   });
