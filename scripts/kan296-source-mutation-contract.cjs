@@ -23,6 +23,33 @@ const mutations = [
       'const tenantGeneralQuestions = tenantQuestionsAllowed.filter(question => question.scope === "general");',
       'const tenantGeneralQuestions = tenantQuestionsAllowed.filter(question => question.scope === "general").slice(0, 12);'
     )
+  },
+  {
+    name: 'quick-action callsite is misclassified as textarea',
+    file: path.join(root, 'src', 'components', 'chat', 'AtlasChat.tsx'),
+    test: 'src/components/chat/AtlasChat.send-source.test.ts',
+    mutate: source => source.replace(
+      "handleSendMessage(message, contextData, 'quick-action');",
+      "handleSendMessage(message, contextData, 'textarea');"
+    )
+  },
+  {
+    name: 'new handleSendMessage call lacks source classification',
+    file: path.join(root, 'src', 'components', 'chat', 'AtlasChat.tsx'),
+    test: 'src/components/chat/AtlasChat.send-source.test.ts',
+    mutate: source => source.replace(
+      "handleSendMessage(message, contextData, 'quick-action');",
+      "handleSendMessage(message, contextData, 'quick-action');\nhandleSendMessage(message, contextData);"
+    )
+  },
+  {
+    name: 'textarea callsite is misclassified as menu',
+    file: path.join(root, 'src', 'components', 'chat', 'AtlasChat.tsx'),
+    test: 'src/components/chat/AtlasChat.send-source.test.ts',
+    mutate: source => source.replace(
+      "handleSendMessage(message, contextData, 'textarea');",
+      "handleSendMessage(message, contextData, 'menu');"
+    )
   }
 ];
 
