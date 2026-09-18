@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { ListTodo, ChevronDown } from "lucide-react";
 import {
 DropdownMenuSeparator,
@@ -16,6 +16,19 @@ import { menuChoiceValue, type StandardSelfserviceMenuItem } from "@/lib/standar
 import { CANONICAL_VEHICLE_ORDER, VEHICLE_LABELS, officeOffersVehicle } from "@/lib/vehicle-utils";
 
 type VehicleType = ActiveVehicle | null;
+
+interface QuickQuestionClickTarget {
+question: string;
+category: QuestionCategory;
+}
+
+interface PendingQuickQuestionPress extends QuickQuestionClickTarget {
+pointerId: number;
+clientX: number;
+clientY: number;
+}
+
+const QUICK_QUESTION_TOUCH_MOVE_TOLERANCE_PX = 12;
 
 interface QuickQuestionsButtonProps {
 onSendMessage: (message: string, context?: { vehicle: string | null; city: string; vehicle_choice?: string | null; clear_vehicle?: boolean }) => void;
@@ -185,6 +198,7 @@ industryRagEnabled = true,
 triggerLabel = "Frågor & tjänster",
 }: QuickQuestionsButtonProps) {
 const [open, setOpen] = useState(false);
+const pendingQuickQuestionPressRef = useRef<PendingQuickQuestionPress | null>(null);
 const singletonOffice = offices.length === 1 ? offices[0] : null;
 const singletonOfficeLabel = singletonOffice ? getOfficeDisplayName(singletonOffice) : null;
 const singletonVehicle = activeVehicles.length === 1 ? activeVehicles[0] : null;
@@ -205,9 +219,47 @@ const availableOffices = effectiveSelectedVehicle && !singletonOffice
 
 const handleOpenChange = (isOpen: boolean) => {
 setOpen(isOpen);
+if (!isOpen) {
+pendingQuickQuestionPressRef.current = null;
+}
 };
 
-const handleQuestionClick = (question: string, category: QuestionCategory) => {
+const clearPendingQuestionPress = () => {
+pendingQuickQuestionPressRef.current = null;
+};
+
+const recordQuestionPointerDown = (
+event: ReactPointerEvent<HTMLButtonElement>,
+question: string,
+category: QuestionCategory
+) => {
+if (event.pointerType !== "touch" && event.pointerType !== "pen") return;
+pendingQuickQuestionPressRef.current = {
+question,
+category,
+pointerId: event.pointerId,
+clientX: event.clientX,
+clientY: event.clientY,
+};
+};
+
+const clearQuestionPointerIfMoved = (event: ReactPointerEvent<HTMLButtonElement>) => {
+const pending = pendingQuickQuestionPressRef.current;
+if (!pending || pending.pointerId !== event.pointerId) return;
+const movedX = event.clientX - pending.clientX;
+const movedY = event.clientY - pending.clientY;
+if (Math.hypot(movedX, movedY) > QUICK_QUESTION_TOUCH_MOVE_TOLERANCE_PX) {
+pendingQuickQuestionPressRef.current = null;
+}
+};
+
+const resolveQuestionClickTarget = (question: string, category: QuestionCategory): QuickQuestionClickTarget => {
+const pending = pendingQuickQuestionPressRef.current;
+pendingQuickQuestionPressRef.current = null;
+return pending ? { question: pending.question, category: pending.category } : { question, category };
+};
+
+const handleQuestionClick = ({ question, category }: QuickQuestionClickTarget) => {
 sendQuickQuestion(
 onSendMessage,
 question,
@@ -284,22 +336,26 @@ className={cn(
 <div key={`${cat.category}-${idx}`}>
 {idx > 0 && <DropdownMenuSeparator className="my-2" />}
 <p className="text-[10px] text-muted-foreground font-medium px-2 py-1 uppercase tracking-wide">{cat.category}</p>
-{cat.questions.map((q) => (
+{cat.questions.map((q, questionIndex) => (
 <button
-key={q}
+key={`question-${idx}-${questionIndex}-${q}`}
 data-quick-question-item="question"
-onClick={() => handleQuestionClick(q, cat)}
-className="w-full text-left px-2 py-2 text-xs rounded-md transition-colors hover:bg-accent hover:text-accent-foreground"
+data-quick-question-value={q}
+onPointerDown={(event) => recordQuestionPointerDown(event, q, cat)}
+onPointerMove={clearQuestionPointerIfMoved}
+onPointerCancel={clearPendingQuestionPress}
+onClick={() => handleQuestionClick(resolveQuestionClickTarget(q, cat))}
+className="w-full text-left px-2 py-2 text-xs rounded-md transition-colors [@media(hover:hover)]:hover:bg-accent [@media(hover:hover)]:hover:text-accent-foreground"
 >
 {q}
 </button>
 ))}
-{(cat.actions ?? []).map((action) => (
+{(cat.actions ?? []).map((action, actionIndex) => (
 <button
-key={action.value}
+key={`action-${idx}-${actionIndex}-${action.value}`}
 data-quick-question-item="action"
 onClick={() => handleStandardActionClick(action.value)}
-className="w-full text-left px-2 py-2 text-xs rounded-md transition-colors hover:bg-accent hover:text-accent-foreground"
+className="w-full text-left px-2 py-2 text-xs rounded-md transition-colors [@media(hover:hover)]:hover:bg-accent [@media(hover:hover)]:hover:text-accent-foreground"
 >
 {action.label}
 </button>
