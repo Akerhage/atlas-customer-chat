@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { menuChoiceValue, type StandardSelfserviceMenuItem } from "@/lib/standard-selfservice-machine";
 import {
@@ -5,6 +6,8 @@ import {
   resolveQuickQuestionContext,
   sendQuickQuestion,
 } from "./QuickQuestionsButton";
+
+const quickQuestionsSource = readFileSync(new URL("./QuickQuestionsButton.tsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 
 const standardItems: StandardSelfserviceMenuItem[] = [{
   id: "offer-1",
@@ -344,5 +347,44 @@ describe("QuickQuestionsButton category builder", () => {
       message: storedLabel,
       context: { vehicle: "MC", city: "Göteborg - Ullevi" },
     }]);
+  });
+
+  it("keeps repeated customer question labels as separate clickable rows", () => {
+    const categories = buildQuickQuestionCategories({
+      selectedCity: "Göteborg - Ullevi",
+      selectedVehicle: "BIL",
+      generalMode: false,
+      selectedOffice: { city: "Göteborg", area: "Ullevi" },
+      availableVehicles: ["BIL"],
+      quickQuestions: [
+        "Snabbfråge-test Onvia - Egen fråga",
+        "Snabbfråge-test Onvia - Egen fråga",
+        "Hur fungerar era körlektioner för bil?",
+      ],
+    } as Parameters<typeof buildQuickQuestionCategories>[0]);
+
+    expect(categories.find(category => category.category === "Vanliga frågor")?.questions).toEqual([
+      "Snabbfråge-test Onvia - Egen fråga",
+      "Snabbfråge-test Onvia - Egen fråga",
+      "Hur fungerar era körlektioner för bil?",
+    ]);
+    expect(quickQuestionsSource).not.toContain("key={q}");
+    expect(quickQuestionsSource).toContain("questionIndex");
+    expect(quickQuestionsSource).toContain('data-quick-question-value={q}');
+  });
+
+  it("binds touch clicks to the row that received pointerdown, not a later shifted click target", () => {
+    expect(quickQuestionsSource).toContain("pendingQuickQuestionPressRef");
+    expect(quickQuestionsSource).toContain("recordQuestionPointerDown");
+    expect(quickQuestionsSource).toContain("resolveQuestionClickTarget");
+    expect(quickQuestionsSource).toContain("onPointerDown={(event) => recordQuestionPointerDown(event, q, cat)}");
+    expect(quickQuestionsSource).toContain("onPointerCancel={clearPendingQuestionPress}");
+    expect(quickQuestionsSource).toContain("handleQuestionClick(resolveQuestionClickTarget(q, cat))");
+  });
+
+  it("scopes sticky visual hover styling to devices that support hover", () => {
+    expect(quickQuestionsSource).not.toContain("transition-colors hover:bg-accent hover:text-accent-foreground");
+    expect(quickQuestionsSource.match(/\[@media\(hover:hover\)\]:hover:bg-accent/g)).toHaveLength(2);
+    expect(quickQuestionsSource.match(/\[@media\(hover:hover\)\]:hover:text-accent-foreground/g)).toHaveLength(2);
   });
 });
