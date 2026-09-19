@@ -61,6 +61,8 @@ buildLegacyContextBarCategoryChoices,
 filterCategoryChoicesForOffice,
 isCategoryFirstIntake,
 resolveIntakeMode,
+buildIntakeSkipChoices,
+resolveIntakeSkipChoice,
 resolveOptionalEmail,
 resolveOptionalPhone,
 resolveWidgetTexts,
@@ -1339,24 +1341,24 @@ return;
 }
 setIntakeData((prev) => ({ ...prev, name: trimmed }));
 setIntakeStep('email');
-injectBotMessage(`Tack ${trimmed}! Vad är din e-postadress? Skriv adressen, **"nej"** eller **"hoppa över"**.`);
+injectBotMessage(`Tack ${trimmed}! Vad är din e-postadress? Skriv adressen eller klicka på **Hoppa över**.`, buildIntakeSkipChoices('email'));
 break;
 }
 case 'email': {
 const emailResult = resolveOptionalEmail(trimmed);
 if (!emailResult.valid) {
-injectBotMessage('Ange en giltig e-postadress, **"nej"** eller **"hoppa över"**.');
+injectBotMessage('Ange en giltig e-postadress eller klicka på **Hoppa över**.', buildIntakeSkipChoices('email'));
 return;
 }
 setIntakeData((prev) => ({ ...prev, email: emailResult.email ?? null }));
 setIntakeStep('phone');
-injectBotMessage('Tack! Vill du lägga till ett mobilnummer? Skriv numret, **"nej"** eller **"hoppa över"**.');
+injectBotMessage('Tack! Vill du lägga till ett mobilnummer? Skriv numret eller klicka på **Hoppa över**.', buildIntakeSkipChoices('phone'));
 break;
 }
 case 'phone': {
 const phoneResult = resolveOptionalPhone(trimmed);
 if (!phoneResult.valid) {
-injectBotMessage('Ange ett giltigt mobilnummer (minst 8 siffror), **"nej"** eller **"hoppa över"**.');
+injectBotMessage('Ange ett giltigt mobilnummer (minst 8 siffror) eller klicka på **Hoppa över**.', buildIntakeSkipChoices('phone'));
 return;
 }
 const safeOffice = findSafeOfficeFromLiveContext(
@@ -2017,6 +2019,14 @@ AM: 'Moped (AM)',
 LASTBIL: 'Lastbil / Buss',
 SLÄP: 'Släp (BE/B96)',
 };
+
+// "Hoppa över" på de valfria kontaktstegen (e-post/mobil) beter sig exakt som att skriva "hoppa över".
+// Knappen bär sitt steg: en gammal knapp längre upp får aldrig hoppa över ett annat, senare steg.
+const skipStep = resolveIntakeSkipChoice(value);
+if (skipStep) {
+if (intakeStep === skipStep) handleIntakeInput('Hoppa över');
+return;
+}
 
 if (standardSelfserviceAvailable && !humanMode && !intakeStep) {
 void handleStandardChoice(value).then((handled) => {

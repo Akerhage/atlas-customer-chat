@@ -288,6 +288,21 @@ export function buildIntakeOrder(
 
 const OPTIONAL_CONTACT_SKIP_WORDS = ["hoppa över", "hoppa over", "skip", "-", "nej", "nej tack", "no", "n", "ingen", "inget", "inte nu", "jag vill vara anonym"];
 
+// Valfria kontaktsteg får en synlig "Hoppa över"-knapp så att kunden slipper skriva "nej" själv.
+// Värdet bär steget, så en gammal knapp längre upp i chatten aldrig hoppar över ett annat steg.
+export const INTAKE_SKIP_CHOICE_PREFIX = "atlas-intake-skip:";
+export type IntakeSkippableStep = "email" | "phone";
+
+export function buildIntakeSkipChoices(step: IntakeSkippableStep): { label: string; value: string }[] {
+  return [{ label: "Hoppa över", value: `${INTAKE_SKIP_CHOICE_PREFIX}${step}` }];
+}
+
+export function resolveIntakeSkipChoice(value: string): IntakeSkippableStep | null {
+  if (!value.startsWith(INTAKE_SKIP_CHOICE_PREFIX)) return null;
+  const step = value.slice(INTAKE_SKIP_CHOICE_PREFIX.length);
+  return step === "email" || step === "phone" ? step : null;
+}
+
 export function resolveOptionalEmail(input: string): { valid: boolean; email?: string } {
   const trimmed = input.trim();
   const normalizedEmailSkip = trimmed.toLowerCase().replace(/[.!?]+$/g, "").trim();

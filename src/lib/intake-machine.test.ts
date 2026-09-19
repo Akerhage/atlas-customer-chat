@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildCategoryChoices, buildIntakeOrder, buildLegacyContextBarCategoryChoices, filterCategoryChoicesForOffice, resolveIntakeMode, resolveOptionalEmail, resolveOptionalPhone, resolveWidgetTexts } from "./intake-machine";
+import { buildCategoryChoices, buildIntakeOrder, buildIntakeSkipChoices, buildLegacyContextBarCategoryChoices, filterCategoryChoicesForOffice, resolveIntakeMode, resolveIntakeSkipChoice, resolveOptionalEmail, resolveOptionalPhone, resolveWidgetTexts } from "./intake-machine";
+import { isInternalStandardChoiceValue } from "./standard-selfservice-machine";
 import type { EffectiveCategory, TenantProfile } from "./tenant-capabilities";
 
 const standardProfile: TenantProfile = {
@@ -248,6 +249,31 @@ describe("intake order", () => {
   it("keeps the existing mobile validation and ten-digit payload cap", () => {
     expect(resolveOptionalPhone("070-123 45 67")).toEqual({ valid: true, phone: "0701234567" });
     expect(resolveOptionalPhone("123")).toEqual({ valid: false });
+  });
+});
+
+describe("intake skip choice", () => {
+  it.each(["email", "phone"] as const)("builds one Hoppa över button that carries the %s step", (step) => {
+    const choices = buildIntakeSkipChoices(step);
+    expect(choices).toHaveLength(1);
+    expect(choices[0].label).toBe("Hoppa över");
+    expect(resolveIntakeSkipChoice(choices[0].value)).toBe(step);
+  });
+
+  it("a skip value is never mistaken for another step", () => {
+    expect(resolveIntakeSkipChoice(buildIntakeSkipChoices("email")[0].value)).not.toBe("phone");
+    expect(resolveIntakeSkipChoice(buildIntakeSkipChoices("phone")[0].value)).not.toBe("email");
+  });
+
+  it.each(["", "Hoppa över", "nej", "atlas-intake-skip:", "atlas-intake-skip:office", "atlas-intake-skip:name", "BIL"])(
+    "ignores non-skip value %j",
+    (value) => expect(resolveIntakeSkipChoice(value)).toBeNull(),
+  );
+
+  it("the skip value is not an internal Standard token (it must not hit the KAN-279 backstop)", () => {
+    for (const step of ["email", "phone"] as const) {
+      expect(isInternalStandardChoiceValue(buildIntakeSkipChoices(step)[0].value)).toBe(false);
+    }
   });
 });
 
