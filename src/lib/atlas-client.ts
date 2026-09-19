@@ -442,7 +442,7 @@ socket.emit('client:typing', { sessionId, conversationId: sessionId });
 
 export interface ContactContext {
 name?: string;
-email?: string;
+email?: string | null;
 phone?: string;
 }
 
@@ -473,14 +473,14 @@ export async function sendMessage(
     if (context.category_id) locked_context.category_id = context.category_id;
     if (context.unit_id) locked_context.unit_id = context.unit_id;
     if (context.name) locked_context.name = context.name;
-    if (context.email) locked_context.email = context.email;
+    if (Object.prototype.hasOwnProperty.call(context, "email")) locked_context.email = context.email || null;
     if (context.phone) locked_context.phone = context.phone;
 
     body.context = { locked_context };
     body.locked_context = locked_context;
     if (context.clear_vehicle) body.clear_vehicle = true;
     if (locked_context.name) body.name = locked_context.name;
-    if (locked_context.email) body.email = locked_context.email;
+    if (Object.prototype.hasOwnProperty.call(locked_context, "email")) body.email = locked_context.email;
     if (locked_context.phone) body.phone = locked_context.phone;
   }
 

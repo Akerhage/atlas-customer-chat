@@ -61,6 +61,7 @@ buildLegacyContextBarCategoryChoices,
 filterCategoryChoicesForOffice,
 isCategoryFirstIntake,
 resolveIntakeMode,
+resolveOptionalEmail,
 resolveOptionalPhone,
 resolveWidgetTexts,
 type IntakeMode,
@@ -363,7 +364,7 @@ const [closeReason, setCloseReason] = useState<string | null>(null);
 const [intakeStep, setIntakeStep] = useState<IntakeStep>(null);
 const [intakeData, setIntakeData] = useState<{
 name?: string;
-email?: string;
+email?: string | null;
 phone?: string;
 city?: string;
 vehicle?: VehicleType | null;
@@ -1338,16 +1339,16 @@ return;
 }
 setIntakeData((prev) => ({ ...prev, name: trimmed }));
 setIntakeStep('email');
-injectBotMessage(`Tack ${trimmed}! Vad är din e-postadress?`);
+injectBotMessage(`Tack ${trimmed}! Vad är din e-postadress? Skriv adressen, **"nej"** eller **"hoppa över"**.`);
 break;
 }
 case 'email': {
-const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-if (!emailRegex.test(trimmed)) {
-injectBotMessage('Det verkar inte vara en giltig e-postadress. Försök igen.');
+const emailResult = resolveOptionalEmail(trimmed);
+if (!emailResult.valid) {
+injectBotMessage('Ange en giltig e-postadress, **"nej"** eller **"hoppa över"**.');
 return;
 }
-setIntakeData((prev) => ({ ...prev, email: trimmed }));
+setIntakeData((prev) => ({ ...prev, email: emailResult.email ?? null }));
 setIntakeStep('phone');
 injectBotMessage('Tack! Vill du lägga till ett mobilnummer? Skriv numret, **"nej"** eller **"hoppa över"**.');
 break;
@@ -1938,7 +1939,7 @@ general = false,
 categoryId,
 }: {
 name?: string;
-email?: string;
+email?: string | null;
 phone?: string;
 city?: string;
 vehicle?: VehicleType | null;
@@ -1946,7 +1947,7 @@ general?: boolean;
 categoryId?: string;
 }) => {
 // Kund som valt "Övrigt / Allmän fråga" eskalerar utan fordon (general=true).
-if (!name || !email || !city || (!vehicle && !general)) return;
+if (!name || !city || (!vehicle && !general)) return;
 
 const selectedOffice = city === 'Centralsupport' ? undefined : findSafeOfficeFromLiveContext(offices, city, context);
 const split = splitCityArea(city);
@@ -2144,7 +2145,7 @@ vehicle: finalVehicle,
 // Tyst eskalering — skickar eskaleringsmeddelandet till backend utan att
 // visa "Jag vill prata med en människa"-bubblan eller backendsvaret i UI.
 // Intake-flödet visar redan "Kopplar dig nu till X..." som bekräftelse.
-const sendEscalationSilently = async (contextWithContact: ChatContext & { name?: string; email?: string; phone?: string }) => {
+const sendEscalationSilently = async (contextWithContact: ChatContext & { name?: string; email?: string | null; phone?: string }) => {
 try {
 const response = await sendMessage('Jag vill prata med en människa', false, contextWithContact);
 notifySiblingTabs();

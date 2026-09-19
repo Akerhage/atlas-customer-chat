@@ -286,11 +286,20 @@ export function buildIntakeOrder(
   return ["name", "email", "phone", "office", "vehicle", "handoff"];
 }
 
+const OPTIONAL_CONTACT_SKIP_WORDS = ["hoppa över", "hoppa over", "skip", "-", "nej", "nej tack", "no", "n", "ingen", "inget", "inte nu", "jag vill vara anonym"];
+
+export function resolveOptionalEmail(input: string): { valid: boolean; email?: string } {
+  const trimmed = input.trim();
+  const normalizedEmailSkip = trimmed.toLowerCase().replace(/[.!?]+$/g, "").trim();
+  if (OPTIONAL_CONTACT_SKIP_WORDS.includes(normalizedEmailSkip)) return { valid: true };
+
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed) ? { valid: true, email: trimmed } : { valid: false };
+}
+
 export function resolveOptionalPhone(input: string): { valid: boolean; phone?: string } {
   const trimmed = input.trim();
   const normalizedPhoneSkip = trimmed.toLowerCase().replace(/[.!?]+$/g, "").trim();
-  const skipWords = ["hoppa över", "hoppa over", "skip", "-", "nej", "nej tack", "no", "n", "ingen", "inget", "inte nu"];
-  if (skipWords.includes(normalizedPhoneSkip)) return { valid: true };
+  if (OPTIONAL_CONTACT_SKIP_WORDS.includes(normalizedPhoneSkip)) return { valid: true };
 
   const digits = trimmed.replace(/\D/g, "").slice(0, 10);
   return digits.length >= 8 ? { valid: true, phone: digits } : { valid: false };

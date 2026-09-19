@@ -156,7 +156,14 @@ describe("AtlasChat intake-order contract", () => {
 
   it("keeps the slice-24 handoff implementation byte-identical", () => {
     expect(blockHash("const finishIntakeHandoff", "const handleChoiceSelected"))
-      .toBe("88318a8e03322d4fcfaa3e85fffa976d62468fe103d57338821b2edbdea9e885");
+      .toBe("d2b3a764671e9615029b9b3e2bade090dfe1aff51d045f56897376982bd5d834");
+  });
+
+  it("keeps live escalation possible when email is skipped", () => {
+    expect(source).toContain('resolveOptionalEmail,');
+    expect(source).toContain('email?: string | null;');
+    expect(source).toContain('email: emailResult.email ?? null');
+    expect(source).toContain("if (!name || !city || (!vehicle && !general)) return;");
   });
 
   // 7 -> 8 i KAN-275 rev 2: startBlockedFreeTextFlow() startar ärendevägen när

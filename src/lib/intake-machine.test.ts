@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCategoryChoices, buildIntakeOrder, buildLegacyContextBarCategoryChoices, filterCategoryChoicesForOffice, resolveIntakeMode, resolveOptionalPhone, resolveWidgetTexts } from "./intake-machine";
+import { buildCategoryChoices, buildIntakeOrder, buildLegacyContextBarCategoryChoices, filterCategoryChoicesForOffice, resolveIntakeMode, resolveOptionalEmail, resolveOptionalPhone, resolveWidgetTexts } from "./intake-machine";
 import type { EffectiveCategory, TenantProfile } from "./tenant-capabilities";
 
 const standardProfile: TenantProfile = {
@@ -228,6 +228,16 @@ describe("intake order", () => {
     expect(buildIntakeOrder("category_first", 0)).toEqual([
       "office", "category", "name", "email", "phone", "handoff",
     ]);
+  });
+
+  it.each(["hoppa över", "hoppa over", "nej", "nej tack", "inte nu", "-", "jag vill vara anonym"])(
+    "keeps email optional for %s",
+    (input) => expect(resolveOptionalEmail(input)).toEqual({ valid: true }),
+  );
+
+  it("keeps the existing email validation when the customer provides an address", () => {
+    expect(resolveOptionalEmail("kund@example.se")).toEqual({ valid: true, email: "kund@example.se" });
+    expect(resolveOptionalEmail("inte en mail")).toEqual({ valid: false });
   });
 
   it.each(["hoppa över", "hoppa over", "nej", "nej tack", "inte nu", "-"])(
