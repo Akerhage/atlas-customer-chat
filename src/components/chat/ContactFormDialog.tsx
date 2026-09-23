@@ -69,14 +69,13 @@ const DEFAULT_CITY = "Centralsupport";
 const DEFAULT_VEHICLE = "BIL";
 const GENERAL_VEHICLE_VALUE = "OVRIGT";
 const HTML_IMAGE_PASTE_TOAST_ID = "atlas-form-html-image-paste";
-const VEHICLE_OPTIONS: { value: ActiveVehicle | typeof GENERAL_VEHICLE_VALUE; label: string }[] = [
-{ value: GENERAL_VEHICLE_VALUE, label: "Övrigt / Allmän fråga" },
-{ value: "BIL", label: "Bil (B)" },
-{ value: "MC", label: "Motorcykel (A)" },
-{ value: "AM", label: "Moped (AM)" },
-{ value: "LASTBIL", label: "Lastbil / Buss" },
-{ value: "SLÄP", label: "Släp (BE/B96)" },
-];
+const FALLBACK_VEHICLE_LABELS: Record<ActiveVehicle, string> = {
+  BIL: "Bil",
+  MC: "MC",
+  AM: "Moped",
+  LASTBIL: "Tung trafik",
+  SLÄP: "Släp",
+};
 
 const getOfficeDisplayName = (office: any) => {
 const city = String(office?.city || '').trim();
@@ -149,6 +148,15 @@ const selectedFormOffice = findSafeOfficeByLabel(offices, formData.city);
 const filteredCategoryChoices = categoryFormMode
 ? filterCategoryChoicesForOffice(categoryChoices, selectedFormOffice?.categories_offered)
 : categoryChoices;
+const vehicleOptions: { value: ActiveVehicle | typeof GENERAL_VEHICLE_VALUE; label: string }[] = [
+{ value: GENERAL_VEHICLE_VALUE, label: "Övrigt / Allmän fråga" },
+...categoryChoices
+.filter((option) => activeVehicles.includes(option.value as ActiveVehicle))
+.map((option) => ({ value: option.value as ActiveVehicle, label: option.label })),
+...activeVehicles
+.filter((vehicle) => !categoryChoices.some((option) => option.value === vehicle))
+.map((vehicle) => ({ value: vehicle, label: FALLBACK_VEHICLE_LABELS[vehicle] || vehicle })),
+];
 useEffect(() => {
 if (open) {
 const fallbackVehicle = activeVehicles.includes(DEFAULT_VEHICLE) ? DEFAULT_VEHICLE : activeVehicles[0] || DEFAULT_VEHICLE;
@@ -425,11 +433,11 @@ aria-label="Telefonnummer"
 </div>
 ) : (
 <div className="space-y-2">
-<Label className="flex items-center gap-2 font-bold text-primary-ink"><Car className="h-4 w-4" /> Fordon *</Label>
+<Label className="flex items-center gap-2 font-bold text-primary-ink"><Car className="h-4 w-4" /> {formLabels.category} *</Label>
 <Select value={formData.vehicle} onValueChange={(v) => setFormData({ ...formData, vehicle: v })}>
-<SelectTrigger><SelectValue placeholder="Välj fordonstyp" /></SelectTrigger>
+<SelectTrigger><SelectValue placeholder={`Välj ${formLabels.category.toLowerCase()}`} /></SelectTrigger>
 <SelectContent className="max-w-[calc(100vw-1rem)]">
-{VEHICLE_OPTIONS.filter((option) => option.value === GENERAL_VEHICLE_VALUE || activeVehicles.includes(option.value as ActiveVehicle)).map((option) => (
+{vehicleOptions.map((option) => (
 <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
 ))}
 </SelectContent>

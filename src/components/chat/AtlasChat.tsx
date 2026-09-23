@@ -241,24 +241,41 @@ unit_id: matches[0].routing_tag || null
 return value ? { ...splitCityArea(value), unit_id: null } : { city: null, area: null, unit_id: null };
 }
 
-const VEHICLE_CHOICES: { label: string; value: VehicleType }[] = [
-{ label: 'Bil (B)',        value: 'BIL'     },
-{ label: 'Motorcykel (A)', value: 'MC'      },
-{ label: 'Moped (AM)',     value: 'AM'      },
-{ label: 'Lastbil / Buss', value: 'LASTBIL' },
-{ label: 'Släp (BE/B96)',  value: 'SLÄP'    },
-];
-
-const VEHICLE_HANDOFF_LABELS: Record<VehicleType, string> = {
+const FALLBACK_VEHICLE_LABELS: Record<VehicleType, string> = {
 BIL: 'Bil',
 MC: 'MC',
 AM: 'Moped',
-LASTBIL: 'Lastbil / Buss',
+LASTBIL: 'Tung trafik',
 SLÄP: 'Släp',
 };
 
 function getSafeVehicle(value: string | null | undefined): VehicleType | null {
-return VEHICLE_CHOICES.some((choice) => choice.value === value) ? value as VehicleType : null;
+return ['BIL', 'MC', 'AM', 'LASTBIL', 'SLÄP'].includes(String(value || '')) ? value as VehicleType : null;
+}
+
+function getCategoryLabelForVehicle(
+categoryChoices: { label: string; value: string }[],
+vehicle: VehicleType | string | null | undefined
+): string {
+const safeVehicle = getSafeVehicle(vehicle);
+if (!safeVehicle) return String(vehicle || '');
+return categoryChoices.find((choice) => choice.value === safeVehicle)?.label
+|| FALLBACK_VEHICLE_LABELS[safeVehicle]
+|| safeVehicle;
+}
+
+function buildActiveVehicleChoices(
+categoryChoices: { label: string; value: string }[],
+activeVehicles: VehicleType[]
+): { label: string; value: VehicleType }[] {
+const activeSet = new Set(activeVehicles);
+const ordered = categoryChoices
+.map((choice) => getSafeVehicle(choice.value))
+.filter((vehicle): vehicle is VehicleType => !!vehicle && activeSet.has(vehicle));
+for (const vehicle of activeVehicles) {
+if (!ordered.includes(vehicle)) ordered.push(vehicle);
+}
+return ordered.map((vehicle) => ({ value: vehicle, label: getCategoryLabelForVehicle(categoryChoices, vehicle) }));
 }
 
 const CROSS_TAB_SYNC_CHANNEL = 'atlas_customer_chat_sync';
@@ -388,7 +405,7 @@ const [generalMode, setGeneralMode] = useState(false);
 const [companyName, setCompanyName] = useState<string | null>(null);
 const [supportDisplayName, setSupportDisplayName] = useState<string | null>(null);
 const [companyLogoUrl, setCompanyLogoUrl] = useState<string | null>(null);
-const [activeVehicles, setActiveVehicles] = useState<VehicleType[]>(['BIL', 'MC', 'AM', 'LASTBIL', 'SLÄP']);
+const [activeVehicles, setActiveVehicles] = useState<VehicleType[]>(['BIL', 'MC', 'AM', 'SLÄP', 'LASTBIL']);
 const [quickQuestions, setQuickQuestions] = useState<Array<string | QuickQuestionRecord>>([]);
 const [intakeMode, setIntakeMode] = useState<IntakeMode>('legacy');
 const [tenantProfile, setTenantProfile] = useState<TenantProfile | null>(() => readCachedTenantProfile() ?? null);
@@ -408,7 +425,7 @@ const intakeStepRef = useRef(intakeStep);
 humanModeRef.current = humanMode;
 intakeStepRef.current = intakeStep;
 
-const activeVehicleChoices = VEHICLE_CHOICES.filter(choice => activeVehicles.includes(choice.value));
+const activeVehicleChoices = buildActiveVehicleChoices(categoryChoices, activeVehicles);
 const getSafeActiveVehicle = (value: string | null | undefined): VehicleType | null => {
 const vehicle = getSafeVehicle(value);
 return vehicle && activeVehicles.includes(vehicle) ? vehicle : null;
@@ -1972,7 +1989,7 @@ const targetAgentId = selectedOffice ? selectedOffice.routing_tag : null;
 
 injectBotMessage(general
 ? `Tack! Kopplar dig nu till **${handoffCityLabel}**... 🔗`
-: `Tack! Kopplar dig nu till **${handoffCityLabel}** för ${VEHICLE_HANDOFF_LABELS[vehicle as VehicleType]}... 🔗`);
+: `Tack! Kopplar dig nu till **${handoffCityLabel}** för ${getCategoryLabelForVehicle(categoryChoices, vehicle)}... 🔗`);
 
 setSelectedCity(handoffCityLabel);
 if (general) {
@@ -2012,14 +2029,6 @@ setIntakeData({});
 };
 
 const handleChoiceSelected = (value: string) => {
-const vehicleLabels: Record<string, string> = {
-BIL: 'Bil (B)',
-MC: 'Motorcykel (A)',
-AM: 'Moped (AM)',
-LASTBIL: 'Lastbil / Buss',
-SLÄP: 'Släp (BE/B96)',
-};
-
 // "Hoppa över" på de valfria kontaktstegen (e-post/mobil) beter sig exakt som att skriva "hoppa över".
 // Knappen bär sitt steg: en gammal knapp längre upp får aldrig hoppa över ett annat, senare steg.
 const skipStep = resolveIntakeSkipChoice(value);
@@ -2140,7 +2149,7 @@ setIntakeStep('office');
 injectBotMessage(widgetTexts.officeQuestion, getOfficeChoices());
 
 } else if (intakeStep === 'vehicle') {
-injectUserMessage(vehicleLabels[value] || value);
+injectUserMessage(getCategoryLabelForVehicle(categoryChoices, value));
 setIntakeStep(null);
 
 const finalVehicle = getSafeActiveVehicle(value);
@@ -2254,6 +2263,13 @@ const contextBarUnitChoices = standardSelfserviceAvailable
 const label = getOfficeDisplayName(office);
 return { label, value: `${LEGACY_UNIT_PREFIX}${label}` };
 });
+const lockedContextOffice = findSafeOfficeFromLiveContext(offices, selectedCity, context);
+const lockedContextUnitLabel = lockedContextOffice
+? getOfficeDisplayName(lockedContextOffice)
+: formatCityAreaLabel(context.city || null, context.area || null);
+const lockedContextVehicleLabel = getSafeActiveVehicle(context.vehicle)
+? getCategoryLabelForVehicle(categoryChoices, context.vehicle)
+: null;
 
 // Patriks beslut fråga 4: väljaren visas alltid OCH är FÖRVALD när det bara finns
 // ett alternativ. Widgeten behandlar redan singletonenheten som vald på andra ställen
@@ -2263,7 +2279,7 @@ const singletonUnitLabel = offices.length === 1 ? getOfficeDisplayName(offices[0
 const contextBarUnitLabel = standardSelfserviceAvailable
 ? (selfserviceUnitId === STANDARD_CENTRAL_SUPPORT
 ? STANDARD_CENTRAL_SUPPORT_LABEL
-: (selfserviceUnitLabel || singletonUnitLabel))
+: (selfserviceUnitLabel || lockedContextUnitLabel || singletonUnitLabel))
 : (selectedCity || singletonUnitLabel);
 
 // 🔴 Samma enhet ska ge samma lista före och efter klicket. Enhetspillret visar
@@ -2273,6 +2289,7 @@ const contextBarUnitLabel = standardSelfserviceAvailable
 // efter, på en box med EN enhet. Pillret sa alltså en sak och listan en annan.
 // Listan läser därför samma effektiva enhet som pillret visar.
 const effectiveContextUnitId = selfserviceUnitId
+|| lockedContextOffice?.routing_tag
 || (offices.length === 1 ? offices[0].routing_tag : null);
 
 const contextBarCategoryChoices = standardSelfserviceAvailable
@@ -2284,7 +2301,7 @@ LEGACY_CATEGORY_GENERAL,
 );
 
 const contextBarCategoryLabel = standardSelfserviceAvailable
-? selfserviceCategoryLabel
+? (selfserviceCategoryLabel || lockedContextVehicleLabel)
 : (generalMode
 ? 'Övrigt'
 : (categoryChoices.find(choice => choice.value === selectedVehicle)?.label || null));

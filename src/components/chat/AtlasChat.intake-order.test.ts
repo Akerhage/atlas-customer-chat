@@ -154,9 +154,15 @@ describe("AtlasChat intake-order contract", () => {
     expect(chatHeaderSource).toContain("min-[560px]:block");
   });
 
-  it("keeps the slice-24 handoff implementation byte-identical", () => {
-    expect(blockHash("const finishIntakeHandoff", "const handleChoiceSelected"))
-      .toBe("d2b3a764671e9615029b9b3e2bade090dfe1aff51d045f56897376982bd5d834");
+  it("keeps the slice-24 handoff routing stable while deriving category labels from tenant config", () => {
+    const block = source.slice(
+      source.indexOf("const finishIntakeHandoff"),
+      source.indexOf("const handleChoiceSelected")
+    );
+    expect(block).toContain("agent_id: targetAgentId");
+    expect(block).toContain("sendEscalationSilently(general");
+    expect(block).toContain("getCategoryLabelForVehicle(categoryChoices, vehicle)");
+    expect(block).not.toContain("VEHICLE_HANDOFF_LABELS");
   });
 
   it("keeps live escalation possible when email is skipped", () => {
@@ -299,11 +305,28 @@ describe("AtlasChat intake-order contract", () => {
     // Pillret och listan måste läsa SAMMA enhet, annars filtrerar listan inte förrän
     // kunden klickat på den enhet pillret redan visar som vald (mätt på Box3: `Bil`
     // försvann först efter klicket).
+    expect(source).toContain("const lockedContextOffice = findSafeOfficeFromLiveContext(offices, selectedCity, context);");
     expect(source).toContain("const effectiveContextUnitId = selfserviceUnitId");
+    expect(source).toContain("|| lockedContextOffice?.routing_tag");
     expect(source).toContain("getStandardCategoryChoices(effectiveContextUnitId)");
     expect(source).toContain("getCategoryChoicesForOfficeLabel(selectedCity || context.city)");
     expect(source).toContain("buildLegacyContextBarCategoryChoices(");
     expect(source).toContain("findSafeOfficeFromLiveContext(offices, value, context) || singletonOffice");
+  });
+
+  it("derives customer-facing vehicle labels from tenant categories, not fixed traffic copy", () => {
+    expect(source).toContain("function buildActiveVehicleChoices(");
+    expect(source).toContain("getCategoryLabelForVehicle(categoryChoices, vehicle)");
+    expect(source).toContain("getCategoryLabelForVehicle(categoryChoices, value)");
+    expect(contactFormSource).toContain("const vehicleOptions:");
+    expect(contactFormSource).toContain("label: option.label");
+
+    for (const staleLiteral of ["label: 'Bil (B)'", 'label: "Bil (B)"', "label: 'Motorcykel (A)'", 'label: "Motorcykel (A)"', "label: 'Lastbil / Buss'", 'label: "Lastbil / Buss"', "label: 'Släp (BE/B96)'", 'label: "Släp (BE/B96)"']) {
+      expect(source).not.toContain(staleLiteral);
+      expect(contactFormSource).not.toContain(staleLiteral);
+    }
+    expect(contactFormSource).not.toContain('placeholder="Välj fordonstyp"');
+    expect(contactFormSource).not.toContain("> Fordon *</Label>");
   });
   it("holds the three context pills to identical widget-width measurements", () => {
     // KAN-119 (2026-08-20): kontrollraden bröt till TVÅ rader i den 380px breda

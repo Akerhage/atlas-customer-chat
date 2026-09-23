@@ -123,6 +123,30 @@ describe("resolveEffectiveCategories", () => {
     ]);
   });
 
+  it("orders traffic vehicle categories by registry order while active_vehicles owns visibility", () => {
+    expect(resolveEffectiveCategories(fallbackProfile, [
+      { id: "LASTBIL", label: "Tung trafik", icon: "TRUCK", active: true },
+      { id: "SLÄP", label: "Släp", icon: "TRAILER", active: true },
+      { id: "BIL", label: "Bil", icon: "CAR", active: true },
+      { id: "AM", label: "Moped", icon: "MOPED", active: true },
+      { id: "MC", label: "Motorcykel", icon: "BIKE", active: true },
+    ], ["BIL", "MC", "AM", "LASTBIL", "SLÄP"])).toEqual([
+      { id: "LASTBIL", label: "Tung trafik", icon: "TRUCK", active: true },
+      { id: "SLÄP", label: "Släp", icon: "TRAILER", active: true },
+      { id: "BIL", label: "Bil", icon: "CAR", active: true },
+      { id: "AM", label: "Moped", icon: "MOPED", active: true },
+      { id: "MC", label: "Motorcykel", icon: "BIKE", active: true },
+    ]);
+
+    expect(resolveEffectiveCategories(fallbackProfile, [
+      { id: "LASTBIL", label: "Tung trafik", icon: "TRUCK", active: true },
+      { id: "SLÄP", label: "Släp", icon: "TRAILER", active: true },
+    ], ["BIL", "SLÄP"])).toEqual([
+      { id: "SLÄP", label: "Släp", icon: "TRAILER", active: true },
+      { id: "BIL", label: "BIL", icon: "BIL", active: true },
+    ]);
+  });
+
   // #331: en trafikskolas EGNA kategorier ska nå kunden, utan att fordonsnycklarnas
   // ägarskap ändras. Livemätt orsak: servern släppte igenom EKONOMI men widgeten
   // härledde listan ur active_vehicles och visade den aldrig.

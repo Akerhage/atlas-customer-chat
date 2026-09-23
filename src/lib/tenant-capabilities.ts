@@ -109,12 +109,22 @@ export function resolveEffectiveCategories(
     // Standard läser category_registry.active). Endast ETIKETTEN och IKONEN hämtas ur
     // registret, och bara när registret faktiskt känner till id:t. Saknas posten
     // faller vi tillbaka på id:t precis som förut.
+    const activeVehicleSet = new Set(activeVehicles.map((vehicle) => String(vehicle)));
     const registryById = new Map(registry.map((entry) => [entry.id, entry]));
-    const vehicleCategories = activeVehicles.map((vehicle) => {
-      const id = String(vehicle);
-      const known = registryById.get(id);
-      return { id, label: known?.label || id, icon: known?.icon || id, active: true };
-    });
+    const registryVehicleCategories = registry
+      .filter((entry) => MOTOR_VEHICLE_KEYS.has(entry.id) && activeVehicleSet.has(entry.id))
+      .map((entry) => ({ id: entry.id, label: entry.label, icon: entry.icon, active: true }));
+    const missingRegistryVehicles = activeVehicles
+      .map((vehicle) => String(vehicle))
+      .filter((vehicle) => !registryById.has(vehicle))
+      .map((vehicle) => ({ id: vehicle, label: vehicle, icon: vehicle, active: true }));
+    const vehicleCategories = registryVehicleCategories.length
+      ? [...registryVehicleCategories, ...missingRegistryVehicles]
+      : activeVehicles.map((vehicle) => {
+        const id = String(vehicle);
+        const known = registryById.get(id);
+        return { id, label: known?.label || id, icon: known?.icon || id, active: true };
+      });
 
     // #331 (Patriks beslut 2026-08-19): en trafikskola ska kunna skapa EGNA kategorier
     // och nå kunden med dem — *"oavsett standard eller trafik så skall det inte vara
