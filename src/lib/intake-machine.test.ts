@@ -374,7 +374,7 @@ describe("resolveWidgetTexts — tenantens enhetsord (#538)", () => {
     schema_version: 1,
     edition: "trafikskola",
     modules: { structured_answers: true, industry_rag: true },
-    labels: { unit: "Avdelning", unit_plural: "Avdelningar" },
+    labels: { unit: "Avdelning", unit_plural: "Avdelningar", category: "Utbud" },
   };
 
   it("skriver ut tenantens egna ord i trafikcopyn", () => {
@@ -386,6 +386,7 @@ describe("resolveWidgetTexts — tenantens enhetsord (#538)", () => {
     const units = sandboxProfile.labels!.unit_plural!.toLocaleLowerCase("sv-SE");
     expect(texts.welcomeAiOn).toContain(`utbildningar och ${units}`);
     expect(texts.formUnitLabel).toBe(sandboxProfile.labels!.unit);
+    expect(texts.formCategoryLabel).toBe(sandboxProfile.labels!.category);
 
     // Negativ vakt PARAD med positivt bevis ovan.
     expect(all).not.toContain("kontor");

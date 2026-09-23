@@ -183,6 +183,7 @@ export function resolveWidgetTexts(profile: TenantProfile | null | undefined, co
       welcomeAiOff: applyUnitWords(LEGACY_TEXTS.welcomeAiOff.replace("Hej och välkommen till oss! 👋", greeting), profile),
       officeQuestion: applyUnitWords(LEGACY_TEXTS.officeQuestion, profile),
       formUnitLabel: unitWord,
+      formCategoryLabel: profile?.labels?.category ?? LEGACY_TEXTS.formCategoryLabel,
     };
   }
   const standardTexts: WidgetTexts = {
