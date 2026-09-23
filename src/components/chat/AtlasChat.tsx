@@ -802,8 +802,8 @@ return { label: name, value: name };
 //
 // 🔴 STANDARD_CENTRAL_SUPPORT-vägen i handleStandardChoice står kvar med flit:
 // gamla sessioner kan ha valet i sin historik och måste fortsätta fungera.
-const getStandardUnitChoices = (): { label: string; value: string; fullWidth?: boolean }[] =>
-offices.map((office) => ({
+const getStandardUnitChoices = (unitOffices: Office[] = offices): { label: string; value: string; fullWidth?: boolean }[] =>
+unitOffices.map((office) => ({
 label: getOfficeDisplayName(office),
 value: unitChoiceValue(office.routing_tag),
 }));
@@ -816,6 +816,12 @@ filterCategoryChoicesForOffice(categoryChoices, office?.categories_offered);
 // erbjöd annars Bil/MC/Moped.
 const getVehicleChoicesForOffice = (office: Office | null | undefined) =>
 filterCategoryChoicesForOffice(activeVehicleChoices, office?.categories_offered);
+
+// KAN-402 (AT-39): ett redan valt fordon (t.ex. från kontrollraden) följer bara med till ett
+// kontor som erbjuder det. Box1: "Kopplar dig nu till Göteborg - Kungälv för Bil" fast
+// Kungälv bara har MC. Okänt utbud (fält saknas) släpper igenom som förut.
+const vehicleOfferedByOffice = (vehicle: VehicleType | null | undefined, office: Office | null | undefined) =>
+!!vehicle && getVehicleChoicesForOffice(office).some((choice) => choice.value === vehicle);
 
 const getCategoryChoicesForOfficeLabel = (value: string | null | undefined) => {
 if (normalizeOfficeLabel(value) === normalizeOfficeLabel('Centralsupport')) return categoryChoices;
@@ -1439,12 +1445,13 @@ categoryId: selectedCategoryId,
 return;
 }
 
-if (safeOffice && (safeVehicle || isGeneral)) {
+const officeSafeVehicle = safeOffice && vehicleOfferedByOffice(safeVehicle, safeOffice) ? safeVehicle : null;
+if (safeOffice && (officeSafeVehicle || isGeneral)) {
 setIntakeStep(null);
 finishIntakeHandoff({
 ...nextIntakeData,
 city: getOfficeDisplayName(safeOffice),
-vehicle: isGeneral ? null : safeVehicle,
+vehicle: isGeneral ? null : officeSafeVehicle,
 general: isGeneral,
 });
 return;
@@ -2111,7 +2118,9 @@ return;
 }
 // Övrigt-kund tvingas aldrig välja fordon efter kontorsvalet — avsluta direkt som Övrigt.
 const isGeneral = generalMode || context.vehicle_choice === 'OVRIGT';
-const safeVehicle = isGeneral ? null : getSafeActiveVehicle(intakeData.vehicle);
+const intakeOffice = findSafeOfficeFromLiveContext(offices, value, context) || singletonOffice || undefined;
+const candidateVehicle = isGeneral ? null : getSafeActiveVehicle(intakeData.vehicle);
+const safeVehicle = vehicleOfferedByOffice(candidateVehicle, intakeOffice) ? candidateVehicle : null;
 if (safeVehicle || isGeneral) {
 setIntakeStep(null);
 finishIntakeHandoff({
@@ -2135,9 +2144,7 @@ setIntakeStep('category');
 injectBotMessage('Vad gäller ärendet?', categoryChoicesForOffice);
 return;
 }
-const vehicleChoicesForOffice = getVehicleChoicesForOffice(
-findSafeOfficeFromLiveContext(offices, value, context) || singletonOffice || undefined
-);
+const vehicleChoicesForOffice = getVehicleChoicesForOffice(intakeOffice);
 if (vehicleChoicesForOffice.length === 0) {
 setIntakeStep(null);
 finishIntakeHandoff({ ...intakeData, city: value, vehicle: null, general: true });
@@ -2277,9 +2284,22 @@ const showContextBar = !isArchived && !humanMode && !intakeStep;
 const contextBarUnitWord = resolveChatUnitWord(tenantProfile);
 const contextBarCategoryWord = resolveChatCategoryWord(tenantProfile);
 
+// KAN-402 (AT-40, Patrik 2026-09-23): väljs utbud först ska kontorslistan bara visa enheter som
+// erbjuder det (Box1: "Tung Trafik" ⇒ bara kontoren med lastbil). Läser samma val som pillret
+// visar. Samma utbudsregel som intaget: saknat categories_offered = okänt utbud ⇒ visas.
+// Blir listan tom visas alla, så att menyn aldrig blir tom.
+const contextBarSelectedCategoryId = standardSelfserviceAvailable
+? (selectedCategoryId || getSafeActiveVehicle(context.vehicle) || null)
+: (generalMode ? null : (selectedVehicle || null));
+const officesForContextCategory = contextBarSelectedCategoryId
+? offices.filter((office) => !Array.isArray(office.categories_offered)
+|| office.categories_offered.map((id) => String(id || '').trim()).includes(contextBarSelectedCategoryId))
+: offices;
+const contextBarOffices = officesForContextCategory.length > 0 ? officesForContextCategory : offices;
+
 const contextBarUnitChoices = standardSelfserviceAvailable
-? getStandardUnitChoices()
-: offices.map((office) => {
+? getStandardUnitChoices(contextBarOffices)
+: contextBarOffices.map((office) => {
 const label = getOfficeDisplayName(office);
 return { label, value: `${LEGACY_UNIT_PREFIX}${label}` };
 });

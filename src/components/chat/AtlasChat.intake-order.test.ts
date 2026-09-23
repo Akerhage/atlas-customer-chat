@@ -540,7 +540,8 @@ describe("AtlasChat intake-order contract", () => {
     const block = source.slice(start, end);
 
     // Enhetslistan bär bara riktiga enheter.
-    expect(block).toContain("offices.map((office) => ({");
+    // KAN-402 (AT-40): listan tar nu de kontor som erbjuder valt utbud (default: alla).
+    expect(block).toContain("unitOffices.map((office) => ({");
     expect(block).not.toContain("STANDARD_CENTRAL_SUPPORT_LABEL");
     expect(block).not.toContain("fullWidth: true");
 
