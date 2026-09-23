@@ -811,6 +811,12 @@ value: unitChoiceValue(office.routing_tag),
 const getCategoryChoicesForOffice = (office: Office | null | undefined) =>
 filterCategoryChoicesForOffice(categoryChoices, office?.categories_offered);
 
+// KAN-402 (AT-11, Ledarverifiering): intagets fordonssteg i legacy-läget filtreras på det valda
+// kontorets utbud, samma producent som kontrollraden. Sandbox "Östra Trafikskolan" (bara BIL)
+// erbjöd annars Bil/MC/Moped.
+const getVehicleChoicesForOffice = (office: Office | null | undefined) =>
+filterCategoryChoicesForOffice(activeVehicleChoices, office?.categories_offered);
+
 const getCategoryChoicesForOfficeLabel = (value: string | null | undefined) => {
 if (normalizeOfficeLabel(value) === normalizeOfficeLabel('Centralsupport')) return categoryChoices;
 const office = findSafeOfficeFromLiveContext(offices, value, context) || singletonOffice || undefined;
@@ -1445,8 +1451,14 @@ return;
 }
 
 if (safeOffice && !isGeneral) {
+const vehicleChoicesForOffice = getVehicleChoicesForOffice(safeOffice);
+if (vehicleChoicesForOffice.length === 0) {
+setIntakeStep(null);
+finishIntakeHandoff({ ...nextIntakeData, city: getOfficeDisplayName(safeOffice), vehicle: null, general: true });
+return;
+}
 setIntakeStep('vehicle');
-injectBotMessage('Vad gäller ärendet?', activeVehicleChoices);
+injectBotMessage('Vad gäller ärendet?', vehicleChoicesForOffice);
 return;
 }
 
@@ -2123,8 +2135,16 @@ setIntakeStep('category');
 injectBotMessage('Vad gäller ärendet?', categoryChoicesForOffice);
 return;
 }
+const vehicleChoicesForOffice = getVehicleChoicesForOffice(
+findSafeOfficeFromLiveContext(offices, value, context) || singletonOffice || undefined
+);
+if (vehicleChoicesForOffice.length === 0) {
+setIntakeStep(null);
+finishIntakeHandoff({ ...intakeData, city: value, vehicle: null, general: true });
+return;
+}
 setIntakeStep('vehicle');
-injectBotMessage('Vad gäller ärendet?', activeVehicleChoices);
+injectBotMessage('Vad gäller ärendet?', vehicleChoicesForOffice);
 
 } else if (intakeStep === 'category') {
 const categoryLabel = categoryChoices.find((choice) => choice.value === value)?.label || value;

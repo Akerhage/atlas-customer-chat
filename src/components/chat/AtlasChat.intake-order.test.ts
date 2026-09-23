@@ -325,6 +325,9 @@ describe("AtlasChat intake-order contract", () => {
       expect(source).not.toContain(staleLiteral);
       expect(contactFormSource).not.toContain(staleLiteral);
     }
+    // KAN-402 Ledarverifiering: legacy-intagets fordonssteg ska alltid gå via kontorets utbud.
+    expect(source).not.toContain("injectBotMessage('Vad gäller ärendet?', activeVehicleChoices)");
+    expect(source).toContain("filterCategoryChoicesForOffice(activeVehicleChoices, office?.categories_offered)");
     expect(contactFormSource).not.toContain('placeholder="Välj fordonstyp"');
     expect(contactFormSource).not.toContain("> Fordon *</Label>");
   });
