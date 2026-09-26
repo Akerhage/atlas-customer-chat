@@ -340,13 +340,55 @@ describe("QuickQuestionsButton category builder", () => {
       category!,
       false,
       "MC",
-      "Göteborg - Ullevi"
+      "Göteborg - Ullevi",
+      category!.questionRefs?.[0] ?? null
     );
 
     expect(sent).toEqual([{
       message: storedLabel,
-      context: { vehicle: "MC", city: "Göteborg - Ullevi" },
+      context: {
+        vehicle: "MC",
+        city: "Göteborg - Ullevi",
+        quick_question_ref: {
+          text: storedLabel,
+          section_ref: [{ file: "basfakta_lektioner_paket_mc.json", id: "sec_001" }],
+        },
+      },
     }]);
+  });
+
+  it("sends service_ref metadata with a clicked quick question", () => {
+    const categories = buildQuickQuestionCategories({
+      selectedCity: "Göteborg - Ullevi",
+      selectedVehicle: "BIL",
+      generalMode: false,
+      selectedOffice: { city: "Göteborg", area: "Ullevi" },
+      availableVehicles: ["BIL"],
+      quickQuestions: [{
+        text: "Risk 1 BIL",
+        service_ref: { service_id: "bil_risk_1_bil" },
+        vehicles: ["BIL"],
+        scope: "vehicle",
+        group_label: "Tjänster BIL",
+      }],
+    } as Parameters<typeof buildQuickQuestionCategories>[0]);
+    const category = categories.find(item => item.category === "Tjänster BIL");
+    const sent: Array<{ message: string; context: any }> = [];
+
+    sendQuickQuestion(
+      (message, context) => sent.push({ message, context }),
+      category!.questions[0],
+      category!,
+      false,
+      "BIL",
+      "Göteborg - Ullevi",
+      category!.questionRefs?.[0] ?? null
+    );
+
+    expect(sent[0].context.quick_question_ref).toEqual({
+      text: "Risk 1 BIL",
+      service_ref: { service_id: "bil_risk_1_bil" },
+    });
   });
 
   it("keeps repeated customer question labels as separate clickable rows", () => {
@@ -377,9 +419,9 @@ describe("QuickQuestionsButton category builder", () => {
     expect(quickQuestionsSource).toContain("pendingQuickQuestionPressRef");
     expect(quickQuestionsSource).toContain("recordQuestionPointerDown");
     expect(quickQuestionsSource).toContain("resolveQuestionClickTarget");
-    expect(quickQuestionsSource).toContain("onPointerDown={(event) => recordQuestionPointerDown(event, q, cat)}");
+    expect(quickQuestionsSource).toContain("onPointerDown={(event) => recordQuestionPointerDown(event, q, cat, questionIndex)}");
     expect(quickQuestionsSource).toContain("onPointerCancel={clearPendingQuestionPress}");
-    expect(quickQuestionsSource).toContain("handleQuestionClick(resolveQuestionClickTarget(q, cat))");
+    expect(quickQuestionsSource).toContain("handleQuestionClick(resolveQuestionClickTarget(q, cat, questionIndex))");
   });
 
   it("scopes sticky visual hover styling to devices that support hover", () => {

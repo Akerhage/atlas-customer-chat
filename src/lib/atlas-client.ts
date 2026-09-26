@@ -27,6 +27,7 @@ clear_vehicle?: boolean;
 agent_id?: string | null;
 category_id?: string | null;
 unit_id?: string | null;
+quick_question_ref?: QuickQuestionClickRef | null;
 }
 
 export interface ChatRequest {
@@ -461,7 +462,7 @@ export async function sendMessage(
     ownerToken: ownerToken || "",
   };
 
-  if (context && (context.city || context.area || context.vehicle || context.vehicle_choice || context.clear_vehicle || context.agent_id || context.category_id || context.unit_id || context.name || context.email || context.phone)) {
+  if (context && (context.city || context.area || context.vehicle || context.vehicle_choice || context.clear_vehicle || context.agent_id || context.category_id || context.unit_id || context.name || context.email || context.phone || context.quick_question_ref)) {
     const locked_context: any = {
       city: context.city ?? null,
       area: context.area ?? null,
@@ -482,6 +483,7 @@ export async function sendMessage(
     if (locked_context.name) body.name = locked_context.name;
     if (Object.prototype.hasOwnProperty.call(locked_context, "email")) body.email = locked_context.email;
     if (locked_context.phone) body.phone = locked_context.phone;
+    if (context.quick_question_ref) body.quick_question_ref = context.quick_question_ref;
   }
 
 const response = await fetch(`${BASE_URL}/message`, {
@@ -783,10 +785,17 @@ export interface CustomerTemplate {
 
 export type ActiveVehicle = "BIL" | "MC" | "AM" | "LASTBIL" | "SLÄP";
 
+export interface QuickQuestionClickRef {
+  text?: string;
+  section_ref?: Array<{ file: string; id: string }>;
+  service_ref?: { service_id: string };
+}
+
 export interface QuickQuestionRecord {
   text: string;
   locked?: boolean;
   section_ref?: Array<{ file: string; id: string }>;
+  service_ref?: { service_id: string };
   vehicles?: ActiveVehicle[];
   scope?: "general" | "vehicle";
   group_label?: string;
@@ -854,6 +863,10 @@ function normalizeQuickQuestions(value: unknown): Array<string | QuickQuestionRe
             })
             .filter((ref): ref is { file: string; id: string } => Boolean(ref));
           if (refs.length) record.section_ref = refs;
+        }
+        if (raw.service_ref && typeof raw.service_ref === "object" && !Array.isArray(raw.service_ref)) {
+          const serviceId = String((raw.service_ref as Record<string, unknown>).service_id || "").trim().toLowerCase();
+          if (serviceId) record.service_ref = { service_id: serviceId };
         }
         if (Array.isArray(raw.vehicles)) {
           const valid = new Set(DEFAULT_ACTIVE_VEHICLES);

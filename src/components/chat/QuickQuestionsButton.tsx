@@ -11,7 +11,7 @@ PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import type { ActiveVehicle, QuickQuestionRecord } from "@/lib/atlas-client";
-import type { QuestionCategory } from "@/lib/quick-questions-data";
+import type { QuestionCategory, QuickQuestionRef } from "@/lib/quick-questions-data";
 import { menuChoiceValue, type StandardSelfserviceMenuItem } from "@/lib/standard-selfservice-machine";
 import { CANONICAL_VEHICLE_ORDER, VEHICLE_LABELS, officeOffersVehicle } from "@/lib/vehicle-utils";
 
@@ -20,6 +20,7 @@ type VehicleType = ActiveVehicle | null;
 interface QuickQuestionClickTarget {
 question: string;
 category: QuestionCategory;
+questionIndex: number;
 }
 
 interface PendingQuickQuestionPress extends QuickQuestionClickTarget {
@@ -31,7 +32,7 @@ clientY: number;
 const QUICK_QUESTION_TOUCH_MOVE_TOLERANCE_PX = 12;
 
 interface QuickQuestionsButtonProps {
-onSendMessage: (message: string, context?: { vehicle: string | null; city: string; vehicle_choice?: string | null; clear_vehicle?: boolean }) => void;
+onSendMessage: (message: string, context?: { vehicle: string | null; city: string; vehicle_choice?: string | null; clear_vehicle?: boolean; quick_question_ref?: QuickQuestionRef | null }) => void;
 onStandardChoice?: (value: string) => void;
 selectedVehicle: VehicleType;
 selectedCity: string | null;
@@ -50,9 +51,17 @@ triggerLabel?: string;
 interface NormalizedQuickQuestion {
 text: string;
 sectionRefBound: boolean;
+clickRef: QuickQuestionRef | null;
 vehicles: ActiveVehicle[];
 scope: "general" | "vehicle";
 groupLabel: string;
+}
+
+function buildQuickQuestionClickRef(question: QuickQuestionRecord): QuickQuestionRef | null {
+const ref: QuickQuestionRef = { text: question.text };
+if (Array.isArray(question.section_ref) && question.section_ref.length > 0) ref.section_ref = question.section_ref;
+if (question.service_ref) ref.service_ref = question.service_ref;
+return ref.section_ref || ref.service_ref ? ref : null;
 }
 
 function normalizeTenantQuickQuestion(question: string | QuickQuestionRecord): NormalizedQuickQuestion | null {
@@ -63,7 +72,8 @@ const vehicles = typeof question === "string" || !Array.isArray(question.vehicle
 : question.vehicles.filter((vehicle, index, arr) => arr.indexOf(vehicle) === index);
 return {
 text,
-sectionRefBound: typeof question !== "string" && Array.isArray(question.section_ref) && question.section_ref.length > 0,
+sectionRefBound: typeof question !== "string" && (Array.isArray(question.section_ref) && question.section_ref.length > 0 || Boolean(question.service_ref)),
+clickRef: typeof question === "string" ? null : buildQuickQuestionClickRef(question),
 vehicles,
 scope: typeof question !== "string" && question.scope === "vehicle" ? "vehicle" : "general",
 groupLabel: typeof question !== "string" && question.group_label?.trim()
@@ -86,6 +96,8 @@ questions: [],
 vehicleContext,
 };
 category.questions.push(question.text);
+category.questionRefs = category.questionRefs ?? [];
+category.questionRefs.push(question.clickRef);
 grouped.set(key, category);
 }
 return Array.from(grouped.values());
@@ -112,14 +124,16 @@ question: string,
 category: QuestionCategory,
 generalMode: boolean,
 selectedVehicle: VehicleType,
-city: string | null
+city: string | null,
+questionRef?: QuickQuestionRef | null
 ): void {
-onSendMessage(question, resolveQuickQuestionContext(
+const context = resolveQuickQuestionContext(
 category,
 generalMode,
 selectedVehicle,
 city
-));
+);
+onSendMessage(question, questionRef ? { ...context, quick_question_ref: questionRef } : context);
 }
 
 interface BuildQuickQuestionCategoriesInput {
@@ -231,12 +245,14 @@ pendingQuickQuestionPressRef.current = null;
 const recordQuestionPointerDown = (
 event: ReactPointerEvent<HTMLButtonElement>,
 question: string,
-category: QuestionCategory
+category: QuestionCategory,
+questionIndex: number
 ) => {
 if (event.pointerType !== "touch" && event.pointerType !== "pen") return;
 pendingQuickQuestionPressRef.current = {
 question,
 category,
+questionIndex,
 pointerId: event.pointerId,
 clientX: event.clientX,
 clientY: event.clientY,
@@ -253,20 +269,21 @@ pendingQuickQuestionPressRef.current = null;
 }
 };
 
-const resolveQuestionClickTarget = (question: string, category: QuestionCategory): QuickQuestionClickTarget => {
+const resolveQuestionClickTarget = (question: string, category: QuestionCategory, questionIndex: number): QuickQuestionClickTarget => {
 const pending = pendingQuickQuestionPressRef.current;
 pendingQuickQuestionPressRef.current = null;
-return pending ? { question: pending.question, category: pending.category } : { question, category };
+return pending ? { question: pending.question, category: pending.category, questionIndex: pending.questionIndex } : { question, category, questionIndex };
 };
 
-const handleQuestionClick = ({ question, category }: QuickQuestionClickTarget) => {
+const handleQuestionClick = ({ question, category, questionIndex }: QuickQuestionClickTarget) => {
 sendQuickQuestion(
 onSendMessage,
 question,
 category,
 generalMode,
 effectiveSelectedVehicle,
-effectiveSelectedCity
+effectiveSelectedCity,
+category.questionRefs?.[questionIndex] ?? null
 );
 
 setOpen(false);
@@ -341,10 +358,10 @@ className={cn(
 key={`question-${idx}-${questionIndex}-${q}`}
 data-quick-question-item="question"
 data-quick-question-value={q}
-onPointerDown={(event) => recordQuestionPointerDown(event, q, cat)}
+onPointerDown={(event) => recordQuestionPointerDown(event, q, cat, questionIndex)}
 onPointerMove={clearQuestionPointerIfMoved}
 onPointerCancel={clearPendingQuestionPress}
-onClick={() => handleQuestionClick(resolveQuestionClickTarget(q, cat))}
+onClick={() => handleQuestionClick(resolveQuestionClickTarget(q, cat, questionIndex))}
 className="w-full text-left px-2 py-2 text-xs rounded-md transition-colors [@media(hover:hover)]:hover:bg-accent [@media(hover:hover)]:hover:text-accent-foreground"
 >
 {q}

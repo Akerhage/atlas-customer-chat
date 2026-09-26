@@ -29,13 +29,14 @@ isLatest?: boolean;
 senderName?: string | null;
 companyName?: string | null;
 choices?: { label: string; value: string; icon?: string; fullWidth?: boolean }[];
+choicesDisabled?: boolean;
 onChoiceSelect?: (value: string) => void;
 onRequestHuman?: () => void;
 humanMode?: boolean;
 onOpenContactForm?: () => void;
 }
 
-export function ChatBubble({ messageId, content, isUser, timestamp, isLatest, senderName, companyName, choices, onChoiceSelect, onRequestHuman, humanMode = false, onOpenContactForm }: ChatBubbleProps) {
+export function ChatBubble({ messageId, content, isUser, timestamp, isLatest, senderName, companyName, choices, choicesDisabled = false, onChoiceSelect, onRequestHuman, humanMode = false, onOpenContactForm }: ChatBubbleProps) {
 // Visa agentens namn om angivet, annars tenantnamnet för AI-svar.
 const displayName = isUser ? 'Du' : (senderName || companyName || 'Atlas');
 const hasLargeChoiceSet = (choices?.length ?? 0) > 12;
@@ -137,9 +138,12 @@ const ChoiceIcon = choice.icon ? resolveCategoryIcon(choice.icon) : null;
 return (
 <button
 key={choice.value}
-onClick={() => onChoiceSelect(choice.value)}
+disabled={choicesDisabled}
+aria-disabled={choicesDisabled}
+onClick={() => { if (!choicesDisabled) onChoiceSelect(choice.value); }}
 className={cn(
 "inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-full bg-primary/10 text-primary-ink border border-primary/20 hover:bg-primary/20 active:scale-95 transition-all duration-150",
+choicesDisabled && "opacity-50 cursor-not-allowed hover:bg-primary/10 active:scale-100",
 choice.fullWidth && "w-full justify-center text-center whitespace-normal"
 )}
 >

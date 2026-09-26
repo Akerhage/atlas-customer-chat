@@ -117,6 +117,7 @@ content: string;
 timestamp: Date;
 senderName?: string | null; // Agentens namn för mänskliga svar (null = Atlas AI)
 choices?: { label: string; value: string; icon?: string; fullWidth?: boolean }[];
+choiceSource?: 'client' | 'engine';
 }
 
 type ApplyArchivedStateOptions = { showEndDialog?: boolean };
@@ -296,6 +297,7 @@ return `tab_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
 const OFFICE_HOURS_NOTICE_ID = 'office-hours-notice';
 const OFFICE_HOURS_REMINDER_PREFIX = 'office-hours-reminder_';
+const OPEN_OFFICE_MENU_VALUE = '__ATLAS_OPEN_OFFICE_MENU__';
 const WIDGET_TEXTS_PROFILE_CACHE_KEY = 'atlas-widget-texts-profile-v1';
 const WIDGET_TEXTS_COMPANY_NAME_CACHE_KEY = 'atlas-widget-texts-company-name-v1';
 
@@ -686,6 +688,7 @@ role: 'assistant' as const,
 content,
 timestamp: new Date(),
 choices,
+choiceSource: 'client',
 },
 ]);
 return id;
@@ -1857,6 +1860,7 @@ role: 'assistant',
 content: response.answer,
 timestamp: new Date(),
 choices: response.choices,
+choiceSource: response.choices?.length ? 'engine' : undefined,
 };
 pendingAssistantScrollRef.current = assistantMessage.id;
 setMessages((prev) => [...prev, assistantMessage]);
@@ -2048,6 +2052,10 @@ setIntakeData({});
 };
 
 const handleChoiceSelected = (value: string) => {
+if (value === OPEN_OFFICE_MENU_VALUE) {
+injectBotMessage(widgetTexts.officeQuestion, getOfficeChoices());
+return;
+}
 // "Hoppa över" på de valfria kontaktstegen (e-post/mobil) beter sig exakt som att skriva "hoppa över".
 // Knappen bär sitt steg: en gammal knapp längre upp får aldrig hoppa över ett annat, senare steg.
 const skipStep = resolveIntakeSkipChoice(value);
@@ -2589,6 +2597,7 @@ isLatest={index === messages.length - 1}
 senderName={message.senderName}
 companyName={companyName}
 choices={message.choices}
+choicesDisabled={message.choiceSource === 'engine' && index !== messages.length - 1}
 onChoiceSelect={isArchived ? undefined : handleChoiceSelected}
 onRequestHuman={handleRequestHuman}
 humanMode={humanMode}

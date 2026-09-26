@@ -499,6 +499,23 @@ describe("AtlasChat intake-order contract", () => {
     expect(source.match(/clearInactivityWarningForCustomerActivity\(\);/g)).toHaveLength(2);
   });
 
+  it("only keeps the latest engine-provided choices clickable", () => {
+    expect(source).toContain("choiceSource: 'client'");
+    expect(source).toContain("choiceSource: response.choices?.length ? 'engine' : undefined");
+    expect(source).toContain("choicesDisabled={message.choiceSource === 'engine' && index !== messages.length - 1}");
+    expect(chatBubbleSource).toContain("disabled={choicesDisabled}");
+  });
+
+  it("opens the office menu choice locally before a server send can happen", () => {
+    expect(source).toContain("const OPEN_OFFICE_MENU_VALUE = '__ATLAS_OPEN_OFFICE_MENU__';");
+    const start = source.indexOf("const handleChoiceSelected = (value: string) => {");
+    const standardBranch = source.indexOf("if (standardSelfserviceAvailable", start);
+    const block = source.slice(start, standardBranch);
+    expect(block).toContain("if (value === OPEN_OFFICE_MENU_VALUE)");
+    expect(block).toContain("injectBotMessage(widgetTexts.officeQuestion, getOfficeChoices());");
+    expect(block).not.toContain("handleSendMessage(value");
+  });
+
   it("keeps the generic selfservice error only for non-archive failures", () => {
     const catchStart = source.indexOf("} catch (error) {", source.indexOf("const handleStandardChoice"));
     const catchEnd = source.indexOf("} finally {", catchStart);
