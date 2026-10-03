@@ -39,11 +39,12 @@ keeps the same bundle safe on `atlas-support.se`, `htig.atlas-support.se`,
 Before a customer chat deploy:
 
 ```powershell
-cd C:\Atlas\tests\kundchatt_runtime_logo_worktree
+cd C:\Atlas\tests\kundchatt_source_code_v7
 git status -sb
 npm run build
 rg -n "mda-logga|mydriving|Hållbara Trafikskolan|ATLAS BASPRODUKT" dist\assets\*.js
 rg -n "tenant-name|company_logo_url" dist\assets\*.js
+.\scripts\sync-dist-to-main.ps1
 ```
 
 Expected result:
