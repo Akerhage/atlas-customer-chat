@@ -609,8 +609,8 @@ describe("AtlasChat intake-order contract", () => {
     expect(pollEnd).toBeGreaterThan(pollStart);
     const block = source.slice(pollStart, pollEnd);
 
-    expect(block).toContain("mapHistoryRole(msg.role) === 'user' ? getOfficeChoiceDisplayLabel(msg.content) : msg.content");
-    expect(block).not.toContain("content: msg.content,");
+    expect(block).toContain("content: msg.content,");
+    expect(source).toContain("buildDisplayMessages(messages, getOfficeChoiceDisplayLabel)");
   });
 
   it("reselects a different category from menu without rewriting the preserved category bubble", () => {

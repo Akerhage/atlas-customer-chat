@@ -121,7 +121,7 @@ describe("AtlasChat archived-session UX", () => {
 
   it("shows a visible log-download action in the archived banner", () => {
     const bannerBlock = sourceBlock("{/* Archived indicator */}", "{/* KAN-120:");
-    expect(bannerBlock).toContain("downloadChatLog(messages)");
+    expect(bannerBlock).toContain("downloadChatLog(displayMessages)");
     expect(bannerBlock).toContain('aria-label="Spara kopia av chattloggen"');
     expect(bannerBlock).toContain('title="Spara kopia av chattloggen"');
     expect(bannerBlock).toContain("Spara kopia");
