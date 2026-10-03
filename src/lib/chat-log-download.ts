@@ -1,3 +1,5 @@
+import { renderChatMarkdownPlainText } from "./chat-markdown-plain-text";
+
 export interface ChatLogMessage {
   id?: string;
   role: "user" | "assistant";
@@ -38,10 +40,7 @@ ${"=".repeat(50)}
       minute: "2-digit",
     });
     const sender = msg.role === "user" ? "Du" : "Atlas";
-    const cleanContent = msg.content
-      .replace(/\*\*(.*?)\*\*/g, "$1")
-      .replace(/\*(.*?)\*/g, "$1")
-      .replace(/^- /gm, "• ");
+    const cleanContent = renderChatMarkdownPlainText(msg.content);
 
     return `[${time}] ${sender}:\n${cleanContent}\n`;
   }).join("\n");

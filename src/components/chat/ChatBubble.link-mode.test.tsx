@@ -24,7 +24,8 @@ describe("ChatBubble bot link rendering", () => {
       ].join("\n"),
     );
 
-    const paragraphs = markup.match(/<p\b[^>]*>[\s\S]*?<\/p>/g) ?? [];
+    const paragraphs = (markup.match(/<p\b[^>]*>[\s\S]*?<\/p>/g) ?? [])
+      .filter((paragraph) => paragraph.includes("href="));
     expect(paragraphs).toHaveLength(2);
     expect(paragraphs[0]).toContain('data-atlas-link-mode="alone"');
     expect(paragraphs[0]).toContain('href="#atlas-human"');

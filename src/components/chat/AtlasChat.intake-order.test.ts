@@ -512,7 +512,9 @@ describe("AtlasChat intake-order contract", () => {
     const standardBranch = source.indexOf("if (standardSelfserviceAvailable", start);
     const block = source.slice(start, standardBranch);
     expect(block).toContain("if (value === OPEN_OFFICE_MENU_VALUE)");
-    expect(block).toContain("injectBotMessage(widgetTexts.officeQuestion, getOfficeChoices());");
+    expect(block).toContain("injectBotMessage(getEngineOfficeMenuQuestion(), getOfficeChoices());");
+    expect(source).toContain("const getEngineOfficeMenuQuestion = () =>");
+    expect(source).toContain("buildOfficeMenuQuestion(resolveChatUnitWord(tenantProfile))");
     expect(block).not.toContain("handleSendMessage(value");
   });
 
@@ -598,6 +600,17 @@ describe("AtlasChat intake-order contract", () => {
     expect(chatHeaderSource).toContain("supportDisplayName={supportDisplayName}");
     expect(contactFormSource).toContain("supportDisplayName?: string | null;");
     expect(contactFormSource).toContain("<SelectItem value={DEFAULT_CITY} className=\"font-bold\">{supportDisplayName || 'Supportavdelningen'}</SelectItem>");
+  });
+
+  it("maps stored office-choice sentinels back to customer-facing labels in history", () => {
+    const pollStart = source.indexOf("const pollHistory = useCallback");
+    const pollEnd = source.indexOf("persistentStatusPollRef.current = pollHistory", pollStart);
+    expect(pollStart).toBeGreaterThanOrEqual(0);
+    expect(pollEnd).toBeGreaterThan(pollStart);
+    const block = source.slice(pollStart, pollEnd);
+
+    expect(block).toContain("mapHistoryRole(msg.role) === 'user' ? getOfficeChoiceDisplayLabel(msg.content) : msg.content");
+    expect(block).not.toContain("content: msg.content,");
   });
 
   it("reselects a different category from menu without rewriting the preserved category bubble", () => {

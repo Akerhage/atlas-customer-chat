@@ -20,6 +20,28 @@ attributes: {
 },
 };
 
+type MarkdownElementNode = {
+tagName?: string;
+type?: string;
+value?: string;
+children?: MarkdownElementNode[];
+};
+
+function classifyParagraphLinkMode(node: MarkdownElementNode | undefined): "alone" | "text" | undefined {
+const children = node?.children || [];
+const hasLink = children.some((child) => child.type === "element" && child.tagName === "a");
+if (!hasLink) return undefined;
+const meaningfulChildren = children.filter((child) => {
+if (child.type === "text") return String(child.value || "").trim().length > 0;
+return true;
+});
+return meaningfulChildren.length === 1 &&
+meaningfulChildren[0]?.type === "element" &&
+meaningfulChildren[0]?.tagName === "a"
+? "alone"
+: "text";
+}
+
 interface ChatBubbleProps {
 messageId: string;
 content: string;
@@ -91,6 +113,10 @@ isUser
 <ReactMarkdown
 rehypePlugins={[rehypeRaw, [rehypeSanitize, sanitizeSchema]]}
 components={{
+p: ({ node, ...props }) => {
+const linkMode = classifyParagraphLinkMode(node as MarkdownElementNode | undefined);
+return <p {...props} {...(linkMode ? { "data-atlas-link-mode": linkMode } : {})} />;
+},
 a: ({ node, ...props }) => {
 const href = typeof props.href === 'string' ? props.href : '';
 if (href === '#atlas-human') {

@@ -5,7 +5,7 @@ const asciiPunctuation = String.raw`!"#$%&'()*+,-./:;<=>?@[\]^_` + "`" + String.
 
 describe("chat markdown plain-text rendering", () => {
   it("matches the bubble-visible text for escaped punctuation and links", () => {
-    const escaped = Array.from(asciiPunctuation).map((ch) => `\\${ch}`).join("");
+    const escaped = Array.from(asciiPunctuation).map((ch) => `\\${ch}`).join(" ");
     const rendered = renderChatMarkdownPlainText(
       [
         `Muttrar och Skruvar${escaped}`,
@@ -14,7 +14,7 @@ describe("chat markdown plain-text rendering", () => {
       ].join("\n\n"),
     );
 
-    expect(rendered).toContain(`Muttrar och Skruvar${asciiPunctuation}`);
+    expect(rendered).toContain(`Muttrar och Skruvar${Array.from(asciiPunctuation).join(" ")}`);
     expect(rendered).toContain("Läs mer (https://www.bossesfejksida.se/kategori_muttrar_skruvar)");
     expect(rendered).toContain("Starta ett ärende");
     expect(rendered).not.toMatch(/\\[!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]/);

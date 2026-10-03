@@ -100,6 +100,7 @@ import { buildOfficeHoursNoticeText } from "../../lib/office-hours-notice";
 import { formatCityAreaLabel } from "@/lib/place-format";
 import { shouldSkipRepeatedMenuMessage } from "@/lib/repeated-menu-message";
 import { downloadChatLog } from "@/lib/chat-log-download";
+import { buildLockedContextSyncToast, buildOfficeMenuQuestion, mapChoiceValueToDisplayLabel } from "@/lib/chat-widget-display";
 import { toast } from "sonner";
 import { Download } from "lucide-react";
 
@@ -712,9 +713,9 @@ return id;
 
 // 🕒 Notis när chatten är obemannad. Informerar bara — inget flöde blockeras.
 const buildOfficeHoursNotice = () => {
-// Patrik IRL 2026-07-31: länken låg mitt i löptexten. index.css:497 ger den
-// pill-formen via `p > a:only-child` (textnoder räknas inte som syskon), så den
-// blev en knapp med text som rann runt sig. Egna stycken före/efter ⇒ egen rad.
+// Patrik IRL 2026-07-31: länken låg mitt i löptexten och blev tidigare
+// knappformad av CSS i stället för av det renderade markdownträdet.
+// Egna stycken före/efter ⇒ egen rad.
 return buildOfficeHoursNoticeText({
 reopensLabel: chatReopensLabel,
 // AtlasChat.tsx:350-351 + standard-selfservice-machine.ts:46-68:
@@ -780,13 +781,19 @@ timestamp: new Date(),
 });
 };
 
-const getOfficeChoices = (): { label: string; value: string }[] => [
+const getOfficeChoices = useCallback((): { label: string; value: string }[] => [
 { label: supportDisplayName || 'Supportavdelningen', value: 'Centralsupport' },
 ...offices.map((office) => {
 const name = getOfficeDisplayName(office);
 return { label: name, value: name };
 }),
-];
+], [offices, supportDisplayName]);
+
+const getOfficeChoiceDisplayLabel = useCallback((value: string) =>
+mapChoiceValueToDisplayLabel(value, getOfficeChoices()), [getOfficeChoices]);
+
+const getEngineOfficeMenuQuestion = () =>
+buildOfficeMenuQuestion(resolveChatUnitWord(tenantProfile));
 
 // Utvägen för den som inte vet vilken enhet frågan hör till låg fram till
 // 2026-08-19 SIST i denna lista, som ett helbrett chip (K7/C, Patrik 2026-07-25).
@@ -1526,7 +1533,7 @@ prev.role === mapHistoryRole(msg.role)
 return {
 id: existingMsg?.id || `history_${index}_${Date.now()}`,
 role: mapHistoryRole(msg.role),
-content: msg.content,
+content: mapHistoryRole(msg.role) === 'user' ? getOfficeChoiceDisplayLabel(msg.content) : msg.content,
 timestamp: existingMsg?.timestamp || new Date(),
 };
 });
@@ -1543,7 +1550,7 @@ console.error('[AtlasChat] Polling error:', error);
 // Don't show error toast for polling failures - silent retry
 return null;
 }
-}, [applyArchivedState]);
+}, [applyArchivedState, getOfficeChoiceDisplayLabel]);
 persistentStatusPollRef.current = pollHistory;
 
 const handleReconnect = useCallback(() => {
@@ -1766,10 +1773,11 @@ messageContext.clear_vehicle = true;
 }
 
 // 2. Lägg till användarens meddelande i listan
+const displayContent = sendSource === 'menu' ? getOfficeChoiceDisplayLabel(content) : content;
 const userMessage: ChatMessage = {
 id: Date.now().toString(),
 role: 'user',
-content,
+content: displayContent,
 timestamp: new Date(),
 };
 
@@ -1800,7 +1808,7 @@ return;
 // 4. Uppdatera context OCH de visuella knapparna om servern ändrat kontext
 if (response.locked_context) {
 const newV = getSafeActiveVehicle(response.locked_context.vehicle);
-const vehicleChoice = (response.locked_context as any).vehicle_choice;
+const vehicleChoice = response.locked_context.vehicle_choice;
 const newCity = response.locked_context.city;
 const newArea = response.locked_context.area;
 const mergedArea = newCity ? (newArea ?? null) : (newArea ?? context.area ?? null);
@@ -1815,7 +1823,8 @@ clear_vehicle: vehicleChoice === 'OVRIGT',
 });
 
 // B) SYNK TILL UI: Uppdatera fordonstyp-knappen
-if (newV && newV !== selectedVehicle && !(selectedVehicle === 'LASTBIL' && newV === 'BIL')) {
+const vehicleWasSetByThisSync = !!newV && newV !== selectedVehicle && !(selectedVehicle === 'LASTBIL' && newV === 'BIL');
+if (vehicleWasSetByThisSync) {
 setGeneralMode(false);
 setSelectedVehicle(newV);
 window.selectedVehicle = newV;
@@ -1835,7 +1844,13 @@ window.selectedCity = uiCityLabel;
 
 const isSingleton = !!singletonOffice && !!singletonVehicle;
 if (!isSingleton) {
-toast.info(`Vi har anpassat dina val till ${uiCityLabel} och ${newV || 'fordon'}.`, {
+toast.info(buildLockedContextSyncToast({
+cityLabel: uiCityLabel,
+nextVehicle: newV,
+previousVehicle: selectedVehicle,
+vehicleWasSetByThisSync,
+categoryChoices,
+}), {
 duration: 3000,
 });
 }
@@ -2053,7 +2068,7 @@ setIntakeData({});
 
 const handleChoiceSelected = (value: string) => {
 if (value === OPEN_OFFICE_MENU_VALUE) {
-injectBotMessage(widgetTexts.officeQuestion, getOfficeChoices());
+injectBotMessage(getEngineOfficeMenuQuestion(), getOfficeChoices());
 return;
 }
 // "Hoppa över" på de valfria kontaktstegen (e-post/mobil) beter sig exakt som att skriva "hoppa över".
@@ -2207,7 +2222,7 @@ lastMessageCountRef.current += 1;
 
 if (response.locked_context) {
 const newV = getSafeActiveVehicle(response.locked_context.vehicle);
-const vehicleChoice = (response.locked_context as any).vehicle_choice;
+const vehicleChoice = response.locked_context.vehicle_choice;
 const newCity = response.locked_context.city;
 const newArea = response.locked_context.area;
 const mergedArea = newCity ? (newArea ?? null) : (newArea ?? context.area ?? null);
