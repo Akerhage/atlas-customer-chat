@@ -609,7 +609,7 @@ describe("AtlasChat intake-order contract", () => {
     expect(pollEnd).toBeGreaterThan(pollStart);
     const block = source.slice(pollStart, pollEnd);
 
-    expect(block).toContain("content: msg.content,");
+    expect(block).toContain("mapHistoryMessages(history.messages, prevMessages)");
     expect(source).toContain("buildDisplayMessages(messages, getOfficeChoiceDisplayLabel)");
   });
 

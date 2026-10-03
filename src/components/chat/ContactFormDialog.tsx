@@ -46,6 +46,7 @@ import { filterCategoryChoicesForOffice, type IntakeMode } from "@/lib/intake-ma
 import {
 STANDARD_CENTRAL_SUPPORT_LABEL,
 } from "@/lib/standard-selfservice-machine";
+import { getVehicleDisplayLabel } from "@/lib/vehicle-display-label";
 
 interface ContactFormDialogProps {
 onSubmit?: (data: any) => void;
@@ -69,14 +70,6 @@ const DEFAULT_CITY = "Centralsupport";
 const DEFAULT_VEHICLE = "BIL";
 const GENERAL_VEHICLE_VALUE = "OVRIGT";
 const HTML_IMAGE_PASTE_TOAST_ID = "atlas-form-html-image-paste";
-const FALLBACK_VEHICLE_LABELS: Record<ActiveVehicle, string> = {
-  BIL: "Bil",
-  MC: "MC",
-  AM: "Moped",
-  LASTBIL: "Tung trafik",
-  SLÄP: "Släp",
-};
-
 const getOfficeDisplayName = (office: any) => {
 const city = String(office?.city || '').trim();
 const area = String(office?.area || '').trim();
@@ -155,7 +148,7 @@ const vehicleOptions: { value: ActiveVehicle | typeof GENERAL_VEHICLE_VALUE; lab
 .map((option) => ({ value: option.value as ActiveVehicle, label: option.label })),
 ...activeVehicles
 .filter((vehicle) => !categoryChoices.some((option) => option.value === vehicle))
-.map((vehicle) => ({ value: vehicle, label: FALLBACK_VEHICLE_LABELS[vehicle] || vehicle })),
+.map((vehicle) => ({ value: vehicle, label: getVehicleDisplayLabel(categoryChoices, vehicle) })),
 ];
 useEffect(() => {
 if (open) {

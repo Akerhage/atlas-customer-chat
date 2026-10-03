@@ -51,6 +51,7 @@ choices?: { label: string; value: string }[];
 export interface HistoryMessage {
 role: 'user' | 'atlas' | 'agent';
 content: string;
+timestamp?: number | string | null;
 }
 
 export interface HistoryResponse {

@@ -1,69 +1,45 @@
-import { unified } from "unified";
-import remarkParse from "remark-parse";
+import { parseChatMarkdown } from "./chat-markdown";
 
 type MarkdownNode = {
   type?: string;
+  tagName?: string;
   value?: string;
-  url?: string;
+  properties?: Record<string, unknown>;
   children?: MarkdownNode[];
 };
 
-const parser = unified().use(remarkParse);
+const BLOCK_TAGS = new Set(["p", "div", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "pre", "figure", "figcaption"]);
 
-function compactInline(text: string): string {
-  return text.replace(/[ \t\n\r]+/g, " ").trim();
-}
-
-function renderInline(node: MarkdownNode): string {
-  switch (node.type) {
-    case "text":
-    case "inlineCode":
-    case "code":
-      return node.value || "";
-    case "break":
-      return "\n";
-    case "link": {
-      const label = compactInline(renderInlineChildren(node));
-      const url = String(node.url || "").trim();
-      if (/^https?:\/\//i.test(url)) return `${label} (${url})`;
-      return label;
-    }
-    case "image":
-      return node.value || "";
-    default:
-      return renderInlineChildren(node);
+function renderNode(node: MarkdownNode): string {
+  if (node.type === "text") return String(node.value || "").replace(/[\t\n\r ]+/g, " ");
+  if (node.type !== "element" && node.type !== "root") return "";
+  const tag = String(node.tagName || "").toLowerCase();
+  if (tag === "br") return "\n";
+  if (tag === "img") return String(node.properties?.alt || "");
+  if (tag === "ul" || tag === "ol") {
+    let index = Number(node.properties?.start || 1);
+    return (node.children || []).map((child) => {
+      if (child.type !== "element" || child.tagName !== "li") return renderNode(child);
+      const marker = tag === "ol" ? `${index++}. ` : "• ";
+      return `${marker}${renderChildren(child).trim()}\n`;
+    }).join("");
   }
-}
-
-function renderInlineChildren(node: MarkdownNode): string {
-  return (node.children || []).map(renderInline).join("");
-}
-
-function renderBlock(node: MarkdownNode): string[] {
-  switch (node.type) {
-    case "root":
-      return (node.children || []).flatMap(renderBlock);
-    case "paragraph":
-    case "heading":
-      return [compactInline(renderInlineChildren(node))].filter(Boolean);
-    case "list":
-      return (node.children || []).flatMap(renderBlock);
-    case "listItem": {
-      const text = compactInline((node.children || []).flatMap(renderBlock).join(" "));
-      return text ? [`• ${text}`] : [];
-    }
-    case "blockquote":
-      return (node.children || []).flatMap(renderBlock);
-    case "thematicBreak":
-      return [];
-    default: {
-      const text = compactInline(renderInline(node));
-      return text ? [text] : [];
-    }
+  const content = renderChildren(node);
+  if (tag === "a") {
+    const href = String(node.properties?.href || "").trim();
+    return /^https?:\/\//i.test(href) ? `${content} (${href})` : content;
   }
+  return BLOCK_TAGS.has(tag) ? `\n${content}\n` : content;
+}
+
+function renderChildren(node: MarkdownNode): string {
+  return (node.children || []).map(renderNode).join("");
 }
 
 export function renderChatMarkdownPlainText(markdown: string): string {
-  const tree = parser.parse(markdown) as MarkdownNode;
-  return renderBlock(tree).join("\n").trim();
+  return renderNode(parseChatMarkdown(markdown) as MarkdownNode)
+    .replace(/[\t\r ]+/g, " ")
+    .replace(/ *\n */g, "\n")
+    .replace(/\n{2,}/g, "\n")
+    .trim();
 }

@@ -1,3 +1,5 @@
+import { getVehicleDisplayLabel } from "./vehicle-display-label";
+
 type Choice = { label: string; value: string };
 type CategoryChoice = { label: string; value: string };
 
@@ -11,12 +13,6 @@ export function buildOfficeMenuQuestion(unitWord: string | null | undefined): st
   return `Välj ${word}.`;
 }
 
-function getCategoryLabelForValue(categoryChoices: CategoryChoice[], value: string | null | undefined): string | null {
-  if (!value) return null;
-  const match = categoryChoices.find((choice) => choice.value === value);
-  return match?.label || value;
-}
-
 export function buildLockedContextSyncToast(options: {
   cityLabel: string;
   nextVehicle: string | null | undefined;
@@ -27,7 +23,7 @@ export function buildLockedContextSyncToast(options: {
   const city = options.cityLabel.trim();
   const parts = [city];
   const vehicleLabel = options.vehicleWasSetByThisSync
-    ? getCategoryLabelForValue(options.categoryChoices, options.nextVehicle)
+    ? getVehicleDisplayLabel(options.categoryChoices, options.nextVehicle)
     : null;
   if (vehicleLabel) parts.push(vehicleLabel);
   return `Vi har anpassat dina val till ${parts.join(' och ')}.`;

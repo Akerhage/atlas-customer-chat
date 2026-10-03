@@ -1,24 +1,8 @@
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
-import rehypeRaw from "rehype-raw";
-import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import { Car, User } from "lucide-react";
 import { resolveCategoryIcon } from "@/lib/category-icons";
-
-// Tillåt markdown-formattering och bilder men blockera script, on*-attribut
-// och fri inline-styling/classer som kan spräcka chatlayouten.
-const sanitizeSchema = {
-...defaultSchema,
-tagNames: [
-...(defaultSchema.tagNames ?? []),
-'img', 'span', 'div', 'figure', 'figcaption',
-],
-attributes: {
-...defaultSchema.attributes,
-'a': ['href', 'target', 'rel'],
-'img': ['src', 'alt', 'width', 'height'],
-},
-};
+import { chatMarkdownRehypePlugins } from "@/lib/chat-markdown";
 
 type MarkdownElementNode = {
 tagName?: string;
@@ -111,7 +95,7 @@ isUser
 )}>
 <div className="atlas-message-content">
 <ReactMarkdown
-rehypePlugins={[rehypeRaw, [rehypeSanitize, sanitizeSchema]]}
+rehypePlugins={chatMarkdownRehypePlugins}
 components={{
 p: ({ node, ...props }) => {
 const linkMode = classifyParagraphLinkMode(node as MarkdownElementNode | undefined);

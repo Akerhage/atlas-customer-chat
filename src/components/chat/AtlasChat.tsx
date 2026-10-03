@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, type CSSProperties } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo, type CSSProperties } from "react";
 import { ChatHeader } from "./ChatHeader";
 import { ChatBubble } from "./ChatBubble";
 import { ChatInput } from "./ChatInput";
@@ -101,6 +101,8 @@ import { formatCityAreaLabel } from "@/lib/place-format";
 import { shouldSkipRepeatedMenuMessage } from "@/lib/repeated-menu-message";
 import { downloadChatLog } from "@/lib/chat-log-download";
 import { buildLockedContextSyncToast, buildOfficeMenuQuestion, mapChoiceValueToDisplayLabel } from "@/lib/chat-widget-display";
+import { buildDisplayMessages, mapHistoryMessages, resolveArchivedMessage } from "@/lib/chat-message-display";
+import { getVehicleDisplayLabel as getCategoryLabelForVehicle } from "@/lib/vehicle-display-label";
 import { toast } from "sonner";
 import { Download } from "lucide-react";
 
@@ -243,27 +245,8 @@ unit_id: matches[0].routing_tag || null
 return value ? { ...splitCityArea(value), unit_id: null } : { city: null, area: null, unit_id: null };
 }
 
-const FALLBACK_VEHICLE_LABELS: Record<VehicleType, string> = {
-BIL: 'Bil',
-MC: 'MC',
-AM: 'Moped',
-LASTBIL: 'Tung trafik',
-SLÄP: 'Släp',
-};
-
 function getSafeVehicle(value: string | null | undefined): VehicleType | null {
 return ['BIL', 'MC', 'AM', 'LASTBIL', 'SLÄP'].includes(String(value || '')) ? value as VehicleType : null;
-}
-
-function getCategoryLabelForVehicle(
-categoryChoices: { label: string; value: string }[],
-vehicle: VehicleType | string | null | undefined
-): string {
-const safeVehicle = getSafeVehicle(vehicle);
-if (!safeVehicle) return String(vehicle || '');
-return categoryChoices.find((choice) => choice.value === safeVehicle)?.label
-|| FALLBACK_VEHICLE_LABELS[safeVehicle]
-|| safeVehicle;
 }
 
 function buildActiveVehicleChoices(
@@ -610,9 +593,7 @@ archiveEffectsRef.current = (status) => {
 const reason = status.closeReason || null;
 setIsArchived(true);
 setCloseReason(reason);
-setArchivedMessage(status.message || (reason === 'inactivity'
-? 'Chatten har stängts automatiskt på grund av inaktivitet.'
-: (reason === 'deleted' ? 'Chatten har avslutats.' : 'Chatten är avslutad av handläggaren.')));
+setArchivedMessage(status.message || resolveArchivedMessage(reason));
 if (agentTypingTimerRef.current) {
 clearTimeout(agentTypingTimerRef.current);
 agentTypingTimerRef.current = null;
@@ -791,6 +772,10 @@ return { label: name, value: name };
 
 const getOfficeChoiceDisplayLabel = useCallback((value: string) =>
 mapChoiceValueToDisplayLabel(value, getOfficeChoices()), [getOfficeChoices]);
+const displayMessages = useMemo(
+() => buildDisplayMessages(messages, getOfficeChoiceDisplayLabel),
+[messages, getOfficeChoiceDisplayLabel]
+);
 
 const getEngineOfficeMenuQuestion = () =>
 buildOfficeMenuQuestion(resolveChatUnitWord(tenantProfile));
@@ -1523,20 +1508,7 @@ setMessages((prevMessages) => {
 // Behåll välkomstbubblan i toppen om den finns
 const welcomeMsg = prevMessages.find(m => m.id === 'welcome-msg');
 
-const newMessages: ChatMessage[] = history.messages.map((msg, index) => {
-const existingMsg = prevMessages.find(
-(prev) =>
-prev.content === msg.content &&
-prev.role === mapHistoryRole(msg.role)
-);
-
-return {
-id: existingMsg?.id || `history_${index}_${Date.now()}`,
-role: mapHistoryRole(msg.role),
-content: mapHistoryRole(msg.role) === 'user' ? getOfficeChoiceDisplayLabel(msg.content) : msg.content,
-timestamp: existingMsg?.timestamp || new Date(),
-};
-});
+const newMessages = mapHistoryMessages(history.messages, prevMessages) as ChatMessage[];
 
 return welcomeMsg ? [welcomeMsg, ...newMessages] : newMessages;
 });
@@ -1550,7 +1522,7 @@ console.error('[AtlasChat] Polling error:', error);
 // Don't show error toast for polling failures - silent retry
 return null;
 }
-}, [applyArchivedState, getOfficeChoiceDisplayLabel]);
+}, [applyArchivedState]);
 persistentStatusPollRef.current = pollHistory;
 
 const handleReconnect = useCallback(() => {
@@ -2561,7 +2533,7 @@ Chatten stängs automatiskt pga inaktivitet om{' '}
 </div>
 <button
 type="button"
-onClick={() => downloadChatLog(messages)}
+onClick={() => downloadChatLog(displayMessages)}
 aria-label="Spara kopia av chattloggen"
 title="Spara kopia av chattloggen"
 className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-full border border-border/70 bg-background/70 px-3 text-xs font-medium text-foreground shadow-sm transition-colors hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
@@ -2601,14 +2573,14 @@ unitWord={contextBarUnitWord.toLocaleLowerCase('sv-SE')}
 )}
 
 {/* Alla meddelanden renderas alltid, inklusive välkomstbubblan */}
-{messages.map((message, index) => (
+{displayMessages.map((message, index) => (
 <ChatBubble
 key={message.id}
 messageId={message.id}
 content={message.content}
 isUser={message.role === 'user'}
 timestamp={message.timestamp}
-isLatest={index === messages.length - 1}
+isLatest={index === displayMessages.length - 1}
 senderName={message.senderName}
 companyName={companyName}
 choices={message.choices}
@@ -2699,7 +2671,7 @@ aiRepliesEnabled={aiRepliesEnabled}
 <EndSessionDialog
 open={showEndDialog}
 onOpenChange={setShowEndDialog}
-messages={messages}
+messages={displayMessages}
 onConfirm={handleConfirmEnd}
 closeReason={closeReason}
 />
