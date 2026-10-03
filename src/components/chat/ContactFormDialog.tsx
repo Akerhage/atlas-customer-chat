@@ -143,7 +143,13 @@ const filteredCategoryChoices = categoryFormMode
 : categoryChoices;
 const vehicleOptions: { value: ActiveVehicle | typeof GENERAL_VEHICLE_VALUE; label: string }[] = [
 { value: GENERAL_VEHICLE_VALUE, label: "Övrigt / Allmän fråga" },
-...buildVehicleDisplayOptions(categoryChoices, activeVehicles),
+...categoryChoices
+.filter((option) => activeVehicles.includes(option.value as ActiveVehicle))
+.map((option) => ({ value: option.value as ActiveVehicle, label: option.label })),
+...buildVehicleDisplayOptions(
+categoryChoices,
+activeVehicles.filter((vehicle) => !categoryChoices.some((option) => option.value === vehicle)),
+),
 ];
 useEffect(() => {
 if (open) {
