@@ -43,6 +43,16 @@ describe("widget display helpers", () => {
     })).toBe("Vi har anpassat dina val till Eslöv.");
   });
 
+  it("uses the shared vehicle fallback when the active vehicle is outside tenant choices", () => {
+    expect(buildLockedContextSyncToast({
+      cityLabel: "Eslöv",
+      nextVehicle: "AM",
+      previousVehicle: null,
+      vehicleWasSetByThisSync: true,
+      categoryChoices,
+    })).toBe("Vi har anpassat dina val till Eslöv och Moped.");
+  });
+
   it("uses tenant unit words for the engine office menu instead of intake copy", () => {
     expect(buildOfficeMenuQuestion("kontor")).toBe("Välj kontor.");
     expect(buildOfficeMenuQuestion("avdelning")).toBe("Välj avdelning.");
