@@ -103,6 +103,10 @@ import { downloadChatLog } from "@/lib/chat-log-download";
 import { buildLockedContextSyncToast, buildOfficeMenuQuestion, mapChoiceValueToDisplayLabel } from "@/lib/chat-widget-display";
 import { buildDisplayMessages, mapHistoryMessages, resolveArchivedMessage } from "@/lib/chat-message-display";
 import { getVehicleDisplayLabel as getCategoryLabelForVehicle } from "@/lib/vehicle-display-label";
+import {
+getOfficeDisplayName,
+resolveLockedContextSelfserviceSync,
+} from "@/lib/locked-context-selfservice-sync";
 import { toast } from "sonner";
 import { Download } from "lucide-react";
 
@@ -167,12 +171,6 @@ return { city: hyphenParts[0].trim(), area: hyphenParts[1].trim() };
 }
 
 return { city: normalized, area: null };
-}
-
-function getOfficeDisplayName(office: Partial<Office>): string {
-const city = String(office.city || '').trim();
-const area = String(office.area || '').trim();
-return String(office.display_name || (city ? (area ? `${city} - ${area}` : city) : '') || office.name || office.routing_tag || '').trim();
 }
 
 function normalizeOfficeLabel(value: string | null | undefined): string {
@@ -891,6 +889,70 @@ showStandardMenu([]);
 } finally {
 setIsTyping(false);
 }
+};
+
+const applyLockedContextSync = async (lockedContext: ChatContext) => {
+const newV = getSafeActiveVehicle(lockedContext.vehicle);
+const vehicleChoice = lockedContext.vehicle_choice;
+const newCity = lockedContext.city;
+const newArea = lockedContext.area;
+const mergedArea = newCity ? (newArea ?? null) : (newArea ?? context.area ?? null);
+const next = resolveLockedContextSelfserviceSync({
+edition: tenantProfile?.edition,
+offices,
+current: {
+selfserviceUnitId,
+selfserviceUnitLabel,
+selectedCity,
+selectedCategoryId,
+selectedVehicle,
+},
+lockedContext: {
+...lockedContext,
+vehicle: newV,
+area: mergedArea,
+},
+});
+
+if (!next) return null;
+
+setContext({
+city: newCity ?? context.city ?? null,
+area: mergedArea,
+unit_id: next.unitId,
+vehicle: newV ?? (vehicleChoice === 'OVRIGT' ? null : getSafeActiveVehicle(context.vehicle) ?? null),
+vehicle_choice: vehicleChoice === 'OVRIGT' ? 'OVRIGT' : null,
+clear_vehicle: vehicleChoice === 'OVRIGT',
+category_id: next.selectedCategoryId ?? context.category_id ?? null,
+});
+
+setSelfserviceUnitId(next.unitId);
+setSelfserviceUnitLabel(next.unitLabel);
+setSelectedCity(next.selectedCity);
+window.selectedCity = next.selectedCity;
+setSelectedCategoryId(next.selectedCategoryId);
+setSelectedVehicle(next.selectedVehicle as VehicleType | null);
+window.selectedVehicle = next.selectedVehicle as ActiveVehicle | null;
+setGeneralMode(vehicleChoice === 'OVRIGT');
+
+if (standardSelfserviceAvailable && next.menuCategoryId) {
+try {
+const response = await getStandardSelfserviceMenu(next.menuUnitId, next.menuCategoryId);
+setSelfserviceMenu(response.items);
+setSelfserviceStage('menu');
+} catch (error) {
+console.error('[AtlasChat] Locked context selfservice menu error:', error);
+setSelfserviceMenu([]);
+}
+} else if (standardSelfserviceAvailable) {
+setSelfserviceMenu([]);
+}
+
+return {
+...next,
+newV,
+vehicleWasSetByThisSync: !!newV && newV !== selectedVehicle && !(selectedVehicle === 'LASTBIL' && newV === 'BIL'),
+};
 };
 
 const beginStandardSelfservice = () => {
@@ -1779,53 +1841,19 @@ return;
 
 // 4. Uppdatera context OCH de visuella knapparna om servern ändrat kontext
 if (response.locked_context) {
-const newV = getSafeActiveVehicle(response.locked_context.vehicle);
-const vehicleChoice = response.locked_context.vehicle_choice;
-const newCity = response.locked_context.city;
-const newArea = response.locked_context.area;
-const mergedArea = newCity ? (newArea ?? null) : (newArea ?? context.area ?? null);
-
-// A) Uppdatera intern context-state (för nästa sökning)
-setContext({
-city: newCity ?? context.city ?? null,
-area: mergedArea,
-vehicle: newV ?? (vehicleChoice === 'OVRIGT' ? null : getSafeActiveVehicle(context.vehicle) ?? null),
-vehicle_choice: vehicleChoice === 'OVRIGT' ? 'OVRIGT' : null,
-clear_vehicle: vehicleChoice === 'OVRIGT',
-});
-
-// B) SYNK TILL UI: Uppdatera fordonstyp-knappen
-const vehicleWasSetByThisSync = !!newV && newV !== selectedVehicle && !(selectedVehicle === 'LASTBIL' && newV === 'BIL');
-if (vehicleWasSetByThisSync) {
-setGeneralMode(false);
-setSelectedVehicle(newV);
-window.selectedVehicle = newV;
-} else if (vehicleChoice === 'OVRIGT') {
-setGeneralMode(true);
-setSelectedVehicle(null);
-window.selectedVehicle = null;
-}
-
-// C) SYNK TILL UI: Uppdatera stads-knappen
-if (newCity) {
-const uiCityLabel = formatCityAreaLabel(newCity, mergedArea);
-
-if (uiCityLabel && uiCityLabel !== selectedCity) {
-setSelectedCity(uiCityLabel);
-window.selectedCity = uiCityLabel;
-
+const syncResult = await applyLockedContextSync(response.locked_context);
+if (syncResult && syncResult.unitLabel !== selfserviceUnitLabel) {
 const isSingleton = !!singletonOffice && !!singletonVehicle;
 if (!isSingleton) {
 toast.info(buildLockedContextSyncToast({
-cityLabel: uiCityLabel,
-nextVehicle: newV,
+cityLabel: syncResult.unitLabel,
+nextVehicle: syncResult.newV,
 previousVehicle: selectedVehicle,
-vehicleWasSetByThisSync,
+vehicleWasSetByThisSync: syncResult.vehicleWasSetByThisSync,
 categoryChoices,
 }), {
 duration: 3000,
 });
-}
 }
 }
 }
@@ -1849,6 +1877,7 @@ timestamp: new Date(),
 choices: response.choices,
 choiceSource: response.choices?.length ? 'engine' : undefined,
 };
+
 pendingAssistantScrollRef.current = assistantMessage.id;
 setMessages((prev) => [...prev, assistantMessage]);
 }
@@ -2193,34 +2222,7 @@ notifySiblingTabs();
 lastMessageCountRef.current += 1;
 
 if (response.locked_context) {
-const newV = getSafeActiveVehicle(response.locked_context.vehicle);
-const vehicleChoice = response.locked_context.vehicle_choice;
-const newCity = response.locked_context.city;
-const newArea = response.locked_context.area;
-const mergedArea = newCity ? (newArea ?? null) : (newArea ?? context.area ?? null);
-setContext({
-city: newCity ?? context.city ?? null,
-area: mergedArea,
-vehicle: newV ?? (vehicleChoice === 'OVRIGT' ? null : getSafeActiveVehicle(context.vehicle) ?? null),
-vehicle_choice: vehicleChoice === 'OVRIGT' ? 'OVRIGT' : null,
-clear_vehicle: vehicleChoice === 'OVRIGT',
-});
-if (newV && newV !== selectedVehicle) {
-setGeneralMode(false);
-setSelectedVehicle(newV);
-window.selectedVehicle = newV;
-} else if (vehicleChoice === 'OVRIGT') {
-setGeneralMode(true);
-setSelectedVehicle(null);
-window.selectedVehicle = null;
-}
-if (newCity) {
-const uiCityLabel = formatCityAreaLabel(newCity, mergedArea);
-if (uiCityLabel && uiCityLabel !== selectedCity) {
-setSelectedCity(uiCityLabel);
-window.selectedCity = uiCityLabel;
-}
-}
+await applyLockedContextSync(response.locked_context);
 }
 
 if (response.human_mode) {
