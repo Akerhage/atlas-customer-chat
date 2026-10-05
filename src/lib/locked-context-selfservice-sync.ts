@@ -1,3 +1,5 @@
+import { formatCityAreaLabel } from "./place-format";
+
 export interface LockedContextOffice {
   routing_tag: string;
   name?: string | null;
@@ -107,5 +109,30 @@ export function resolveLockedContextSelfserviceSync({
     menuUnitId: office.routing_tag,
     menuCategoryId: selectedCategoryId,
     escalationUnitLabel: unitLabel,
+  };
+}
+
+export function resolveLockedContextFallbackSync({
+  current,
+  lockedContext,
+}: {
+  current: Pick<LockedContextSelfserviceState, "selectedCity" | "selectedVehicle">;
+  lockedContext: LockedContextValue;
+}) {
+  const lockedVehicle = String(lockedContext.vehicle || "").trim() || null;
+  const clearsVehicle = lockedContext.vehicle_choice === "OVRIGT";
+  const vehicleWasSetByThisSync = !clearsVehicle
+    && !!lockedVehicle
+    && lockedVehicle !== current.selectedVehicle
+    && !(current.selectedVehicle === "LASTBIL" && lockedVehicle === "BIL");
+  const cityLabel = formatCityAreaLabel(lockedContext.city, lockedContext.city ? lockedContext.area : null);
+  const cityChanged = !!cityLabel && cityLabel !== current.selectedCity;
+  if (!clearsVehicle && !vehicleWasSetByThisSync && !cityChanged) return null;
+  return {
+    selectedCity: cityChanged ? cityLabel : current.selectedCity,
+    cityChanged,
+    selectedVehicle: clearsVehicle ? null : (vehicleWasSetByThisSync ? lockedVehicle : current.selectedVehicle),
+    generalMode: clearsVehicle ? true : (vehicleWasSetByThisSync ? false : null),
+    vehicleWasSetByThisSync,
   };
 }

@@ -105,6 +105,7 @@ import { buildDisplayMessages, mapHistoryMessages, resolveArchivedMessage } from
 import { getVehicleDisplayLabel as getCategoryLabelForVehicle } from "@/lib/vehicle-display-label";
 import {
 getOfficeDisplayName,
+resolveLockedContextFallbackSync,
 resolveLockedContextSelfserviceSync,
 } from "@/lib/locked-context-selfservice-sync";
 import { toast } from "sonner";
@@ -914,7 +915,30 @@ area: mergedArea,
 },
 });
 
-if (!next) return null;
+if (!next) {
+setContext({
+city: newCity ?? context.city ?? null,
+area: mergedArea,
+vehicle: newV ?? (vehicleChoice === 'OVRIGT' ? null : getSafeActiveVehicle(context.vehicle) ?? null),
+vehicle_choice: vehicleChoice === 'OVRIGT' ? 'OVRIGT' : null,
+clear_vehicle: vehicleChoice === 'OVRIGT',
+});
+const fallback = resolveLockedContextFallbackSync({
+current: { selectedCity, selectedVehicle },
+lockedContext: { ...lockedContext, vehicle: newV, area: mergedArea },
+});
+if (!fallback) return null;
+if (fallback.generalMode !== null) setGeneralMode(fallback.generalMode);
+setSelectedVehicle(fallback.selectedVehicle as VehicleType | null);
+window.selectedVehicle = fallback.selectedVehicle as ActiveVehicle | null;
+setSelectedCity(fallback.selectedCity);
+window.selectedCity = fallback.selectedCity;
+return {
+unitLabel: fallback.cityChanged ? fallback.selectedCity : selfserviceUnitLabel,
+newV,
+vehicleWasSetByThisSync: fallback.vehicleWasSetByThisSync,
+};
+}
 
 setContext({
 city: newCity ?? context.city ?? null,
